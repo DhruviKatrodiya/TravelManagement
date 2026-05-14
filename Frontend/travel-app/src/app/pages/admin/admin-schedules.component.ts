@@ -44,7 +44,7 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
       <div class="modal-dialog modal-lg modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit scheduled trip' : 'Schedule a tour' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Scheduled trip details' : (editingId ? 'Edit scheduled trip' : 'Schedule a tour') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body">
@@ -84,8 +84,10 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid || seatsOutOfRange()" [title]="form.invalid || seatsOutOfRange() ? 'Fix the highlighted fields to save' : 'Save schedule'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid || seatsOutOfRange()" [title]="form.invalid || seatsOutOfRange() ? 'Fix the highlighted fields to save' : 'Save schedule'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -156,7 +158,11 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
                     <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Reopen
                   </button>
                 </ng-container>
-                <ng-template #readOnlySch><span class="text-muted small">View only</span></ng-template>
+                <ng-template #readOnlySch>
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View trip details">
+                    <i class="bi bi-eye me-1"></i>View
+                  </button>
+                </ng-template>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -195,6 +201,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   tours: Tour[] = [];
   packages: TourPackage[] = [];
   editingId: number | null = null;
+  viewMode = false;
 
   deleteTarget: TourSchedule | null = null;
   deleting = false;
@@ -373,12 +380,15 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
     this.form.reset({ tourId: 0, tourPackageId: 0, startDate: '', endDate: '', availableSeats: 10, isActive: true });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(s: TourSchedule): void {
     this.editingId = s.id;
+    this.viewMode = false;
     this.form.reset({
       tourId: s.tourId,
       tourPackageId: s.tourPackageId,
@@ -387,10 +397,31 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
       availableSeats: s.availableSeats,
       isActive: s.isActive
     });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(s: TourSchedule): void {
+    this.editingId = s.id;
+    this.viewMode = true;
+    this.form.reset({
+      tourId: s.tourId,
+      tourPackageId: s.tourPackageId,
+      startDate: this.toDateInput(s.startDate),
+      endDate: this.toDateInput(s.endDate),
+      availableSeats: s.availableSeats,
+      isActive: s.isActive
+    });
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   isInvalid(ctrl: AbstractControl | null): boolean {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);

@@ -13,8 +13,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = auth.getToken();
   const cloned = token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
 
+  const isAuthEndpoint = /\/auth\/(login|register)$/.test(req.url);
+
   return next(cloned).pipe(
     catchError((err: HttpErrorResponse) => {
+      if (isAuthEndpoint) {
+        // Let the login/register component show its own error toast so
+        // specific messages (e.g. "Your account has been deactivated") reach the user.
+        return throwError(() => err);
+      }
       if (err.status === 401) {
         auth.logout();
         router.navigateByUrl('/auth/login');

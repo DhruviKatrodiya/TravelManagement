@@ -45,7 +45,7 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
       <div class="modal-dialog modal-lg modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit package' : 'New package' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Package details' : (editingId ? 'Edit package' : 'New package') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
@@ -106,7 +106,7 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
                   <div *ngIf="facilities.length === 0" class="text-muted small">No facilities defined yet — add them from the Facilities page.</div>
                   <div class="d-flex flex-wrap gap-2">
                     <div class="form-check" *ngFor="let f of facilities">
-                      <input class="form-check-input" type="checkbox" [checked]="isSelected(f.id)" (change)="toggleFacility(f.id)" [id]="'f' + f.id" />
+                      <input class="form-check-input" type="checkbox" [checked]="isSelected(f.id)" (change)="toggleFacility(f.id)" [id]="'f' + f.id" [disabled]="viewMode" />
                       <label class="form-check-label small" [for]="'f' + f.id">{{ f.name }} <span class="text-muted">(₹{{ f.cost }})</span></label>
                     </div>
                   </div>
@@ -133,12 +133,12 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
                           <td>{{ it.dayNumber }}</td>
                           <td>{{ it.title }}</td>
                           <td>{{ it.location }}</td>
-                          <td><button type="button" class="btn btn-sm btn-outline-danger" (click)="removeItinerary(it.id)">Remove</button></td>
+                          <td><button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-danger" (click)="removeItinerary(it.id)">Remove</button></td>
                         </tr>
                         <tr *ngIf="currentItineraries.length === 0"><td colspan="4" class="text-center text-muted small py-2">No days yet.</td></tr>
                       </tbody>
                     </table>
-                    <div [formGroup]="itForm" class="row g-2">
+                    <div *ngIf="!viewMode" [formGroup]="itForm" class="row g-2">
                       <div class="col-md-1"><input type="number" class="form-control form-control-sm" formControlName="dayNumber" placeholder="Day" /></div>
                       <div class="col-md-3"><input class="form-control form-control-sm" formControlName="title" placeholder="Title" /></div>
                       <div class="col-md-2"><input class="form-control form-control-sm" formControlName="location" placeholder="Location" /></div>
@@ -150,8 +150,8 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save package'">Save</button>
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">{{ viewMode ? 'Close' : 'Cancel' }}</button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save package'">Save</button>
             </div>
           </form>
         </div>
@@ -214,7 +214,11 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
                     <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>
                 </ng-container>
-                <ng-template #readOnlyPkg><span class="text-muted small">View only</span></ng-template>
+                <ng-template #readOnlyPkg>
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View package details">
+                    <i class="bi bi-eye me-1"></i>View
+                  </button>
+                </ng-template>
               </td>
             </tr>
             <tr *ngIf="filteredPackages().length === 0">
@@ -254,6 +258,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   facilities: Facility[] = [];
   packages: TourPackage[] = [];
   editingId: number | null = null;
+  viewMode = false;
   selectedFacilityIds: number[] = [];
   currentItineraries: any[] = [];
 
@@ -448,6 +453,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
     this.selectedFacilityIds = [];
     this.currentItineraries = [];
     this.form.reset({
@@ -457,18 +463,36 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
       description: '', inclusions: '', exclusions: '',
       isCustomizable: false, isActive: true
     });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(p: TourPackage): void {
     this.editingId = p.id;
+    this.viewMode = false;
     this.selectedFacilityIds = (p.facilities || []).map(f => f.facilityId);
     this.currentItineraries = p.itineraries || [];
     this.form.reset({ ...p, childPrice: p.childPrice || 0 } as any);
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(p: TourPackage): void {
+    this.editingId = p.id;
+    this.viewMode = true;
+    this.selectedFacilityIds = (p.facilities || []).map(f => f.facilityId);
+    this.currentItineraries = p.itineraries || [];
+    this.form.reset({ ...p, childPrice: p.childPrice || 0 } as any);
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   isInvalid(ctrl: AbstractControl | null): boolean {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);

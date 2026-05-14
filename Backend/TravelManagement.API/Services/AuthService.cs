@@ -62,11 +62,14 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-        if (user is null || !user.IsActive)
+        if (user is null)
             throw new UnauthorizedAccessException("Invalid email or password.");
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new UnauthorizedAccessException("Invalid email or password.");
+
+        if (!user.IsActive)
+            throw new UnauthorizedAccessException("Your account has been deactivated. Please contact support to regain access.");
 
         user.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -103,6 +106,13 @@ public class AuthService : IAuthService
     {
         var user = await _db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("User not found.");
+
+        if (!string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await _db.Users.AnyAsync(u => u.Id != userId && u.Email == request.Email))
+                throw new InvalidOperationException("A user with this email already exists.");
+            user.Email = request.Email;
+        }
 
         user.FullName = request.FullName;
         user.Phone = request.Phone;

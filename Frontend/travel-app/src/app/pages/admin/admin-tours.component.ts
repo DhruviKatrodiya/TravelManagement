@@ -44,7 +44,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit tour' : 'New tour' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Tour details' : (editingId ? 'Edit tour' : 'New tour') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
@@ -64,13 +64,13 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <div class="col-12"><label class="form-label">Highlights</label><input class="form-control" formControlName="highlights" /></div>
                 <div class="col-12">
                   <label class="form-label">Image</label>
-                  <input #imgInput type="file" class="form-control" accept="image/*" (change)="onImageSelected($event)" [disabled]="uploading" />
+                  <input *ngIf="!viewMode" #imgInput type="file" class="form-control" accept="image/*" (change)="onImageSelected($event)" [disabled]="uploading" />
                   <small class="text-muted" *ngIf="uploading">Uploading…</small>
                   <div *ngIf="form.value.imageUrl" class="mt-2 d-flex align-items-start gap-2">
                     <img [src]="form.value.imageUrl" alt="Preview" (error)="onPreviewError($event)" style="max-height:120px;max-width:200px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;background:#f8f9fa" />
-                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="clearImage(imgInput)">Remove</button>
+                    <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-danger" (click)="clearImage(imgInput)">Remove</button>
                   </div>
-                  <small class="text-danger d-block mt-1" *ngIf="previewBroken">Existing image URL failed to load. Choose a new file to replace it.</small>
+                  <small *ngIf="!viewMode && previewBroken" class="text-danger d-block mt-1">Existing image URL failed to load. Choose a new file to replace it.</small>
                 </div>
                 <div class="col-12 form-check ms-2"><input class="form-check-input" type="checkbox" formControlName="isActive" id="isActive" /><label class="form-check-label" for="isActive">Active</label></div>
 
@@ -78,7 +78,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   <div class="col-12"><hr class="my-2" /></div>
                   <div class="col-12 d-flex align-items-center justify-content-between">
                     <h6 class="fw-bold mb-0"><i class="bi bi-box-seam me-2"></i>Packages</h6>
-                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="addPackage()" [disabled]="!tourDetailsValid()" [title]="tourDetailsValid() ? 'Add a pricing package' : 'Fill in Name and Destination first'">
+                    <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-primary" (click)="addPackage()" [disabled]="!tourDetailsValid()" [title]="tourDetailsValid() ? 'Add a pricing package' : 'Fill in Name and Destination first'">
                       <i class="bi bi-plus-lg me-1"></i>Add package
                     </button>
                   </div>
@@ -93,7 +93,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                     </div>
                     <div formArrayName="packages">
                       <div *ngFor="let pkg of packages.controls; let i = index" [formGroupName]="i" class="border rounded p-3 mb-2 position-relative">
-                        <button type="button" class="btn btn-sm btn-link text-danger position-absolute top-0 end-0" (click)="removePackage(i)" title="Remove package">
+                        <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-link text-danger position-absolute top-0 end-0" (click)="removePackage(i)" title="Remove package">
                           <i class="bi bi-x-lg"></i>
                         </button>
                         <div class="row g-2">
@@ -166,7 +166,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                           <div class="col-12 mt-2">
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <label class="form-label small mb-0 fw-semibold"><i class="bi bi-calendar3 me-1"></i>Day-by-day itinerary</label>
-                              <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItineraryRow(pkg)">
+                              <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-primary" (click)="addItineraryRow(pkg)">
                                 <i class="bi bi-plus-lg me-1"></i>Add day
                               </button>
                             </div>
@@ -190,7 +190,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                                   <div class="text-danger small mt-1" *ngIf="isInvalid(it.get('description'))">Description is required.</div>
                                 </div>
                                 <div class="col-md-1 text-end">
-                                  <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removeItineraryRow(pkg, j)" title="Remove day">
+                                  <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removeItineraryRow(pkg, j)" title="Remove day">
                                     <i class="bi bi-x-lg"></i>
                                   </button>
                                 </div>
@@ -205,8 +205,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save tour'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save tour'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -276,7 +278,11 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                     <i *ngIf="togglingId !== t.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>
                 </ng-container>
-                <ng-template #readOnlyTour><span class="text-muted small">View only</span></ng-template>
+                <ng-template #readOnlyTour>
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(t)" title="View tour details">
+                    <i class="bi bi-eye me-1"></i>View
+                  </button>
+                </ng-template>
               </td>
             </tr>
             <tr *ngIf="filteredTours().length === 0"><td colspan="6" class="text-center text-muted py-3">{{ tours.length === 0 ? 'No tours yet.' : 'No tours match the filters.' }}</td></tr>
@@ -315,6 +321,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
 
   tours: Tour[] = [];
   editingId: number | null = null;
+  viewMode = false;
   uploading = false;
   previewBroken = false;
 
@@ -613,17 +620,44 @@ export class AdminToursComponent implements OnInit, OnDestroy {
 
   edit(t: Tour): void {
     this.editingId = t.id;
+    this.viewMode = false;
     this.previewBroken = false;
     this.packages.clear();
     this.removedPackageIds = [];
     this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
     this.api.listPackages(t.id).subscribe({
       next: pkgs => (pkgs || []).forEach((p: TourPackage) => this.packages.push(this.buildPackageGroup(p)))
     });
   }
 
-  cancel(): void { this.editingId = null; this.packages.clear(); this.removedPackageIds = []; this.removedItineraryIds.clear(); this.unlockBody(); }
+  view(t: Tour): void {
+    this.editingId = t.id;
+    this.viewMode = true;
+    this.previewBroken = false;
+    this.packages.clear();
+    this.removedPackageIds = [];
+    this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive });
+    this.lockBody();
+    this.api.listPackages(t.id).subscribe({
+      next: pkgs => {
+        (pkgs || []).forEach((p: TourPackage) => this.packages.push(this.buildPackageGroup(p)));
+        this.form.disable({ emitEvent: false });
+      }
+    });
+    this.form.disable({ emitEvent: false });
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.packages.clear();
+    this.removedPackageIds = [];
+    this.removedItineraryIds.clear();
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   onImageSelected(event: Event): void {
     const input = event.target as HTMLInputElement;

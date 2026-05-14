@@ -39,7 +39,14 @@ public class VehiclesController : ControllerBase
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
-        => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));
+        => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deactivated")) : NotFound(ApiResponse<object>.Fail("Not found"));
+
+    [HttpPost("{id}/active")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
+        => await _svc.SetActiveAsync(id, active)
+            ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))
+            : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpGet("allocations")]
     public async Task<ActionResult<ApiResponse<IEnumerable<VehicleAllocationDto>>>> Allocations([FromQuery] DateTime? from, [FromQuery] DateTime? to)
@@ -48,6 +55,15 @@ public class VehiclesController : ControllerBase
     [HttpPost("allocations")]
     public async Task<ActionResult<ApiResponse<VehicleAllocationDto>>> Allocate(VehicleAllocationCreateRequest req)
         => Ok(ApiResponse<VehicleAllocationDto>.Ok(await _svc.AllocateAsync(req), "Vehicle allocated"));
+
+    [HttpPut("allocations/{id}")]
+    public async Task<ActionResult<ApiResponse<VehicleAllocationDto>>> UpdateAllocation(int id, VehicleAllocationCreateRequest req)
+    {
+        var updated = await _svc.UpdateAllocationAsync(id, req);
+        return updated == null
+            ? NotFound(ApiResponse<VehicleAllocationDto>.Fail("Not found"))
+            : Ok(ApiResponse<VehicleAllocationDto>.Ok(updated, "Allocation updated"));
+    }
 
     [HttpDelete("allocations/{id}")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteAllocation(int id)

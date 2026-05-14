@@ -316,11 +316,9 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);
   }
 
-  countryOptions(): string[] {
-    const set = new Set<string>();
-    for (const c of this.items) if (c.country) set.add(c.country);
-    return Array.from(set).sort();
-  }
+  readonly supportedCountries: string[] = ['India', 'Bhutan', 'Nepal'];
+
+  countryOptions(): string[] { return this.supportedCountries; }
 
   filteredCustomers(): Customer[] {
     const q = this.filterName.trim().toLowerCase();

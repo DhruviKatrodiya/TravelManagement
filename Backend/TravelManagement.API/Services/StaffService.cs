@@ -60,6 +60,13 @@ public class StaffService : IStaffService
         var s = await _db.StaffMembers.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id);
         if (s == null) return null;
 
+        if (!string.Equals(s.User.Email, req.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await _db.Users.AnyAsync(u => u.Id != s.User.Id && u.Email == req.Email))
+                throw new InvalidOperationException("A user with this email already exists.");
+            s.User.Email = req.Email;
+        }
+
         s.User.FullName = req.FullName;
         s.User.Phone = req.Phone;
         s.User.IsActive = req.IsActive;

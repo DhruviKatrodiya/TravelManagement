@@ -134,6 +134,7 @@ export interface Vehicle {
   year?: number;
   costPerDay?: number;
   isAvailable: boolean;
+  isActive: boolean;
   notes?: string;
 }
 
@@ -143,6 +144,8 @@ export interface VehicleAllocation {
   vehicleName: string;
   driverId?: number;
   driverName?: string;
+  staffIds: number[];
+  staffNames: string[];
   bookingId?: number;
   bookingReference?: string;
   startDate: string;
@@ -160,6 +163,7 @@ export interface Driver {
   address?: string;
   experienceYears: number;
   isAvailable: boolean;
+  isActive: boolean;
 }
 
 export interface TourSchedule {

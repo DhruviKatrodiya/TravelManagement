@@ -21,7 +21,10 @@ export class AuthService {
   readonly isStaff = computed(() => this.role() === 'Staff' || this.role() === 'Admin');
   readonly isCustomer = computed(() => this.role() === 'Customer');
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router) {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }
 
   login(req: LoginRequest): Observable<ApiResponse<AuthResponse>> {
     return this.http.post<ApiResponse<AuthResponse>>(`${this.base}/login`, req).pipe(
@@ -44,19 +47,19 @@ export class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     this.userSignal.set(null);
     this.router.navigateByUrl('/auth/login');
   }
 
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    return sessionStorage.getItem(TOKEN_KEY);
   }
 
   private persist(auth: AuthResponse): void {
-    localStorage.setItem(TOKEN_KEY, auth.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(auth.user));
+    sessionStorage.setItem(TOKEN_KEY, auth.token);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(auth.user));
     this.userSignal.set(auth.user);
   }
 
@@ -64,13 +67,13 @@ export class AuthService {
     const current = this.userSignal();
     if (!current) return;
     const next = { ...current, ...patch };
-    localStorage.setItem(USER_KEY, JSON.stringify(next));
+    sessionStorage.setItem(USER_KEY, JSON.stringify(next));
     this.userSignal.set(next);
   }
 
   private readStoredUser(): User | null {
     try {
-      const raw = localStorage.getItem(USER_KEY);
+      const raw = sessionStorage.getItem(USER_KEY);
       return raw ? JSON.parse(raw) as User : null;
     } catch {
       return null;

@@ -31,6 +31,8 @@ public class Vehicle
 
     public bool IsAvailable { get; set; } = true;
 
+    public bool IsActive { get; set; } = true;
+
     [MaxLength(500)]
     public string? Notes { get; set; }
 
@@ -59,4 +61,6 @@ public class VehicleAllocation
     public string? Notes { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<VehicleAllocationStaff> StaffAssignments { get; set; } = new List<VehicleAllocationStaff>();
 }

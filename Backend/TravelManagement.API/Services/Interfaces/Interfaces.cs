@@ -86,8 +86,10 @@ public interface IVehicleService
     Task<VehicleDto> CreateAsync(VehicleCreateRequest req);
     Task<VehicleDto?> UpdateAsync(int id, VehicleCreateRequest req);
     Task<bool> DeleteAsync(int id);
+    Task<bool> SetActiveAsync(int id, bool active);
     Task<IEnumerable<VehicleAllocationDto>> ListAllocationsAsync(DateTime? from = null, DateTime? to = null);
     Task<VehicleAllocationDto> AllocateAsync(VehicleAllocationCreateRequest req);
+    Task<VehicleAllocationDto?> UpdateAllocationAsync(int id, VehicleAllocationCreateRequest req);
     Task<bool> DeleteAllocationAsync(int id);
     Task<IEnumerable<VehicleDto>> GetAvailableAsync(DateTime from, DateTime to);
 }
@@ -99,6 +101,7 @@ public interface IDriverService
     Task<DriverDto> CreateAsync(DriverCreateRequest req);
     Task<DriverDto?> UpdateAsync(int id, DriverCreateRequest req);
     Task<bool> DeleteAsync(int id);
+    Task<bool> SetActiveAsync(int id, bool active);
 }
 
 public interface IScheduleService

@@ -56,11 +56,15 @@ export class ApiService {
   createVehicle(req: any): Observable<Vehicle> { return this.unwrap(this.http.post<ApiResponse<Vehicle>>(`${this.base}/vehicles`, req)); }
   updateVehicle(id: number, req: any): Observable<Vehicle> { return this.unwrap(this.http.put<ApiResponse<Vehicle>>(`${this.base}/vehicles/${id}`, req)); }
   deleteVehicle(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/vehicles/${id}`)); }
+  setVehicleActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/vehicles/${id}/active?active=${active}`, {})); }
   listAllocations(from?: string, to?: string): Observable<VehicleAllocation[]> {
     return this.unwrap(this.http.get<ApiResponse<VehicleAllocation[]>>(`${this.base}/vehicles/allocations`, { params: this.toParams({ from, to }) }));
   }
   allocateVehicle(req: any): Observable<VehicleAllocation> {
     return this.unwrap(this.http.post<ApiResponse<VehicleAllocation>>(`${this.base}/vehicles/allocations`, req));
+  }
+  updateAllocation(id: number, req: any): Observable<VehicleAllocation> {
+    return this.unwrap(this.http.put<ApiResponse<VehicleAllocation>>(`${this.base}/vehicles/allocations/${id}`, req));
   }
   deleteAllocation(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/vehicles/allocations/${id}`)); }
   getAvailableVehicles(from: string, to: string): Observable<Vehicle[]> {
@@ -71,6 +75,7 @@ export class ApiService {
   createDriver(req: any): Observable<Driver> { return this.unwrap(this.http.post<ApiResponse<Driver>>(`${this.base}/drivers`, req)); }
   updateDriver(id: number, req: any): Observable<Driver> { return this.unwrap(this.http.put<ApiResponse<Driver>>(`${this.base}/drivers/${id}`, req)); }
   deleteDriver(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/drivers/${id}`)); }
+  setDriverActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/drivers/${id}/active?active=${active}`, {})); }
 
   listSchedules(from?: string, to?: string): Observable<TourSchedule[]> {
     return this.unwrap(this.http.get<ApiResponse<TourSchedule[]>>(`${this.base}/schedules`, { params: this.toParams({ from, to }) }));
@@ -153,7 +158,7 @@ export class ApiService {
       .pipe(map(r => r.url));
   }
 
-  updateMyAuthProfile(req: { fullName: string; phone?: string | null }): Observable<ApiResponse<any>> {
+  updateMyAuthProfile(req: { fullName: string; email: string; phone?: string | null }): Observable<ApiResponse<any>> {
     return this.http.put<ApiResponse<any>>(`${this.base}/auth/me`, req);
   }
 

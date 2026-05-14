@@ -35,5 +35,12 @@ public class DriversController : ControllerBase
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
-        => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));
+        => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deactivated")) : NotFound(ApiResponse<object>.Fail("Not found"));
+
+    [HttpPost("{id}/active")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
+        => await _svc.SetActiveAsync(id, active)
+            ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))
+            : NotFound(ApiResponse<object>.Fail("Not found"));
 }

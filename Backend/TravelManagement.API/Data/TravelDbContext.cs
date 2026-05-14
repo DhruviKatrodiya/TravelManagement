@@ -29,6 +29,7 @@ public class TravelDbContext : DbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<HomeDestination> HomeDestinations => Set<HomeDestination>();
     public DbSet<HomeDestinationTour> HomeDestinationTours => Set<HomeDestinationTour>();
+    public DbSet<VehicleAllocationStaff> VehicleAllocationStaff => Set<VehicleAllocationStaff>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -94,6 +95,13 @@ public class TravelDbContext : DbContext
             e.HasOne(x => x.Vehicle).WithMany(v => v.Allocations).HasForeignKey(x => x.VehicleId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Driver).WithMany(d => d.Allocations).HasForeignKey(x => x.DriverId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Booking).WithMany(b => b.VehicleAllocations).HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<VehicleAllocationStaff>(e =>
+        {
+            e.HasKey(x => new { x.VehicleAllocationId, x.StaffId });
+            e.HasOne(x => x.VehicleAllocation).WithMany(a => a.StaffAssignments).HasForeignKey(x => x.VehicleAllocationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Staff).WithMany().HasForeignKey(x => x.StaffId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Review>(e =>

@@ -49,9 +49,14 @@ public class DriverService : IDriverService
 
     public async Task<bool> DeleteAsync(int id)
     {
+        return await SetActiveAsync(id, false);
+    }
+
+    public async Task<bool> SetActiveAsync(int id, bool active)
+    {
         var d = await _db.Drivers.FindAsync(id);
         if (d == null) return false;
-        _db.Drivers.Remove(d);
+        d.IsActive = active;
         await _db.SaveChangesAsync();
         return true;
     }

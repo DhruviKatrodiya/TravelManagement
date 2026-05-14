@@ -53,7 +53,7 @@ const LANG_KEY = 'travel.lang';
 
           <!-- Profile -->
           <div class="dropdown">
-            <button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false" (click)="closeNotifPanel()">
               <span class="avatar-circle">{{ initials() }}</span>
             </button>
             <div class="dropdown-menu dropdown-menu-end p-0" style="min-width:220px">

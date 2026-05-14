@@ -102,6 +102,7 @@ public class StaffCreateRequest
 public class StaffUpdateRequest
 {
     [Required, MaxLength(100)] public string FullName { get; set; } = string.Empty;
+    [Required, EmailAddress, MaxLength(150)] public string Email { get; set; } = string.Empty;
     [MaxLength(20)] public string? Phone { get; set; }
     public string? Designation { get; set; }
     public string? Department { get; set; }
@@ -120,6 +121,7 @@ public class DriverDto
     public string? Address { get; set; }
     public int ExperienceYears { get; set; }
     public bool IsAvailable { get; set; }
+    public bool IsActive { get; set; }
 }
 
 public class DriverCreateRequest
@@ -132,6 +134,7 @@ public class DriverCreateRequest
     public string? Address { get; set; }
     public int ExperienceYears { get; set; }
     public bool IsAvailable { get; set; } = true;
+    public bool IsActive { get; set; } = true;
 }
 
 public class VehicleDto
@@ -146,6 +149,7 @@ public class VehicleDto
     public int? Year { get; set; }
     public decimal? CostPerDay { get; set; }
     public bool IsAvailable { get; set; }
+    public bool IsActive { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -160,6 +164,7 @@ public class VehicleCreateRequest
     public int? Year { get; set; }
     public decimal? CostPerDay { get; set; }
     public bool IsAvailable { get; set; } = true;
+    public bool IsActive { get; set; } = true;
     public string? Notes { get; set; }
 }
 
@@ -170,6 +175,8 @@ public class VehicleAllocationDto
     public string VehicleName { get; set; } = string.Empty;
     public int? DriverId { get; set; }
     public string? DriverName { get; set; }
+    public List<int> StaffIds { get; set; } = new();
+    public List<string> StaffNames { get; set; } = new();
     public int? BookingId { get; set; }
     public string? BookingReference { get; set; }
     public DateTime StartDate { get; set; }
@@ -181,6 +188,7 @@ public class VehicleAllocationCreateRequest
 {
     [Required] public int VehicleId { get; set; }
     public int? DriverId { get; set; }
+    [Required, MinLength(1)] public List<int> StaffIds { get; set; } = new();
     public int? BookingId { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }

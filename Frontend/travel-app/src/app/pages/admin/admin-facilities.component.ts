@@ -44,7 +44,7 @@ import { Facility } from '../../core/models/api.models';
       <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit facility' : 'New facility' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Facility details' : (editingId ? 'Edit facility' : 'New facility') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body">
@@ -74,8 +74,10 @@ import { Facility } from '../../core/models/api.models';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save facility'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save facility'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -139,7 +141,11 @@ import { Facility } from '../../core/models/api.models';
                     <i *ngIf="togglingId !== f.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>
                 </ng-container>
-                <ng-template #readOnlyFac><span class="text-muted small">View only</span></ng-template>
+                <ng-template #readOnlyFac>
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(f)" title="View facility details">
+                    <i class="bi bi-eye me-1"></i>View
+                  </button>
+                </ng-template>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -176,6 +182,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
 
   items: Facility[] = [];
   editingId: number | null = null;
+  viewMode = false;
   types = ['Breakfast', 'Lunch', 'Dinner', 'Hotel', 'Transportation', 'Guide', 'Other'];
 
   readonly typeOptions = this.types.map(t => ({ value: t, label: t }));
@@ -301,17 +308,34 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
     this.form.reset({ name: '', type: 'Other', cost: 500, description: '', isActive: true });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(f: Facility): void {
     this.editingId = f.id;
+    this.viewMode = false;
     this.form.reset({ name: f.name, type: f.type, cost: f.cost, description: f.description || '', isActive: f.isActive });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(f: Facility): void {
+    this.editingId = f.id;
+    this.viewMode = true;
+    this.form.reset({ name: f.name, type: f.type, cost: f.cost, description: f.description || '', isActive: f.isActive });
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   isInvalid(ctrl: AbstractControl | null): boolean {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);

@@ -27,6 +27,8 @@ public class Driver
 
     public bool IsAvailable { get; set; } = true;
 
+    public bool IsActive { get; set; } = true;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<VehicleAllocation> Allocations { get; set; } = new List<VehicleAllocation>();

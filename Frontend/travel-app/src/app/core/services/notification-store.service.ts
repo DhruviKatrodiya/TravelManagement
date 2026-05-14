@@ -1,5 +1,6 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { ApiService } from './api.service';
+import { AuthService } from './auth.service';
 import { Notification } from '../models/api.models';
 import { ToastVariant } from './toast.service';
 
@@ -14,18 +15,40 @@ export interface StoredNotification {
   link?: string;
 }
 
-const LOCAL_KEY = 'travel.notifications.local';
+const LOCAL_KEY_PREFIX = 'travel.notifications.local.';
+const LOCAL_KEY_GUEST = 'travel.notifications.local.guest';
+const LEGACY_LOCAL_KEY = 'travel.notifications.local';
 const LOCAL_MAX = 100;
 
 @Injectable({ providedIn: 'root' })
 export class NotificationStore {
   private api = inject(ApiService);
+  private auth = inject(AuthService);
 
-  private readonly itemsSignal = signal<StoredNotification[]>(this.readLocal());
+  private currentUserId: number | null = null;
+  private currentKey = LOCAL_KEY_GUEST;
+
+  private readonly itemsSignal = signal<StoredNotification[]>([]);
   readonly items = this.itemsSignal.asReadonly();
   readonly unreadCount = computed(() => this.itemsSignal().filter(n => !n.isRead).length);
 
-  private localCounter = this.computeLocalCounter(this.itemsSignal());
+  private localCounter = 0;
+
+  constructor() {
+    // One-time cleanup: legacy shared bucket leaked across users — drop it.
+    try { localStorage.removeItem(LEGACY_LOCAL_KEY); } catch { /* ignore */ }
+
+    // Switch the active bucket when the logged-in user changes.
+    effect(() => {
+      const userId = this.auth.currentUser()?.id ?? null;
+      if (userId === this.currentUserId) return;
+      this.currentUserId = userId;
+      this.currentKey = userId == null ? LOCAL_KEY_GUEST : `${LOCAL_KEY_PREFIX}${userId}`;
+      const loaded = this.readLocal();
+      this.itemsSignal.set(loaded);
+      this.localCounter = this.computeLocalCounter(loaded);
+    });
+  }
 
   loadFromServer(): void {
     this.api.listNotifications().subscribe({
@@ -103,7 +126,7 @@ export class NotificationStore {
 
   private readLocal(): StoredNotification[] {
     try {
-      const raw = localStorage.getItem(LOCAL_KEY);
+      const raw = localStorage.getItem(this.currentKey);
       if (!raw) return [];
       const parsed = JSON.parse(raw) as StoredNotification[];
       return Array.isArray(parsed) ? parsed : [];
@@ -114,7 +137,7 @@ export class NotificationStore {
 
   private persistLocal(): void {
     const locals = this.itemsSignal().filter(n => !n.serverId).slice(0, LOCAL_MAX);
-    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(locals)); }
+    try { localStorage.setItem(this.currentKey, JSON.stringify(locals)); }
     catch { /* quota or disabled */ }
   }
 

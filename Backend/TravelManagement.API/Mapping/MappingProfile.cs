@@ -80,8 +80,11 @@ public class MappingProfile : Profile
         CreateMap<VehicleAllocation, VehicleAllocationDto>()
             .ForMember(d => d.VehicleName, o => o.MapFrom(s => s.Vehicle.Name))
             .ForMember(d => d.DriverName, o => o.MapFrom(s => s.Driver != null ? s.Driver.FullName : null))
+            .ForMember(d => d.StaffIds, o => o.MapFrom(s => s.StaffAssignments.Select(sa => sa.StaffId).ToList()))
+            .ForMember(d => d.StaffNames, o => o.MapFrom(s => s.StaffAssignments.Where(sa => sa.Staff != null).Select(sa => sa.Staff!.User.FullName).ToList()))
             .ForMember(d => d.BookingReference, o => o.MapFrom(s => s.Booking != null ? s.Booking.BookingReference : null));
-        CreateMap<VehicleAllocationCreateRequest, VehicleAllocation>();
+        CreateMap<VehicleAllocationCreateRequest, VehicleAllocation>()
+            .ForMember(d => d.StaffAssignments, o => o.Ignore());
 
         CreateMap<Expense, ExpenseDto>()
             .ForMember(d => d.BookingReference, o => o.MapFrom(s => s.Booking != null ? s.Booking.BookingReference : null))

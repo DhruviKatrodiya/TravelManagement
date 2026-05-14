@@ -47,7 +47,7 @@ import { HomeDestination } from '../../core/models/api.models';
       <div class="modal-dialog modal-lg modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit destination' : 'New destination' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Destination details' : (editingId ? 'Edit destination' : 'New destination') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
@@ -71,17 +71,19 @@ import { HomeDestination } from '../../core/models/api.models';
                   <input class="form-control" formControlName="blurb" placeholder="One short line shown on the card" />
                 </div>
                 <div class="col-12">
-                  <label class="form-label">Image <span class="text-danger">*</span></label>
-                  <input #imgInput type="file" class="form-control" accept="image/*" (change)="onImageSelected($event)" [disabled]="uploading" />
+                  <label class="form-label">Image <span *ngIf="!viewMode" class="text-danger">*</span></label>
+                  <input *ngIf="!viewMode" #imgInput type="file" class="form-control" accept="image/*" (change)="onImageSelected($event)" [disabled]="uploading" />
                   <small class="text-muted" *ngIf="uploading">Uploading…</small>
                   <div *ngIf="form.value.imageUrl" class="mt-2 d-flex align-items-start gap-2">
                     <img [src]="form.value.imageUrl" alt="Preview" (error)="onPreviewError($event)" style="max-height:120px;max-width:200px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;background:#f8f9fa" />
-                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="clearImage(imgInput)">Remove</button>
+                    <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-danger" (click)="clearImage(imgInput)">Remove</button>
                   </div>
-                  <small class="text-muted d-block mt-1">Or paste a URL:</small>
-                  <input class="form-control mt-1" formControlName="imageUrl" placeholder="https://… or /uploads/…" [class.is-invalid]="isInvalid(form.get('imageUrl'))" />
-                  <div class="invalid-feedback" *ngIf="isInvalid(form.get('imageUrl'))">Image is required — choose a file or paste a URL.</div>
-                  <small class="text-danger d-block mt-1" *ngIf="previewBroken">Image URL failed to load — choose a new file or paste a working URL.</small>
+                  <ng-container *ngIf="!viewMode">
+                    <small class="text-muted d-block mt-1">Or paste a URL:</small>
+                    <input class="form-control mt-1" formControlName="imageUrl" placeholder="https://… or /uploads/…" [class.is-invalid]="isInvalid(form.get('imageUrl'))" />
+                    <div class="invalid-feedback" *ngIf="isInvalid(form.get('imageUrl'))">Image is required — choose a file or paste a URL.</div>
+                    <small class="text-danger d-block mt-1" *ngIf="previewBroken">Image URL failed to load — choose a new file or paste a working URL.</small>
+                  </ng-container>
                 </div>
                 <div class="col-12 form-check ms-2">
                   <input class="form-check-input" type="checkbox" formControlName="isActive" id="destActive" />
@@ -90,8 +92,10 @@ import { HomeDestination } from '../../core/models/api.models';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save destination'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save destination'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -159,7 +163,11 @@ import { HomeDestination } from '../../core/models/api.models';
                     <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>
                 </ng-container>
-                <ng-template #readOnlyDest><span class="text-muted small">View only</span></ng-template>
+                <ng-template #readOnlyDest>
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View destination details">
+                    <i class="bi bi-eye me-1"></i>View
+                  </button>
+                </ng-template>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -200,6 +208,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
 
   items: HomeDestination[] = [];
   editingId: number | null = null;
+  viewMode = false;
   uploading = false;
   previewBroken = false;
 
@@ -369,23 +378,44 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
     this.previewBroken = false;
     const nextOrder = this.items.length === 0 ? 1 : Math.max(...this.items.map(i => i.sortOrder)) + 1;
     this.form.reset({ name: '', country: 'India', imageUrl: '', blurb: '', sortOrder: nextOrder, isActive: true });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(d: HomeDestination): void {
     this.editingId = d.id;
+    this.viewMode = false;
     this.previewBroken = false;
     this.form.reset({
       name: d.name, country: d.country, imageUrl: d.imageUrl,
       blurb: d.blurb || '', sortOrder: d.sortOrder, isActive: d.isActive
     });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(d: HomeDestination): void {
+    this.editingId = d.id;
+    this.viewMode = true;
+    this.previewBroken = false;
+    this.form.reset({
+      name: d.name, country: d.country, imageUrl: d.imageUrl,
+      blurb: d.blurb || '', sortOrder: d.sortOrder, isActive: d.isActive
+    });
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   isInvalid(ctrl: AbstractControl | null): boolean {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);

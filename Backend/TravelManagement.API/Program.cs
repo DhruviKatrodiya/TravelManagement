@@ -250,6 +250,34 @@ WHERE NOT EXISTS (
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Expenses'))
 BEGIN
     ALTER TABLE Expenses ADD IsActive BIT NOT NULL CONSTRAINT DF_Expenses_IsActive DEFAULT 1;
+END
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Vehicles'))
+BEGIN
+    ALTER TABLE Vehicles ADD IsActive BIT NOT NULL CONSTRAINT DF_Vehicles_IsActive DEFAULT 1;
+END
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'IsActive' AND Object_ID = Object_ID(N'Drivers'))
+BEGIN
+    ALTER TABLE Drivers ADD IsActive BIT NOT NULL CONSTRAINT DF_Drivers_IsActive DEFAULT 1;
+END
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VehicleAllocations_StaffMembers')
+BEGIN
+    ALTER TABLE VehicleAllocations DROP CONSTRAINT FK_VehicleAllocations_StaffMembers;
+END
+IF EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'StaffId' AND Object_ID = Object_ID(N'VehicleAllocations'))
+BEGIN
+    ALTER TABLE VehicleAllocations DROP COLUMN StaffId;
+END
+IF OBJECT_ID('VehicleAllocationStaff', 'U') IS NULL
+BEGIN
+    CREATE TABLE VehicleAllocationStaff (
+        VehicleAllocationId INT NOT NULL,
+        StaffId INT NOT NULL,
+        CONSTRAINT PK_VehicleAllocationStaff PRIMARY KEY (VehicleAllocationId, StaffId),
+        CONSTRAINT FK_VehicleAllocationStaff_VehicleAllocations
+            FOREIGN KEY (VehicleAllocationId) REFERENCES VehicleAllocations(Id) ON DELETE CASCADE,
+        CONSTRAINT FK_VehicleAllocationStaff_StaffMembers
+            FOREIGN KEY (StaffId) REFERENCES StaffMembers(Id) ON DELETE CASCADE
+    );
 END");
     }
     catch (Exception ex)

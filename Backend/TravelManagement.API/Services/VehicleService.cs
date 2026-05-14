@@ -51,9 +51,14 @@ public class VehicleService : IVehicleService
 
     public async Task<bool> DeleteAsync(int id)
     {
+        return await SetActiveAsync(id, false);
+    }
+
+    public async Task<bool> SetActiveAsync(int id, bool active)
+    {
         var v = await _db.Vehicles.FindAsync(id);
         if (v == null) return false;
-        _db.Vehicles.Remove(v);
+        v.IsActive = active;
         await _db.SaveChangesAsync();
         return true;
     }
@@ -63,6 +68,7 @@ public class VehicleService : IVehicleService
         var q = _db.VehicleAllocations
             .Include(a => a.Vehicle)
             .Include(a => a.Driver)
+            .Include(a => a.StaffAssignments).ThenInclude(sa => sa.Staff).ThenInclude(s => s!.User)
             .Include(a => a.Booking)
             .AsQueryable();
 
@@ -90,15 +96,91 @@ public class VehicleService : IVehicleService
                 throw new InvalidOperationException("Driver is already allocated for the requested period.");
         }
 
+        if (req.StaffIds != null && req.StaffIds.Count > 0)
+        {
+            var staffIds = req.StaffIds.Distinct().ToList();
+            var staffOverlap = await _db.VehicleAllocationStaff.AnyAsync(sa =>
+                staffIds.Contains(sa.StaffId) &&
+                sa.VehicleAllocation!.StartDate < req.EndDate &&
+                sa.VehicleAllocation.EndDate > req.StartDate);
+            if (staffOverlap)
+                throw new InvalidOperationException("One or more staff members are already allocated for the requested period.");
+        }
+
         var allocation = _mapper.Map<VehicleAllocation>(req);
+        foreach (var sid in (req.StaffIds ?? new()).Distinct())
+            allocation.StaffAssignments.Add(new VehicleAllocationStaff { StaffId = sid });
         _db.VehicleAllocations.Add(allocation);
         await _db.SaveChangesAsync();
 
         var fresh = await _db.VehicleAllocations
             .Include(a => a.Vehicle)
             .Include(a => a.Driver)
+            .Include(a => a.StaffAssignments).ThenInclude(sa => sa.Staff).ThenInclude(s => s!.User)
             .Include(a => a.Booking)
             .FirstAsync(a => a.Id == allocation.Id);
+        return _mapper.Map<VehicleAllocationDto>(fresh);
+    }
+
+    public async Task<VehicleAllocationDto?> UpdateAllocationAsync(int id, VehicleAllocationCreateRequest req)
+    {
+        var existing = await _db.VehicleAllocations
+            .Include(a => a.StaffAssignments)
+            .FirstOrDefaultAsync(a => a.Id == id);
+        if (existing == null) return null;
+
+        var overlap = await _db.VehicleAllocations.AnyAsync(a =>
+            a.Id != id &&
+            a.VehicleId == req.VehicleId &&
+            a.StartDate < req.EndDate && a.EndDate > req.StartDate);
+        if (overlap)
+            throw new InvalidOperationException("Vehicle is already allocated for the requested period.");
+
+        if (req.DriverId.HasValue)
+        {
+            var driverOverlap = await _db.VehicleAllocations.AnyAsync(a =>
+                a.Id != id &&
+                a.DriverId == req.DriverId &&
+                a.StartDate < req.EndDate && a.EndDate > req.StartDate);
+            if (driverOverlap)
+                throw new InvalidOperationException("Driver is already allocated for the requested period.");
+        }
+
+        if (req.StaffIds != null && req.StaffIds.Count > 0)
+        {
+            var staffIds = req.StaffIds.Distinct().ToList();
+            var staffOverlap = await _db.VehicleAllocationStaff.AnyAsync(sa =>
+                sa.VehicleAllocationId != id &&
+                staffIds.Contains(sa.StaffId) &&
+                sa.VehicleAllocation!.StartDate < req.EndDate &&
+                sa.VehicleAllocation.EndDate > req.StartDate);
+            if (staffOverlap)
+                throw new InvalidOperationException("One or more staff members are already allocated for the requested period.");
+        }
+
+        existing.VehicleId = req.VehicleId;
+        existing.DriverId = req.DriverId;
+        existing.BookingId = req.BookingId;
+        existing.StartDate = req.StartDate;
+        existing.EndDate = req.EndDate;
+        existing.Notes = req.Notes;
+
+        var desired = (req.StaffIds ?? new()).Distinct().ToHashSet();
+        var current = existing.StaffAssignments.ToList();
+        foreach (var sa in current.Where(x => !desired.Contains(x.StaffId)))
+            _db.VehicleAllocationStaff.Remove(sa);
+        var currentIds = current.Select(x => x.StaffId).ToHashSet();
+        foreach (var sid in desired.Where(x => !currentIds.Contains(x)))
+            existing.StaffAssignments.Add(new VehicleAllocationStaff { VehicleAllocationId = id, StaffId = sid });
+
+        await _db.SaveChangesAsync();
+
+        var fresh = await _db.VehicleAllocations
+            .Include(a => a.Vehicle)
+            .Include(a => a.Driver)
+            .Include(a => a.StaffAssignments).ThenInclude(sa => sa.Staff).ThenInclude(s => s!.User)
+            .Include(a => a.Booking)
+            .FirstAsync(a => a.Id == existing.Id);
         return _mapper.Map<VehicleAllocationDto>(fresh);
     }
 
