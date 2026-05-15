@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -37,11 +38,13 @@ public class ReviewsController : ControllerBase
 
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.ReviewsEdit)]
     public async Task<ActionResult<ApiResponse<object>>> Approve(int id, [FromQuery] bool approved = true)
         => await _svc.ApproveAsync(id, approved) ? Ok(ApiResponse<object>.Ok(new { }, approved ? "Approved" : "Hidden")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.ReviewsDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));
 

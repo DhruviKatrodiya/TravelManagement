@@ -12,7 +12,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Vehicles</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add vehicle</button>
+      <button *ngIf="auth.hasPermission('vehicles.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add vehicle</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -45,10 +45,15 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit vehicle' : 'New vehicle' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Vehicle details' : (editingId ? 'Edit vehicle' : 'New vehicle') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-4">
                   <label class="form-label">Name <span class="text-danger">*</span></label>
@@ -89,8 +94,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save vehicle'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save vehicle'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -159,25 +166,25 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <span *ngIf="v.isActive" class="badge" [class.bg-success]="v.isAvailable" [class.bg-warning]="!v.isAvailable">{{ v.isAvailable ? 'Available' : 'In service' }}</span>
               </td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyVeh">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(v)" [disabled]="!v.isActive">Edit</button>
-                  <button *ngIf="v.isActive && v.isAvailable" class="btn btn-sm btn-outline-warning me-1" (click)="toggleAvailable(v, false)" [disabled]="togglingId === v.id" title="Mark this vehicle as in service">
-                    <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== v.id" class="bi bi-eye-slash me-1"></i>Mark in service
-                  </button>
-                  <button *ngIf="v.isActive && !v.isAvailable" class="btn btn-sm btn-outline-success me-1" (click)="toggleAvailable(v, true)" [disabled]="togglingId === v.id" title="Make this vehicle available for booking">
-                    <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Mark available
-                  </button>
-                  <button *ngIf="v.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(v)" [disabled]="deleting && deleteTarget?.id === v.id" title="Hide this vehicle from the fleet">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!v.isActive" class="btn btn-sm btn-outline-success" (click)="activate(v)" [disabled]="togglingId === v.id" title="Bring this vehicle back into the fleet">
-                    <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyVeh><span class="text-muted small">View only</span></ng-template>
+                <button *ngIf="auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(v)" [disabled]="!v.isActive">Edit</button>
+                <button *ngIf="v.isActive && v.isAvailable && auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-warning me-1" (click)="toggleAvailable(v, false)" [disabled]="togglingId === v.id" title="Mark this vehicle as in service">
+                  <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== v.id" class="bi bi-eye-slash me-1"></i>Mark in service
+                </button>
+                <button *ngIf="v.isActive && !v.isAvailable && auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-success me-1" (click)="toggleAvailable(v, true)" [disabled]="togglingId === v.id" title="Make this vehicle available for booking">
+                  <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Mark available
+                </button>
+                <button *ngIf="v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(v)" [disabled]="deleting && deleteTarget?.id === v.id" title="Hide this vehicle from the fleet">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-success" (click)="activate(v)" [disabled]="togglingId === v.id" title="Bring this vehicle back into the fleet">
+                  <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('vehicles.edit') && !auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-primary" (click)="view(v)" title="View vehicle details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredVehicles().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No vehicles yet.' : 'No vehicles match the filters.' }}</td></tr>
@@ -212,6 +219,8 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
 
   items: Vehicle[] = [];
   editingId: number | null = null;
+  viewMode = false;
+  formError = '';
   types = ['Car', 'SUV', 'MiniBus', 'Bus', 'Tempo', 'Other'];
 
   deleteTarget: Vehicle | null = null;
@@ -370,20 +379,42 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
+    this.formError = '';
     this.form.reset({ name: '', registrationNumber: '', type: 'Car', capacity: 4, make: '', model: '', year: 2024, costPerDay: 2500, isAvailable: true, notes: '' });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(v: Vehicle): void {
     this.editingId = v.id;
+    this.viewMode = false;
+    this.formError = '';
     this.form.reset({ ...v } as any);
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(v: Vehicle): void {
+    this.editingId = v.id;
+    this.viewMode = true;
+    this.formError = '';
+    this.form.reset({ ...v } as any);
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.formError = '';
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = this.form.getRawValue() as any;
     const label = `"${v.name}" — ${v.registrationNumber}`;
     const op = this.editingId ? this.api.updateVehicle(this.editingId, v) : this.api.createVehicle(v);
@@ -396,7 +427,8 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
         this.editingId = null;
         this.unlockBody();
         this.load();
-      }
+      },
+      error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
     });
   }
 

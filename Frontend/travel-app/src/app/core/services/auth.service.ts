@@ -21,6 +21,15 @@ export class AuthService {
   readonly isStaff = computed(() => this.role() === 'Staff' || this.role() === 'Admin');
   readonly isCustomer = computed(() => this.role() === 'Customer');
 
+  /** Admin has every permission; staff are gated by the explicit permission list; customers get none. */
+  hasPermission(key: string): boolean {
+    const u = this.userSignal();
+    if (!u) return false;
+    if (u.role === 'Admin') return true;
+    if (u.role !== 'Staff') return false;
+    return Array.isArray(u.permissions) && u.permissions.includes(key);
+  }
+
   constructor(private http: HttpClient, private router: Router) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);

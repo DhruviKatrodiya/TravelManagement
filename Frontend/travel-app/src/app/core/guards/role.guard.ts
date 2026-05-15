@@ -21,5 +21,11 @@ export const authGuard: CanActivateFn = (route) => {
     }
   }
 
+  const requiredPermission = route.data?.['permission'] as string | undefined;
+  if (requiredPermission && !auth.hasPermission(requiredPermission)) {
+    router.navigate(['/admin']);
+    return false;
+  }
+
   return true;
 };

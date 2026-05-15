@@ -18,7 +18,7 @@ public class TourService : ITourService
         _mapper = mapper;
     }
 
-    public async Task<IEnumerable<TourDto>> ListAsync(Destination? destination = null, string? q = null, int? homeDestinationId = null, bool? activeOnly = true)
+    public async Task<IEnumerable<TourDto>> ListAsync(Destination? destination = null, string? q = null, int? homeDestinationId = null, bool? activeOnly = true, IReadOnlyCollection<int>? tourIdsFilter = null)
     {
         var query = _db.Tours
             .Include(t => t.Packages)
@@ -35,6 +35,12 @@ public class TourService : ITourService
         {
             var did = homeDestinationId.Value;
             query = query.Where(t => _db.HomeDestinationTours.Any(l => l.HomeDestinationId == did && l.TourId == t.Id));
+        }
+        if (tourIdsFilter != null)
+        {
+            if (tourIdsFilter.Count == 0) return Enumerable.Empty<TourDto>();
+            var allowed = tourIdsFilter.ToHashSet();
+            query = query.Where(t => allowed.Contains(t.Id));
         }
         if (!string.IsNullOrWhiteSpace(q))
         {

@@ -101,20 +101,18 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ r.createdAt | date:'short' }}</td>
               <td><span class="badge" [class.bg-success]="r.isApproved" [class.bg-secondary]="!r.isApproved">{{ r.isApproved ? 'Visible' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isStaff(); else readOnlyRev">
-                  <button *ngIf="r.isApproved" class="btn btn-sm btn-outline-warning me-1" (click)="approve(r, false)" [disabled]="togglingId === r.id" title="Hide this review from customers">
-                    <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== r.id" class="bi bi-eye-slash me-1"></i>Hide
-                  </button>
-                  <button *ngIf="!r.isApproved" class="btn btn-sm btn-outline-success me-1" (click)="approve(r, true)" [disabled]="togglingId === r.id" title="Show this review on the tour page">
-                    <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
-                  </button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="remove(r)" [disabled]="deleting && deleteTarget?.id === r.id" title="Delete this review">
-                    <i class="bi bi-trash me-1"></i>Delete
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyRev><span class="text-muted small">View only</span></ng-template>
+                <button *ngIf="r.isApproved && auth.hasPermission('reviews.edit')" class="btn btn-sm btn-outline-warning me-1" (click)="approve(r, false)" [disabled]="togglingId === r.id" title="Hide this review from customers">
+                  <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== r.id" class="bi bi-eye-slash me-1"></i>Hide
+                </button>
+                <button *ngIf="!r.isApproved && auth.hasPermission('reviews.edit')" class="btn btn-sm btn-outline-success me-1" (click)="approve(r, true)" [disabled]="togglingId === r.id" title="Show this review on the tour page">
+                  <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
+                </button>
+                <button *ngIf="auth.hasPermission('reviews.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(r)" [disabled]="deleting && deleteTarget?.id === r.id" title="Delete this review">
+                  <i class="bi bi-trash me-1"></i>Delete
+                </button>
+                <span *ngIf="!auth.hasPermission('reviews.edit') && !auth.hasPermission('reviews.delete')" class="text-muted small">View only</span>
               </td>
             </tr>
             <tr *ngIf="filteredReviews().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No reviews yet.' : 'No reviews match the filters.' }}</td></tr>

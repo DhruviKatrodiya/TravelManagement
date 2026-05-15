@@ -15,7 +15,7 @@ public class TokenService : ITokenService
 
     public TokenService(IOptions<JwtSettings> settings) => _settings = settings.Value;
 
-    public (string token, DateTime expiresAt) GenerateToken(User user)
+    public (string token, DateTime expiresAt) GenerateToken(User user, IEnumerable<string>? permissions = null)
     {
         var expiresAt = DateTime.UtcNow.AddMinutes(_settings.ExpiryMinutes);
         var claims = new List<Claim>
@@ -27,6 +27,12 @@ public class TokenService : ITokenService
             new(ClaimTypes.Role, user.Role.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+
+        if (permissions != null)
+        {
+            foreach (var p in permissions.Distinct())
+                claims.Add(new Claim("perm", p));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.SecretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

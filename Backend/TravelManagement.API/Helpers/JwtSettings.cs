@@ -18,6 +18,16 @@ public class EmailSettings
     public string SenderName { get; set; } = "Travel Management";
     public string SenderEmail { get; set; } = string.Empty;
     public bool Enabled { get; set; }
+    /// <summary>
+    /// If set, every outgoing email is redirected to this address (the original recipient
+    /// is preserved in the subject prefix). Useful for testing without spamming real users.
+    /// </summary>
+    public string? TestRecipientOverride { get; set; }
+    /// <summary>
+    /// Optional fixed admin notification address (used for "send to admin" emails).
+    /// Falls back to SenderEmail when not set.
+    /// </summary>
+    public string? AdminNotificationEmail { get; set; }
 }
 
 public class PaymentSettings

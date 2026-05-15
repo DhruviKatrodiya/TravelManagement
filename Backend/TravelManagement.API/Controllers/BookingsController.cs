@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Booking;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -57,6 +58,7 @@ public class BookingsController : ControllerBase
 
     [HttpPost("{id}/status")]
     [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.BookingsEdit)]
     public async Task<ActionResult<ApiResponse<BookingDto>>> UpdateStatus(int id, BookingUpdateStatusRequest req)
     {
         var b = await _svc.UpdateStatusAsync(id, req);

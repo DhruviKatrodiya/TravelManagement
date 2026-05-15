@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -11,7 +11,7 @@ import { Facility } from '../../core/models/api.models';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Facilities</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add facility</button>
+      <button *ngIf="auth.hasPermission('facilities.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add facility</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -47,7 +47,12 @@ import { Facility } from '../../core/models/api.models';
             <h5 class="modal-title fw-bold">{{ viewMode ? 'Facility details' : (editingId ? 'Edit facility' : 'New facility') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
-            <div class="modal-body">
+            <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-7">
                   <label class="form-label">Name <span class="text-danger">*</span></label>
@@ -131,21 +136,17 @@ import { Facility } from '../../core/models/api.models';
               <td>₹ {{ f.cost | number:'1.2-2' }}</td>
               <td><span class="badge" [class.bg-success]="f.isActive" [class.bg-secondary]="!f.isActive">{{ f.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyFac">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(f)">Edit</button>
-                  <button *ngIf="f.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(f)" [disabled]="togglingId === f.id" title="Hide this facility">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!f.isActive" class="btn btn-sm btn-outline-success" (click)="activate(f)" [disabled]="togglingId === f.id" title="Make this facility available again">
-                    <span *ngIf="togglingId === f.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== f.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyFac>
-                  <button class="btn btn-sm btn-outline-primary" (click)="view(f)" title="View facility details">
-                    <i class="bi bi-eye me-1"></i>View
-                  </button>
-                </ng-template>
+                <button *ngIf="auth.hasPermission('facilities.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(f)">Edit</button>
+                <button *ngIf="f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(f)" [disabled]="togglingId === f.id" title="Hide this facility">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-success" (click)="activate(f)" [disabled]="togglingId === f.id" title="Make this facility available again">
+                  <span *ngIf="togglingId === f.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== f.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('facilities.edit') && !auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-primary" (click)="view(f)" title="View facility details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -183,6 +184,8 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
   items: Facility[] = [];
   editingId: number | null = null;
   viewMode = false;
+  formError = '';
+  @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
   types = ['Breakfast', 'Lunch', 'Dinner', 'Hotel', 'Transportation', 'Guide', 'Other'];
 
   readonly typeOptions = this.types.map(t => ({ value: t, label: t }));
@@ -309,6 +312,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.viewMode = false;
+    this.formError = '';
     this.form.reset({ name: '', type: 'Other', cost: 500, description: '', isActive: true });
     this.form.enable({ emitEvent: false });
     this.lockBody();
@@ -317,6 +321,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
   edit(f: Facility): void {
     this.editingId = f.id;
     this.viewMode = false;
+    this.formError = '';
     this.form.reset({ name: f.name, type: f.type, cost: f.cost, description: f.description || '', isActive: f.isActive });
     this.form.enable({ emitEvent: false });
     this.lockBody();
@@ -325,6 +330,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
   view(f: Facility): void {
     this.editingId = f.id;
     this.viewMode = true;
+    this.formError = '';
     this.form.reset({ name: f.name, type: f.type, cost: f.cost, description: f.description || '', isActive: f.isActive });
     this.form.disable({ emitEvent: false });
     this.lockBody();
@@ -333,6 +339,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
   cancel(): void {
     this.editingId = null;
     this.viewMode = false;
+    this.formError = '';
     this.form.enable({ emitEvent: false });
     this.unlockBody();
   }
@@ -343,6 +350,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = this.form.getRawValue() as any;
     const label = `"${v.name}" (${v.type})`;
     const op = this.editingId ? this.api.updateFacility(this.editingId, v) : this.api.createFacility(v);
@@ -355,6 +363,10 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
         this.editingId = null;
         this.unlockBody();
         this.load();
+      },
+      error: (err: any) => {
+        this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.';
+        setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0);
       }
     });
   }

@@ -1,6 +1,7 @@
 import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Booking, Expense } from '../../core/models/api.models';
 
@@ -13,7 +14,7 @@ import { Booking, Expense } from '../../core/models/api.models';
         <h2 class="fw-bold mb-1">Expenses</h2>
         <p class="text-muted small mb-0">Operating costs and bookings-linked expenses recorded by staff.</p>
       </div>
-      <button class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Record expense</button>
+      <button *ngIf="auth.hasPermission('expenses.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Record expense</button>
     </div>
 
     <div class="row g-3 mb-4">
@@ -63,7 +64,7 @@ import { Booking, Expense } from '../../core/models/api.models';
       <div class="modal-dialog modal-lg modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit expense' : 'New expense' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Expense details' : (editingId ? 'Edit expense' : 'New expense') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body">
@@ -103,8 +104,10 @@ import { Booking, Expense } from '../../core/models/api.models';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save expense'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save expense'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -168,11 +171,14 @@ import { Booking, Expense } from '../../core/models/api.models';
               <td class="text-end">₹ {{ e.amount | number:'1.2-2' }}</td>
               <td><span class="badge" [class.bg-success]="e.isActive" [class.bg-secondary]="!e.isActive">{{ e.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(e)">Edit</button>
-                <button *ngIf="e.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(e)" [disabled]="togglingId === e.id" title="Hide this expense from reports">
+                <button *ngIf="auth.hasPermission('expenses.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(e)">Edit</button>
+                <button *ngIf="!auth.hasPermission('expenses.edit') && !auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-primary" (click)="view(e)" title="View expense details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
+                <button *ngIf="e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(e)" [disabled]="togglingId === e.id" title="Hide this expense from reports">
                   <i class="bi bi-eye-slash me-1"></i>Deactivate
                 </button>
-                <button *ngIf="!e.isActive" class="btn btn-sm btn-outline-success" (click)="activate(e)" [disabled]="togglingId === e.id" title="Include this expense again">
+                <button *ngIf="!e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-success" (click)="activate(e)" [disabled]="togglingId === e.id" title="Include this expense again">
                   <span *ngIf="togglingId === e.id" class="spinner-border spinner-border-sm me-1"></span>
                   <i *ngIf="togglingId !== e.id" class="bi bi-check2-circle me-1"></i>Activate
                 </button>
@@ -203,6 +209,7 @@ import { Booking, Expense } from '../../core/models/api.models';
   `
 })
 export class AdminExpensesComponent implements OnInit, OnDestroy {
+  auth = inject(AuthService);
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
@@ -210,6 +217,7 @@ export class AdminExpensesComponent implements OnInit, OnDestroy {
   items: Expense[] = [];
   bookings: Booking[] = [];
   editingId: number | null = null;
+  viewMode = false;
 
   deleteTarget: Expense | null = null;
   deleting = false;
@@ -376,17 +384,34 @@ export class AdminExpensesComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
     this.form.reset({ bookingId: null, category: '', description: '', amount: 0, expenseDate: new Date().toISOString().substring(0, 10), vendor: '', paidBy: '' });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(e: Expense): void {
     this.editingId = e.id;
+    this.viewMode = false;
     this.form.reset({ ...e, expenseDate: e.expenseDate.substring(0, 10) } as any);
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(e: Expense): void {
+    this.editingId = e.id;
+    this.viewMode = true;
+    this.form.reset({ ...e, expenseDate: e.expenseDate.substring(0, 10) } as any);
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   isInvalid(ctrl: AbstractControl | null): boolean {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);

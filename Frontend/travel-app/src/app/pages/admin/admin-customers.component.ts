@@ -12,7 +12,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Customers</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add customer</button>
+      <button *ngIf="auth.hasPermission('customers.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add customer</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -45,10 +45,15 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit customer' : 'New customer' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Customer details' : (editingId ? 'Edit customer' : 'New customer') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Full name <span class="text-danger">*</span></label>
@@ -119,8 +124,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save customer'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save customer'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -197,17 +204,17 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ c.createdAt | date:'mediumDate' }}</td>
               <td><span class="badge" [class.bg-success]="c.isActive" [class.bg-secondary]="!c.isActive">{{ c.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyCust">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(c)">Edit</button>
-                  <button *ngIf="c.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id" title="Block this customer from logging in">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!c.isActive" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id" title="Allow this customer to log in again">
-                    <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyCust><span class="text-muted small">View only</span></ng-template>
+                <button *ngIf="auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(c)">Edit</button>
+                <button *ngIf="c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id" title="Block this customer from logging in">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id" title="Allow this customer to log in again">
+                  <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('customers.edit') && !auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-primary" (click)="view(c)" title="View customer details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredCustomers().length === 0"><td colspan="9" class="text-center text-muted py-3">{{ items.length === 0 ? 'No customers yet.' : 'No customers match the filters.' }}</td></tr>
@@ -246,6 +253,8 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
 
   items: Customer[] = [];
   editingId: number | null = null;
+  viewMode = false;
+  formError = '';
 
   deleteTarget: Customer | null = null;
   deleting = false;
@@ -411,6 +420,7 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
     this.form.reset({
       fullName: '', email: '', password: '', phone: '',
       address: '', city: '', state: '', postalCode: '', country: 'India',
@@ -418,11 +428,12 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     });
     this.form.controls.password.setValidators([Validators.required, Validators.minLength(6)]);
     this.form.controls.password.updateValueAndValidity();
+    this.form.enable({ emitEvent: false });
+    this.formError = '';
     this.lockBody();
   }
 
-  edit(c: Customer): void {
-    this.editingId = c.id;
+  private patchFromCustomer(c: Customer): void {
     this.form.reset({
       fullName: c.fullName,
       email: c.email,
@@ -440,15 +451,45 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     });
     this.form.controls.password.clearValidators();
     this.form.controls.password.updateValueAndValidity();
+  }
+
+  edit(c: Customer): void {
+    this.editingId = c.id;
+    this.viewMode = false;
+    this.patchFromCustomer(c);
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(c: Customer): void {
+    this.editingId = c.id;
+    this.viewMode = true;
+    this.formError = '';
+    this.patchFromCustomer(c);
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.formError = '';
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    const v = this.form.getRawValue();
+    this.formError = '';
+    const v: any = { ...this.form.getRawValue() };
+    // Backend expects nullable DateTime — send null when blank so deserialization doesn't fail.
+    if (!v.dateOfBirth) v.dateOfBirth = null;
     const label = `"${v.fullName}" — ${v.email}`;
+    const onError = (err: any) => {
+      const apiMsg: string | undefined = err?.error?.message || err?.error?.errors?.[0];
+      this.formError = apiMsg || 'Could not save the customer. Please try again.';
+      setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+    };
     if (this.editingId === 0) {
       this.api.createCustomer(v).subscribe({
         next: () => {
@@ -456,7 +497,8 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
           this.editingId = null;
           this.unlockBody();
           this.load();
-        }
+        },
+        error: onError
       });
     } else {
       const { password, ...update } = v;
@@ -466,7 +508,8 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
           this.editingId = null;
           this.unlockBody();
           this.load();
-        }
+        },
+        error: onError
       });
     }
   }

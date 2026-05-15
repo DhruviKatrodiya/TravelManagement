@@ -99,6 +99,11 @@ public class StaffCreateRequest
     public decimal? Salary { get; set; }
 }
 
+public class StaffPermissionsUpdateRequest
+{
+    public List<string> Permissions { get; set; } = new();
+}
+
 public class StaffUpdateRequest
 {
     [Required, MaxLength(100)] public string FullName { get; set; } = string.Empty;

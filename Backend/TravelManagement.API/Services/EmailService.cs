@@ -20,16 +20,28 @@ public class EmailService : IEmailService
 
     public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
     {
+        // If a test-recipient override is configured, redirect the email to that address
+        // but tag the subject with the original intended recipient for traceability.
+        var actualToEmail = toEmail;
+        var actualToName = toName;
+        var actualSubject = subject;
+        if (!string.IsNullOrWhiteSpace(_settings.TestRecipientOverride))
+        {
+            actualToEmail = _settings.TestRecipientOverride!;
+            actualToName = "Test Inbox";
+            actualSubject = $"[TEST → {toEmail}] {subject}";
+        }
+
         if (!_settings.Enabled || string.IsNullOrWhiteSpace(_settings.SmtpHost))
         {
-            _logger.LogInformation("[Email DISABLED] To: {Email} | Subject: {Subject}\n{Body}", toEmail, subject, htmlBody);
+            _logger.LogInformation("[Email DISABLED] To: {Email} | Subject: {Subject}\n{Body}", actualToEmail, actualSubject, htmlBody);
             return;
         }
 
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_settings.SenderName, _settings.SenderEmail));
-        message.To.Add(new MailboxAddress(toName, toEmail));
-        message.Subject = subject;
+        message.To.Add(new MailboxAddress(actualToName, actualToEmail));
+        message.Subject = actualSubject;
         message.Body = new BodyBuilder { HtmlBody = htmlBody }.ToMessageBody();
 
         try
@@ -46,7 +58,15 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {Email}", toEmail);
+            _logger.LogError(ex, "Failed to send email to {Email}", actualToEmail);
         }
+    }
+
+    public Task SendToAdminAsync(string subject, string htmlBody, CancellationToken ct = default)
+    {
+        var to = !string.IsNullOrWhiteSpace(_settings.AdminNotificationEmail)
+            ? _settings.AdminNotificationEmail!
+            : _settings.SenderEmail;
+        return SendAsync(to, "Travel Admin", subject, htmlBody, ct);
     }
 }

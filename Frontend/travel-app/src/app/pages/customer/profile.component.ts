@@ -17,7 +17,7 @@ import { AuthService } from '../../core/services/auth.service';
             <h5 class="fw-bold mb-3">Personal details</h5>
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label">Full name</label>
+                <label class="form-label">Full name <span class="text-danger">*</span></label>
                 <input class="form-control" formControlName="fullName" />
               </div>
               <div class="col-md-6">
@@ -58,14 +58,14 @@ import { AuthService } from '../../core/services/auth.service';
           <div class="card-body">
             <h5 class="fw-bold mb-3">Change password</h5>
             <div class="mb-3">
-              <label class="form-label">Current password</label>
+              <label class="form-label">Current password <span class="text-danger">*</span></label>
               <input type="password" class="form-control" formControlName="currentPassword" autocomplete="current-password" placeholder="Your current password" />
               <small class="text-danger d-block mt-1" *ngIf="passForm.get('currentPassword')?.touched && !passForm.value.currentPassword">
                 <i class="bi bi-exclamation-circle me-1"></i>Required.
               </small>
             </div>
             <div class="mb-3">
-              <label class="form-label">New password</label>
+              <label class="form-label">New password <span class="text-danger">*</span></label>
               <input type="password" class="form-control" formControlName="newPassword" autocomplete="new-password" placeholder="At least 6 characters" />
               <small class="d-block mt-1"
                      *ngIf="passForm.get('newPassword')?.touched || newPwdLen() > 0"

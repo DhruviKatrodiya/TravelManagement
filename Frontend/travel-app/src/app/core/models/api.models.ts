@@ -35,6 +35,7 @@ export interface User {
   phone?: string;
   role: UserRole;
   isActive: boolean;
+  permissions?: string[];
 }
 
 export interface AuthResponse {

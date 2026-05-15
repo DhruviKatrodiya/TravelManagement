@@ -11,11 +11,13 @@ public class VehicleService : IVehicleService
 {
     private readonly TravelDbContext _db;
     private readonly IMapper _mapper;
+    private readonly IEmailService _email;
 
-    public VehicleService(TravelDbContext db, IMapper mapper)
+    public VehicleService(TravelDbContext db, IMapper mapper, IEmailService email)
     {
         _db = db;
         _mapper = mapper;
+        _email = email;
     }
 
     public async Task<IEnumerable<VehicleDto>> ListAsync(bool? availableOnly = null)
@@ -119,6 +121,9 @@ public class VehicleService : IVehicleService
             .Include(a => a.StaffAssignments).ThenInclude(sa => sa.Staff).ThenInclude(s => s!.User)
             .Include(a => a.Booking)
             .FirstAsync(a => a.Id == allocation.Id);
+
+        await NotifyAllocationParticipantsAsync(fresh, "assigned");
+
         return _mapper.Map<VehicleAllocationDto>(fresh);
     }
 
@@ -181,7 +186,34 @@ public class VehicleService : IVehicleService
             .Include(a => a.StaffAssignments).ThenInclude(sa => sa.Staff).ThenInclude(s => s!.User)
             .Include(a => a.Booking)
             .FirstAsync(a => a.Id == existing.Id);
+
+        await NotifyAllocationParticipantsAsync(fresh, "updated");
+
         return _mapper.Map<VehicleAllocationDto>(fresh);
+    }
+
+    private async Task NotifyAllocationParticipantsAsync(VehicleAllocation allocation, string action)
+    {
+        var body = $@"<h2>You have been {action} to a trip</h2>
+                      <p><b>Vehicle:</b> {allocation.Vehicle?.Name} ({allocation.Vehicle?.RegistrationNumber})</p>
+                      <p><b>Period:</b> {allocation.StartDate:dd MMM yyyy} → {allocation.EndDate:dd MMM yyyy}</p>
+                      <p><b>Booking:</b> {(allocation.Booking != null ? allocation.Booking.BookingReference : "(none)")}</p>
+                      <p><b>Notes:</b> {allocation.Notes}</p>";
+
+        if (allocation.Driver != null && !string.IsNullOrWhiteSpace(allocation.Driver.Email))
+        {
+            _ = _email.SendAsync(allocation.Driver.Email, allocation.Driver.FullName,
+                $"Trip {action}: {allocation.Vehicle?.Name}", body);
+        }
+
+        foreach (var sa in allocation.StaffAssignments)
+        {
+            if (sa.Staff?.User == null) continue;
+            _ = _email.SendAsync(sa.Staff.User.Email, sa.Staff.User.FullName,
+                $"Trip {action}: {allocation.Vehicle?.Name}", body);
+        }
+
+        await Task.CompletedTask;
     }
 
     public async Task<bool> DeleteAllocationAsync(int id)

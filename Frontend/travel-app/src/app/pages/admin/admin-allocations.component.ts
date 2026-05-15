@@ -11,8 +11,8 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
   standalone: false,
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="fw-bold mb-0">Vehicle Allocations</h2>
-      <button *ngIf="auth.isStaff()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>New allocation</button>
+      <h2 class="fw-bold mb-0">Vehicle, Staff &amp; Driver Allocations</h2>
+      <button *ngIf="auth.hasPermission('allocations.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>New allocation</button>
     </div>
 
     <!-- Delete confirmation -->
@@ -45,10 +45,15 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit allocation' : 'New allocation' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Allocation details' : (editingId ? 'Edit allocation' : 'New allocation') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Vehicle <span class="text-danger">*</span></label>
@@ -109,8 +114,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save allocation'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save allocation'">
                 <i class="bi bi-check2-circle me-1"></i>{{ editingId ? 'Save changes' : 'Allocate' }}
               </button>
             </div>
@@ -175,13 +182,13 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ a.startDate | date:'mediumDate' }} → {{ a.endDate | date:'mediumDate' }}</td>
               <td>{{ a.notes }}</td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isStaff(); else readOnlyAl">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(a)">Edit</button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="remove(a)" [disabled]="deleting && deleteTarget?.id === a.id" title="Remove this allocation">
-                    <i class="bi bi-trash me-1"></i>Remove
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyAl><span class="text-muted small">View only</span></ng-template>
+                <button *ngIf="auth.hasPermission('allocations.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(a)">Edit</button>
+                <button *ngIf="auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(a)" [disabled]="deleting && deleteTarget?.id === a.id" title="Remove this allocation">
+                  <i class="bi bi-trash me-1"></i>Remove
+                </button>
+                <button *ngIf="!auth.hasPermission('allocations.edit') && !auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-primary" (click)="view(a)" title="View allocation details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredAllocations().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No allocations yet.' : 'No allocations match the filters.' }}</td></tr>
@@ -221,6 +228,8 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
   bookings: Booking[] = [];
   creating = false;
   editingId: number | null = null;
+  viewMode = false;
+  formError = '';
 
   deleteTarget: VehicleAllocation | null = null;
   deleting = false;
@@ -407,8 +416,11 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = null;
+    this.viewMode = false;
     this.creating = true;
+    this.formError = '';
     this.form.reset({ vehicleId: 0, driverId: null, bookingId: null, startDate: '', endDate: '', notes: '' });
+    this.form.enable({ emitEvent: false });
     this.selectedStaffIds = [];
     this.staffTouched = false;
     this.lockBody();
@@ -416,7 +428,9 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
 
   edit(a: VehicleAllocation): void {
     this.editingId = a.id;
+    this.viewMode = false;
     this.creating = true;
+    this.formError = '';
     this.selectedStaffIds = [...(a.staffIds || [])];
     this.staffTouched = false;
     this.form.reset({
@@ -427,14 +441,44 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
       endDate: (a.endDate || '').substring(0, 10),
       notes: a.notes || ''
     });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.creating = false; this.editingId = null; this.selectedStaffIds = []; this.staffTouched = false; this.unlockBody(); }
+  view(a: VehicleAllocation): void {
+    this.editingId = a.id;
+    this.viewMode = true;
+    this.creating = true;
+    this.formError = '';
+    this.selectedStaffIds = [...(a.staffIds || [])];
+    this.staffTouched = false;
+    this.form.reset({
+      vehicleId: a.vehicleId,
+      driverId: a.driverId ?? null,
+      bookingId: a.bookingId ?? null,
+      startDate: (a.startDate || '').substring(0, 10),
+      endDate: (a.endDate || '').substring(0, 10),
+      notes: a.notes || ''
+    });
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.creating = false;
+    this.editingId = null;
+    this.viewMode = false;
+    this.formError = '';
+    this.selectedStaffIds = [];
+    this.staffTouched = false;
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   save(): void {
     this.staffTouched = true;
     if (this.form.invalid || this.selectedStaffIds.length === 0) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = { ...this.form.getRawValue(), staffIds: [...this.selectedStaffIds] };
     const vehicleName = this.vehicles.find(x => x.id === v.vehicleId)?.name || 'vehicle';
     const op = this.editingId
@@ -455,7 +499,9 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
         this.load();
       },
       error: (err: any) => {
-        const apiMsg: string | undefined = err?.error?.message;
+        const apiMsg: string | undefined = err?.error?.message || err?.error?.errors?.[0];
+        this.formError = apiMsg || 'Could not save. Please try again.';
+        setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0);
         this.toast.show(
           apiMsg || (this.editingId ? `Could not update allocation. Please try again.` : `Could not allocate "${vehicleName}". Please try again.`),
           'danger', 4000,

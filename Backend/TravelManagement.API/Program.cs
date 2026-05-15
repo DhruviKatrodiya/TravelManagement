@@ -259,6 +259,16 @@ IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'IsActive' AND Object_ID 
 BEGIN
     ALTER TABLE Drivers ADD IsActive BIT NOT NULL CONSTRAINT DF_Drivers_IsActive DEFAULT 1;
 END
+IF OBJECT_ID('StaffPermissions', 'U') IS NULL
+BEGIN
+    CREATE TABLE StaffPermissions (
+        StaffId INT NOT NULL,
+        Permission NVARCHAR(80) NOT NULL,
+        CONSTRAINT PK_StaffPermissions PRIMARY KEY (StaffId, Permission),
+        CONSTRAINT FK_StaffPermissions_StaffMembers
+            FOREIGN KEY (StaffId) REFERENCES StaffMembers(Id) ON DELETE CASCADE
+    );
+END
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VehicleAllocations_StaffMembers')
 BEGIN
     ALTER TABLE VehicleAllocations DROP CONSTRAINT FK_VehicleAllocations_StaffMembers;

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -23,22 +24,28 @@ public class DriversController : ControllerBase
         return d == null ? NotFound(ApiResponse<DriverDto>.Fail("Not found")) : Ok(ApiResponse<DriverDto>.Ok(d));
     }
 
-    [HttpPost] public async Task<ActionResult<ApiResponse<DriverDto>>> Create(DriverCreateRequest req)
+    [HttpPost]
+    [RequirePermission(Permissions.DriversCreate)]
+    public async Task<ActionResult<ApiResponse<DriverDto>>> Create(DriverCreateRequest req)
         => Ok(ApiResponse<DriverDto>.Ok(await _svc.CreateAsync(req), "Driver added"));
 
-    [HttpPut("{id}")] public async Task<ActionResult<ApiResponse<DriverDto>>> Update(int id, DriverCreateRequest req)
+    [HttpPut("{id}")]
+    [RequirePermission(Permissions.DriversEdit)]
+    public async Task<ActionResult<ApiResponse<DriverDto>>> Update(int id, DriverCreateRequest req)
     {
         var d = await _svc.UpdateAsync(id, req);
         return d == null ? NotFound(ApiResponse<DriverDto>.Fail("Not found")) : Ok(ApiResponse<DriverDto>.Ok(d, "Updated"));
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.DriversDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deactivated")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.DriversEdit)]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

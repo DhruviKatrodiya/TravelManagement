@@ -11,11 +11,13 @@ public class DriverService : IDriverService
 {
     private readonly TravelDbContext _db;
     private readonly IMapper _mapper;
+    private readonly IEmailService _email;
 
-    public DriverService(TravelDbContext db, IMapper mapper)
+    public DriverService(TravelDbContext db, IMapper mapper, IEmailService email)
     {
         _db = db;
         _mapper = mapper;
+        _email = email;
     }
 
     public async Task<IEnumerable<DriverDto>> ListAsync()
@@ -35,6 +37,17 @@ public class DriverService : IDriverService
         var d = _mapper.Map<Driver>(req);
         _db.Drivers.Add(d);
         await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(d.Email))
+        {
+            _ = _email.SendAsync(d.Email, d.FullName,
+                "You have been added as a driver",
+                $@"<h2>Welcome, {d.FullName}!</h2>
+                   <p>You have been added to the Travel Management driver roster.</p>
+                   <p><b>License:</b> {d.LicenseNumber}</p>
+                   <p><b>Experience:</b> {d.ExperienceYears} year(s)</p>");
+        }
+
         return _mapper.Map<DriverDto>(d);
     }
 
@@ -44,6 +57,17 @@ public class DriverService : IDriverService
         if (d == null) return null;
         _mapper.Map(req, d);
         await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(d.Email))
+        {
+            _ = _email.SendAsync(d.Email, d.FullName,
+                "Your driver profile was updated",
+                $@"<h2>Profile updated</h2>
+                   <p>Hi {d.FullName}, an administrator updated your driver profile.</p>
+                   <p><b>License:</b> {d.LicenseNumber}</p>
+                   <p>If you did not expect this change, please contact support.</p>");
+        }
+
         return _mapper.Map<DriverDto>(d);
     }
 
@@ -58,6 +82,16 @@ public class DriverService : IDriverService
         if (d == null) return false;
         d.IsActive = active;
         await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(d.Email))
+        {
+            var subject = active ? "You have been reactivated as a driver" : "You have been deactivated as a driver";
+            var body = active
+                ? $@"<h2>Welcome back!</h2><p>Hi {d.FullName}, your driver profile is active again.</p>"
+                : $@"<h2>Driver profile deactivated</h2><p>Hi {d.FullName}, your driver profile has been deactivated and removed from the assignment pool. Please contact support if you have questions.</p>";
+            _ = _email.SendAsync(d.Email, d.FullName, subject, body);
+        }
+
         return true;
     }
 }

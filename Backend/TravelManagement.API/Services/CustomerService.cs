@@ -10,11 +10,13 @@ public class CustomerService : ICustomerService
 {
     private readonly TravelDbContext _db;
     private readonly IMapper _mapper;
+    private readonly IEmailService _email;
 
-    public CustomerService(TravelDbContext db, IMapper mapper)
+    public CustomerService(TravelDbContext db, IMapper mapper, IEmailService email)
     {
         _db = db;
         _mapper = mapper;
+        _email = email;
     }
 
     public async Task<IEnumerable<CustomerDto>> ListAsync()
@@ -70,6 +72,14 @@ public class CustomerService : ICustomerService
         c.IdProofNumber = req.IdProofNumber;
 
         await _db.SaveChangesAsync();
+
+        _ = _email.SendAsync(c.User.Email, c.User.FullName,
+            "Your profile was updated",
+            $@"<h2>Profile updated</h2>
+               <p>Hi {c.User.FullName},</p>
+               <p>An administrator updated your account details. If you did not request this, please contact support.</p>
+               <p>Email on file: {c.User.Email}</p>");
+
         return await GetAsync(customerId);
     }
 
@@ -101,6 +111,15 @@ public class CustomerService : ICustomerService
 
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync();
+
+        _ = _email.SendAsync(customer.User.Email, customer.User.FullName,
+            "Welcome to Travel Management",
+            $@"<h2>Welcome, {customer.User.FullName}!</h2>
+               <p>An account has been created for you on Travel Management.</p>
+               <p><b>Email:</b> {customer.User.Email}</p>
+               <p><b>Temporary password:</b> {req.Password}</p>
+               <p>Please sign in and change your password as soon as possible.</p>");
+
         return (await GetAsync(customer.Id))!;
     }
 
@@ -118,6 +137,12 @@ public class CustomerService : ICustomerService
 
         c.User.IsActive = active;
         await _db.SaveChangesAsync();
+
+        var subject = active ? "Your account has been reactivated" : "Your account has been deactivated";
+        var body = active
+            ? $@"<h2>Account reactivated</h2><p>Hi {c.User.FullName},</p><p>Your Travel Management account is active again. You can sign in normally.</p>"
+            : $@"<h2>Account deactivated</h2><p>Hi {c.User.FullName},</p><p>Your Travel Management account has been deactivated. You will not be able to sign in. Please contact support if you believe this is a mistake.</p>";
+        _ = _email.SendAsync(c.User.Email, c.User.FullName, subject, body);
         return true;
     }
 }

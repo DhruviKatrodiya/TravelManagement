@@ -121,22 +121,22 @@ const LANG_KEY = 'travel.lang';
     <div class="admin-shell" [class.sidebar-hidden]="!sidebarOpen()">
       <aside class="sidebar">
         <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}"><i class="bi bi-graph-up"></i> Dashboard</a>
-        <a routerLink="/admin/tours" routerLinkActive="active"><i class="bi bi-globe2"></i> Tours</a>
-        <a routerLink="/admin/destinations" routerLinkActive="active"><i class="bi bi-geo-alt"></i> Destinations</a>
-        <a routerLink="/admin/packages" routerLinkActive="active"><i class="bi bi-box-seam"></i> Packages</a>
-        <a routerLink="/admin/facilities" routerLinkActive="active"><i class="bi bi-cup-hot"></i> Facilities</a>
-        <a routerLink="/admin/schedules" routerLinkActive="active"><i class="bi bi-calendar3"></i> Trip Calendar</a>
-        <a routerLink="/admin/bookings" routerLinkActive="active"><i class="bi bi-bookmark-check"></i> Bookings</a>
-        <a *ngIf="auth.isAdmin()" routerLink="/admin/payments" routerLinkActive="active"><i class="bi bi-credit-card-2-front"></i> Payments</a>
-        <a *ngIf="auth.isAdmin()" routerLink="/admin/refunds" routerLinkActive="active"><i class="bi bi-arrow-counterclockwise"></i> Refunds</a>
-        <a *ngIf="auth.isAdmin()" routerLink="/admin/expenses" routerLinkActive="active"><i class="bi bi-cash-coin"></i> Expenses</a>
-        <a routerLink="/admin/customers" routerLinkActive="active"><i class="bi bi-people"></i> Customers</a>
-        <a routerLink="/admin/reviews" routerLinkActive="active"><i class="bi bi-chat-quote"></i> Reviews</a>
-        <a routerLink="/admin/vehicles" routerLinkActive="active"><i class="bi bi-truck"></i> Vehicles</a>
-        <a routerLink="/admin/allocations" routerLinkActive="active"><i class="bi bi-pin-map"></i> Allocations</a>
-        <a routerLink="/admin/drivers" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
+        <a *ngIf="auth.hasPermission('tours.view')" routerLink="/admin/tours" routerLinkActive="active"><i class="bi bi-globe2"></i> Tours</a>
+        <a *ngIf="auth.hasPermission('destinations.view')" routerLink="/admin/destinations" routerLinkActive="active"><i class="bi bi-geo-alt"></i> Destinations</a>
+        <a *ngIf="auth.hasPermission('packages.view')" routerLink="/admin/packages" routerLinkActive="active"><i class="bi bi-box-seam"></i> Packages</a>
+        <a *ngIf="auth.hasPermission('facilities.view')" routerLink="/admin/facilities" routerLinkActive="active"><i class="bi bi-cup-hot"></i> Facilities</a>
+        <a *ngIf="auth.hasPermission('schedules.view')" routerLink="/admin/schedules" routerLinkActive="active"><i class="bi bi-calendar3"></i> Trip Calendar</a>
+        <a *ngIf="auth.hasPermission('bookings.view')" routerLink="/admin/bookings" routerLinkActive="active"><i class="bi bi-bookmark-check"></i> Bookings</a>
+        <a *ngIf="auth.hasPermission('payments.view')" routerLink="/admin/payments" routerLinkActive="active"><i class="bi bi-credit-card-2-front"></i> Payments</a>
+        <a *ngIf="auth.hasPermission('refunds.view')" routerLink="/admin/refunds" routerLinkActive="active"><i class="bi bi-arrow-counterclockwise"></i> Refunds</a>
+        <a *ngIf="auth.hasPermission('expenses.view')" routerLink="/admin/expenses" routerLinkActive="active"><i class="bi bi-cash-coin"></i> Expenses</a>
+        <a *ngIf="auth.hasPermission('customers.view')" routerLink="/admin/customers" routerLinkActive="active"><i class="bi bi-people"></i> Customers</a>
+        <a *ngIf="auth.hasPermission('reviews.view')" routerLink="/admin/reviews" routerLinkActive="active"><i class="bi bi-chat-quote"></i> Reviews</a>
+        <a *ngIf="auth.hasPermission('vehicles.view')" routerLink="/admin/vehicles" routerLinkActive="active"><i class="bi bi-truck"></i> Vehicles</a>
+        <a *ngIf="auth.hasPermission('allocations.view')" routerLink="/admin/allocations" routerLinkActive="active"><i class="bi bi-pin-map"></i> Allocations</a>
+        <a *ngIf="auth.hasPermission('drivers.view')" routerLink="/admin/drivers" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
         <a *ngIf="auth.isAdmin()" routerLink="/admin/staff" routerLinkActive="active"><i class="bi bi-shield-lock"></i> Staff</a>
-        <a *ngIf="auth.isAdmin()" routerLink="/admin/reports" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+        <a *ngIf="auth.hasPermission('reports.view')" routerLink="/admin/reports" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
         <a routerLink="/admin/settings" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
       </aside>
       <section class="content">

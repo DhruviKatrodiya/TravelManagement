@@ -13,7 +13,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Tours</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add tour</button>
+      <button *ngIf="auth.hasPermission('tours.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add tour</button>
     </div>
 
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
@@ -48,6 +48,11 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Name <span class="text-danger">*</span></label>
@@ -147,15 +152,19 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                             <label class="form-label small mb-1">Facilities</label>
                             <div *ngIf="facilities.length === 0" class="text-muted small">No facilities defined yet — add them from the Facilities page.</div>
                             <div class="d-flex flex-wrap gap-2">
-                              <div class="form-check" *ngFor="let f of facilities">
-                                <input class="form-check-input" type="checkbox"
-                                       [checked]="isFacilitySelected(pkg, f.id)"
-                                       (change)="toggleFacility(pkg, f.id)"
-                                       [id]="'pkg' + i + 'fac' + f.id" />
-                                <label class="form-check-label small" [attr.for]="'pkg' + i + 'fac' + f.id">
-                                  {{ f.name }} <span class="text-muted">(₹{{ f.cost }})</span>
-                                </label>
-                              </div>
+                              <ng-container *ngFor="let f of facilities">
+                                <div class="form-check" *ngIf="!viewMode || isFacilitySelected(pkg, f.id)">
+                                  <input class="form-check-input" type="checkbox"
+                                         [checked]="isFacilitySelected(pkg, f.id)"
+                                         (change)="toggleFacility(pkg, f.id)"
+                                         [id]="'pkg' + i + 'fac' + f.id"
+                                         [disabled]="viewMode" />
+                                  <label class="form-check-label small" [attr.for]="'pkg' + i + 'fac' + f.id">
+                                    {{ f.name }} <span class="text-muted">(₹{{ f.cost }})</span>
+                                  </label>
+                                </div>
+                              </ng-container>
+                              <div *ngIf="viewMode && !hasAnyFacility(pkg)" class="text-muted small fst-italic">No facilities included.</div>
                             </div>
                           </div>
                           <div class="col-md-6 form-check ms-2 mt-2">
@@ -268,21 +277,17 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </td>
               <td><span class="badge" [class.bg-success]="t.isActive" [class.bg-secondary]="!t.isActive">{{ t.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyTour">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(t)">Edit</button>
-                  <button *ngIf="t.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(t)" [disabled]="togglingId === t.id" title="Hide this tour from customers">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!t.isActive" class="btn btn-sm btn-outline-success" (click)="activate(t)" [disabled]="togglingId === t.id" title="Make this tour visible again">
-                    <span *ngIf="togglingId === t.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== t.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyTour>
-                  <button class="btn btn-sm btn-outline-primary" (click)="view(t)" title="View tour details">
-                    <i class="bi bi-eye me-1"></i>View
-                  </button>
-                </ng-template>
+                <button *ngIf="auth.hasPermission('tours.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(t)">Edit</button>
+                <button *ngIf="t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(t)" [disabled]="togglingId === t.id" title="Hide this tour from customers">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-success" (click)="activate(t)" [disabled]="togglingId === t.id" title="Make this tour visible again">
+                  <span *ngIf="togglingId === t.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== t.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('tours.edit') && !auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-primary" (click)="view(t)" title="View tour details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredTours().length === 0"><td colspan="6" class="text-center text-muted py-3">{{ tours.length === 0 ? 'No tours yet.' : 'No tours match the filters.' }}</td></tr>
@@ -324,6 +329,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   viewMode = false;
   uploading = false;
   previewBroken = false;
+  formError = '';
 
   deleteTarget: Tour | null = null;
   deleting = false;
@@ -440,6 +446,11 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     return ids.includes(facilityId);
   }
 
+  hasAnyFacility(pkg: AbstractControl): boolean {
+    const ids = (pkg.get('facilityIds')?.value as number[]) || [];
+    return ids.length > 0;
+  }
+
   toggleFacility(pkg: AbstractControl, facilityId: number): void {
     const ctrl = pkg.get('facilityIds');
     if (!ctrl) return;
@@ -509,7 +520,8 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   private unlockBody(): void { document.body.classList.remove('modal-open'); }
 
   load(): void {
-    this.api.listTours(undefined, false).subscribe({
+    const onlyAssigned = !this.auth.isAdmin();
+    this.api.listTours(undefined, false, undefined, undefined, onlyAssigned).subscribe({
       next: ts => {
         this.tours = ts;
         const total = this.totalPages();
@@ -613,6 +625,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.previewBroken = false;
+    this.formError = '';
     this.packages.clear();
     this.form.reset({ name: '', destination: 'India', region: '', description: '', highlights: '', imageUrl: '', isActive: true });
     this.lockBody();
@@ -622,6 +635,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.editingId = t.id;
     this.viewMode = false;
     this.previewBroken = false;
+    this.formError = '';
     this.packages.clear();
     this.removedPackageIds = [];
     this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive });
@@ -636,6 +650,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.editingId = t.id;
     this.viewMode = true;
     this.previewBroken = false;
+    this.formError = '';
     this.packages.clear();
     this.removedPackageIds = [];
     this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive });
@@ -652,6 +667,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   cancel(): void {
     this.editingId = null;
     this.viewMode = false;
+    this.formError = '';
     this.packages.clear();
     this.removedPackageIds = [];
     this.removedItineraryIds.clear();
@@ -683,6 +699,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
 
   save(): void {
     if (this.form.invalid) { this.markAllTouched(); return; }
+    this.formError = '';
     const { packages, ...tourFields } = this.form.getRawValue() as any;
     const pkgRows: any[] = packages || [];
     const pkgControls = this.packages.controls;
@@ -749,7 +766,8 @@ export class AdminToursComponent implements OnInit, OnDestroy {
             this.toast.show(`Tour ${label} saved, but some packages or itineraries failed to sync.`, 'danger', 4000, { title: 'Partial save' });
             this.finishEdit();
           });
-        }
+        },
+        error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
       });
       return;
     }
@@ -769,7 +787,8 @@ export class AdminToursComponent implements OnInit, OnDestroy {
           this.toast.show(`Tour ${label} created, but some packages failed to save.`, 'danger', 4000, { title: 'Partial save' });
           this.finishEdit();
         });
-      }
+      },
+      error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
     });
   }
 

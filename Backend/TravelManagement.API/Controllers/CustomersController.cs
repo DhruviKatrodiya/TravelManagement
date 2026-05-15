@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -48,6 +49,7 @@ public class CustomersController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.CustomersEdit)]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Update(int id, CustomerUpdateRequest req)
     {
         var updated = await _svc.UpdateAsync(id, req);
@@ -55,17 +57,20 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.CustomersCreate)]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Create(CustomerCreateRequest req)
         => Ok(ApiResponse<CustomerDto>.Ok(await _svc.CreateAsync(req), "Customer created"));
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.CustomersDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deactivated")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.CustomersEdit)]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

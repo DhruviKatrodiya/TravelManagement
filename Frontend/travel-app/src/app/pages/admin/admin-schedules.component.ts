@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -11,7 +11,7 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Trip Calendar</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Schedule new trip</button>
+      <button *ngIf="auth.hasPermission('schedules.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Schedule new trip</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -47,7 +47,12 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
             <h5 class="modal-title fw-bold">{{ viewMode ? 'Scheduled trip details' : (editingId ? 'Edit scheduled trip' : 'Schedule a tour') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
-            <div class="modal-body">
+            <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Tour <span class="text-danger">*</span></label>
@@ -148,21 +153,17 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
               </td>
               <td><span class="badge" [class.bg-success]="s.isActive" [class.bg-secondary]="!s.isActive">{{ s.isActive ? 'Open' : 'Closed' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlySch">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(s)">Edit</button>
-                  <button *ngIf="s.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Close this trip">
-                    <i class="bi bi-eye-slash me-1"></i>Close
-                  </button>
-                  <button *ngIf="!s.isActive" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Reopen this trip">
-                    <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Reopen
-                  </button>
-                </ng-container>
-                <ng-template #readOnlySch>
-                  <button class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View trip details">
-                    <i class="bi bi-eye me-1"></i>View
-                  </button>
-                </ng-template>
+                <button *ngIf="auth.hasPermission('schedules.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(s)">Edit</button>
+                <button *ngIf="s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Close this trip">
+                  <i class="bi bi-eye-slash me-1"></i>Close
+                </button>
+                <button *ngIf="!s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Reopen this trip">
+                  <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Reopen
+                </button>
+                <button *ngIf="!auth.hasPermission('schedules.edit') && !auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View trip details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -202,6 +203,8 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   packages: TourPackage[] = [];
   editingId: number | null = null;
   viewMode = false;
+  formError = '';
+  @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
 
   deleteTarget: TourSchedule | null = null;
   deleting = false;
@@ -381,6 +384,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.viewMode = false;
+    this.formError = '';
     this.form.reset({ tourId: 0, tourPackageId: 0, startDate: '', endDate: '', availableSeats: 10, isActive: true });
     this.form.enable({ emitEvent: false });
     this.lockBody();
@@ -389,6 +393,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   edit(s: TourSchedule): void {
     this.editingId = s.id;
     this.viewMode = false;
+    this.formError = '';
     this.form.reset({
       tourId: s.tourId,
       tourPackageId: s.tourPackageId,
@@ -404,6 +409,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   view(s: TourSchedule): void {
     this.editingId = s.id;
     this.viewMode = true;
+    this.formError = '';
     this.form.reset({
       tourId: s.tourId,
       tourPackageId: s.tourPackageId,
@@ -419,6 +425,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   cancel(): void {
     this.editingId = null;
     this.viewMode = false;
+    this.formError = '';
     this.form.enable({ emitEvent: false });
     this.unlockBody();
   }
@@ -429,6 +436,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
 
   save(): void {
     if (this.form.invalid || this.seatsOutOfRange()) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = this.form.getRawValue() as any;
     const tName = this.tours.find(t => t.id === v.tourId)?.name || '—';
     const pName = this.packages.find(p => p.id === v.tourPackageId)?.name || '—';
@@ -445,6 +453,10 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
         this.editingId = null;
         this.unlockBody();
         this.load();
+      },
+      error: (err: any) => {
+        this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.';
+        setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0);
       }
     });
   }

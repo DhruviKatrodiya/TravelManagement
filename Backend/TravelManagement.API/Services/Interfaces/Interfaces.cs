@@ -25,7 +25,7 @@ public interface IAppSettingsService
 
 public interface IHomeDestinationService
 {
-    Task<IEnumerable<DTOs.Common.HomeDestinationDto>> ListAsync(bool? activeOnly = true);
+    Task<IEnumerable<DTOs.Common.HomeDestinationDto>> ListAsync(bool? activeOnly = true, IReadOnlyCollection<int>? tourIdsFilter = null);
     Task<DTOs.Common.HomeDestinationDto> CreateAsync(DTOs.Common.HomeDestinationRequest req);
     Task<DTOs.Common.HomeDestinationDto?> UpdateAsync(int id, DTOs.Common.HomeDestinationRequest req);
     Task<bool> DeleteAsync(int id);
@@ -33,12 +33,13 @@ public interface IHomeDestinationService
 
 public interface ITokenService
 {
-    (string token, DateTime expiresAt) GenerateToken(User user);
+    (string token, DateTime expiresAt) GenerateToken(User user, IEnumerable<string>? permissions = null);
 }
 
 public interface IEmailService
 {
     Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default);
+    Task SendToAdminAsync(string subject, string htmlBody, CancellationToken ct = default);
 }
 
 public interface INotificationService
@@ -52,7 +53,7 @@ public interface INotificationService
 
 public interface ITourService
 {
-    Task<IEnumerable<TourDto>> ListAsync(Destination? destination = null, string? q = null, int? homeDestinationId = null, bool? activeOnly = true);
+    Task<IEnumerable<TourDto>> ListAsync(Destination? destination = null, string? q = null, int? homeDestinationId = null, bool? activeOnly = true, IReadOnlyCollection<int>? tourIdsFilter = null);
     Task<TourDto?> GetAsync(int id);
     Task<TourDto> CreateAsync(TourCreateRequest req);
     Task<TourDto?> UpdateAsync(int id, TourUpdateRequest req);
@@ -61,7 +62,7 @@ public interface ITourService
 
 public interface IPackageService
 {
-    Task<IEnumerable<TourPackageDto>> ListAsync(int? tourId = null);
+    Task<IEnumerable<TourPackageDto>> ListAsync(int? tourId = null, IReadOnlyCollection<int>? packageIdsFilter = null);
     Task<TourPackageDto?> GetAsync(int id);
     Task<TourPackageDto> CreateAsync(TourPackageCreateRequest req);
     Task<TourPackageDto?> UpdateAsync(int id, TourPackageUpdateRequest req);
@@ -139,6 +140,11 @@ public interface IStaffService
     Task<StaffDto> CreateAsync(StaffCreateRequest req);
     Task<StaffDto?> UpdateAsync(int id, StaffUpdateRequest req);
     Task<bool> DeleteAsync(int id);
+    Task<HashSet<int>> GetAssignedTourIdsForUserAsync(int userId);
+    Task<HashSet<int>> GetAssignedPackageIdsForUserAsync(int userId);
+    Task<List<string>> GetPermissionsAsync(int staffId);
+    Task<List<string>> GetPermissionsByUserIdAsync(int userId);
+    Task<bool> SetPermissionsAsync(int staffId, IEnumerable<string> permissions);
 }
 
 public interface IPaymentService

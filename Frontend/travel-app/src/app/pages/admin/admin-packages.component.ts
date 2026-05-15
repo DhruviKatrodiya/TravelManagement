@@ -49,6 +49,11 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Tour <span class="text-danger">*</span></label>
@@ -105,10 +110,13 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
                   <label class="form-label">Facilities</label>
                   <div *ngIf="facilities.length === 0" class="text-muted small">No facilities defined yet — add them from the Facilities page.</div>
                   <div class="d-flex flex-wrap gap-2">
-                    <div class="form-check" *ngFor="let f of facilities">
-                      <input class="form-check-input" type="checkbox" [checked]="isSelected(f.id)" (change)="toggleFacility(f.id)" [id]="'f' + f.id" [disabled]="viewMode" />
-                      <label class="form-check-label small" [for]="'f' + f.id">{{ f.name }} <span class="text-muted">(₹{{ f.cost }})</span></label>
-                    </div>
+                    <ng-container *ngFor="let f of facilities">
+                      <div class="form-check" *ngIf="!viewMode || isSelected(f.id)">
+                        <input class="form-check-input" type="checkbox" [checked]="isSelected(f.id)" (change)="toggleFacility(f.id)" [id]="'f' + f.id" [disabled]="viewMode" />
+                        <label class="form-check-label small" [for]="'f' + f.id">{{ f.name }} <span class="text-muted">(₹{{ f.cost }})</span></label>
+                      </div>
+                    </ng-container>
+                    <div *ngIf="viewMode && selectedFacilityIds.length === 0" class="text-muted small fst-italic">No facilities included.</div>
                   </div>
                 </div>
                 <div class="col-12 d-flex gap-3">
@@ -205,20 +213,16 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
               <td>₹ {{ p.pricePerPerson | number:'1.0-0' }}</td>
               <td><span class="badge" [class.bg-success]="p.isActive" [class.bg-secondary]="!p.isActive">{{ p.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyPkg">
-                  <button *ngIf="p.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id" title="Hide this package from customers">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!p.isActive" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id" title="Make this package visible again">
-                    <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyPkg>
-                  <button class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View package details">
-                    <i class="bi bi-eye me-1"></i>View
-                  </button>
-                </ng-template>
+                <button *ngIf="p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id" title="Hide this package from customers">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id" title="Make this package visible again">
+                  <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View package details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredPackages().length === 0">
@@ -259,6 +263,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   packages: TourPackage[] = [];
   editingId: number | null = null;
   viewMode = false;
+  formError = '';
   selectedFacilityIds: number[] = [];
   currentItineraries: any[] = [];
 
@@ -308,7 +313,8 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.api.listTours(undefined, false).subscribe({
+    const onlyAssigned = !this.auth.isAdmin();
+    this.api.listTours(undefined, false, undefined, undefined, onlyAssigned).subscribe({
       next: ts => {
         this.tours = ts;
         const tourIdParam = this.route.snapshot.queryParamMap.get('tourId');
@@ -345,7 +351,8 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   private unlockBody(): void { document.body.classList.remove('modal-open'); }
 
   load(): void {
-    this.api.listPackages().subscribe({
+    const onlyAssigned = !this.auth.isAdmin();
+    this.api.listPackages(undefined, onlyAssigned).subscribe({
       next: ps => {
         this.packages = ps;
         const total = this.totalPages();
@@ -454,6 +461,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.viewMode = false;
+    this.formError = '';
     this.selectedFacilityIds = [];
     this.currentItineraries = [];
     this.form.reset({
@@ -470,6 +478,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   edit(p: TourPackage): void {
     this.editingId = p.id;
     this.viewMode = false;
+    this.formError = '';
     this.selectedFacilityIds = (p.facilities || []).map(f => f.facilityId);
     this.currentItineraries = p.itineraries || [];
     this.form.reset({ ...p, childPrice: p.childPrice || 0 } as any);
@@ -480,6 +489,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   view(p: TourPackage): void {
     this.editingId = p.id;
     this.viewMode = true;
+    this.formError = '';
     this.selectedFacilityIds = (p.facilities || []).map(f => f.facilityId);
     this.currentItineraries = p.itineraries || [];
     this.form.reset({ ...p, childPrice: p.childPrice || 0 } as any);
@@ -490,6 +500,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   cancel(): void {
     this.editingId = null;
     this.viewMode = false;
+    this.formError = '';
     this.form.enable({ emitEvent: false });
     this.unlockBody();
   }
@@ -507,6 +518,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const payload = { ...this.form.getRawValue(), facilityIds: this.selectedFacilityIds } as any;
     const tName = this.tourName(payload.tourId);
     const label = `"${payload.name}" — ${tName}`;
@@ -525,7 +537,8 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
           this.unlockBody();
         }
         this.load();
-      }
+      },
+      error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
     });
   }
 

@@ -19,6 +19,46 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       Staff accounts are seeded by an admin only. Customers cannot self-register as staff.
     </div>
 
+    <!-- Permissions modal -->
+    <div *ngIf="permsTarget" class="modal-backdrop fade show"></div>
+    <div *ngIf="permsTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onPermsBackdrop($event)">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-shield-lock me-2"></i>Permissions for {{ permsTarget.fullName }}</h5>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted small mb-3">Tick the actions this staff member is allowed to perform. Admins always have every permission.</p>
+            <div *ngFor="let group of permsGrouped; trackBy: trackByModule" class="mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <h6 class="fw-bold mb-0 text-capitalize">{{ group.module }}</h6>
+                <div>
+                  <button type="button" class="btn btn-sm btn-link p-0 me-2" (click)="selectAllInGroup(group.module, true)">All</button>
+                  <button type="button" class="btn btn-sm btn-link p-0 text-muted" (click)="selectAllInGroup(group.module, false)">None</button>
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check" *ngFor="let key of group.keys; trackBy: trackByKey">
+                  <input class="form-check-input" type="checkbox"
+                         [id]="'perm-' + key"
+                         [checked]="permsSelected.has(key)"
+                         (change)="togglePerm(key)" />
+                  <label class="form-check-label small" [attr.for]="'perm-' + key">{{ permLabel(key) }}</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closePermissions()" [disabled]="permsSaving"><i class="bi bi-x-lg me-1"></i>Cancel</button>
+            <button type="button" class="btn btn-primary" (click)="savePermissions()" [disabled]="permsSaving">
+              <span *ngIf="permsSaving" class="spinner-border spinner-border-sm me-2"></span>
+              <i *ngIf="!permsSaving" class="bi bi-check2-circle me-1"></i>{{ permsSaving ? 'Saving…' : 'Save permissions' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Deactivate confirmation -->
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
     <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onDeleteBackdrop($event)">
@@ -53,6 +93,11 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Full name <span class="text-danger">*</span></label>
@@ -168,6 +213,9 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td class="text-end">
                 <ng-container *ngIf="auth.isAdmin(); else readOnlyStf">
                   <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(s)">Edit</button>
+                  <button class="btn btn-sm btn-outline-secondary me-1" (click)="openPermissions(s)" title="Manage permissions">
+                    <i class="bi bi-shield-lock me-1"></i>Permissions
+                  </button>
                   <button *ngIf="s.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Block this staff from logging in">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
@@ -211,10 +259,17 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
 
   items: Staff[] = [];
   editingId: number | null = null;
+  formError = '';
 
   deleteTarget: Staff | null = null;
   deleting = false;
   togglingId: number | null = null;
+
+  permsTarget: Staff | null = null;
+  permsCatalog: string[] = [];
+  permsGrouped: { module: string; keys: string[] }[] = [];
+  permsSelected = new Set<string>();
+  permsSaving = false;
 
   filterText = '';
   filterDepartment = '';
@@ -239,7 +294,89 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
     isActive: [true]
   });
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.api.listPermissionCatalog().subscribe({
+      next: list => {
+        this.permsCatalog = list || [];
+        this.permsGrouped = this.buildGroups(this.permsCatalog);
+      }
+    });
+  }
+
+  private buildGroups(catalog: string[]): { module: string; keys: string[] }[] {
+    const groups = new Map<string, string[]>();
+    for (const key of catalog) {
+      const [mod] = key.split('.');
+      const arr = groups.get(mod) ?? [];
+      arr.push(key);
+      groups.set(mod, arr);
+    }
+    return Array.from(groups.entries()).map(([module, keys]) => ({ module, keys }));
+  }
+
+  openPermissions(s: Staff): void {
+    this.permsTarget = s;
+    this.permsSelected = new Set<string>();
+    this.lockBody();
+    this.api.getStaffPermissions(s.id).subscribe({
+      next: perms => this.permsSelected = new Set(perms || [])
+    });
+  }
+
+  closePermissions(): void {
+    if (this.permsSaving) return;
+    this.permsTarget = null;
+    this.permsSelected.clear();
+    if (this.editingId === null && !this.deleteTarget) this.unlockBody();
+  }
+
+  onPermsBackdrop(event: MouseEvent): void {
+    if (this.permsSaving) return;
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closePermissions();
+  }
+
+  togglePerm(key: string): void {
+    if (this.permsSelected.has(key)) this.permsSelected.delete(key);
+    else this.permsSelected.add(key);
+  }
+
+  trackByModule(_index: number, item: { module: string }): string { return item.module; }
+  trackByKey(_index: number, key: string): string { return key; }
+
+  permLabel(key: string): string {
+    const [, action] = key.split('.');
+    return action ? action.charAt(0).toUpperCase() + action.slice(1) : key;
+  }
+
+
+  selectAllInGroup(module: string, on: boolean): void {
+    for (const key of this.permsCatalog) {
+      if (!key.startsWith(module + '.')) continue;
+      if (on) this.permsSelected.add(key);
+      else this.permsSelected.delete(key);
+    }
+  }
+
+  savePermissions(): void {
+    const target = this.permsTarget;
+    if (!target || this.permsSaving) return;
+    this.permsSaving = true;
+    const list = Array.from(this.permsSelected);
+    this.api.setStaffPermissions(target.id, list).subscribe({
+      next: () => {
+        this.permsSaving = false;
+        this.toast.show(`Permissions for "${target.fullName}" updated.`, 'success', 4000, { title: 'Permissions saved' });
+        this.permsTarget = null;
+        this.permsSelected.clear();
+        if (this.editingId === null && !this.deleteTarget) this.unlockBody();
+      },
+      error: () => {
+        this.permsSaving = false;
+        this.toast.show(`Could not save permissions. Please try again.`, 'danger', 4000, { title: 'Save failed' });
+      }
+    });
+  }
   ngOnDestroy(): void { this.unlockBody(); }
 
   @HostListener('document:keydown.escape')
@@ -257,8 +394,26 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
-  private lockBody(): void { document.body.classList.add('modal-open'); }
-  private unlockBody(): void { document.body.classList.remove('modal-open'); }
+  private savedScrollY = 0;
+  private lockBody(): void {
+    if (!document.body.classList.contains('modal-open')) {
+      this.savedScrollY = window.scrollY;
+      document.body.style.top = `-${this.savedScrollY}px`;
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    }
+    document.body.classList.add('modal-open');
+  }
+  private unlockBody(): void {
+    document.body.classList.remove('modal-open');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    if (this.savedScrollY) {
+      window.scrollTo(0, this.savedScrollY);
+      this.savedScrollY = 0;
+    }
+  }
 
   load(): void {
     this.api.listStaff().subscribe({
@@ -370,6 +525,7 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.formError = '';
     this.form.reset({ fullName: '', email: '', password: '', phone: '', designation: '', department: '', salary: null, isActive: true });
     this.form.controls['password'].setValidators([Validators.required, Validators.minLength(6)]);
     this.form.controls['password'].updateValueAndValidity();
@@ -378,6 +534,7 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
 
   edit(s: Staff): void {
     this.editingId = s.id;
+    this.formError = '';
     this.form.controls['password'].clearValidators();
     this.form.controls['password'].updateValueAndValidity();
     this.form.reset({
@@ -393,10 +550,11 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  cancel(): void { this.editingId = null; this.formError = ''; this.unlockBody(); }
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = this.form.getRawValue() as any;
     const label = `"${v.fullName}" — ${v.email}`;
     const op = this.editingId ? this.api.updateStaff(this.editingId, v) : this.api.createStaff(v);
@@ -409,7 +567,8 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
         this.editingId = null;
         this.unlockBody();
         this.load();
-      }
+      },
+      error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
     });
   }
 

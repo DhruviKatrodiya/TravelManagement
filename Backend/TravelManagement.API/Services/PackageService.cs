@@ -23,10 +23,16 @@ public class PackageService : IPackageService
             .Include(p => p.Itineraries)
             .Include(p => p.PackageFacilities).ThenInclude(pf => pf.Facility);
 
-    public async Task<IEnumerable<TourPackageDto>> ListAsync(int? tourId = null)
+    public async Task<IEnumerable<TourPackageDto>> ListAsync(int? tourId = null, IReadOnlyCollection<int>? packageIdsFilter = null)
     {
         var q = Query();
         if (tourId.HasValue) q = q.Where(p => p.TourId == tourId.Value);
+        if (packageIdsFilter != null)
+        {
+            if (packageIdsFilter.Count == 0) return Enumerable.Empty<TourPackageDto>();
+            var allowed = packageIdsFilter.ToHashSet();
+            q = q.Where(p => allowed.Contains(p.Id));
+        }
         var items = await q.OrderByDescending(p => p.CreatedAt).ToListAsync();
         return _mapper.Map<List<TourPackageDto>>(items);
     }

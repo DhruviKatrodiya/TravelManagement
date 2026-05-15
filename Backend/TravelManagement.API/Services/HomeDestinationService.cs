@@ -12,10 +12,16 @@ public class HomeDestinationService : IHomeDestinationService
 
     public HomeDestinationService(TravelDbContext db) => _db = db;
 
-    public async Task<IEnumerable<HomeDestinationDto>> ListAsync(bool? activeOnly = true)
+    public async Task<IEnumerable<HomeDestinationDto>> ListAsync(bool? activeOnly = true, IReadOnlyCollection<int>? tourIdsFilter = null)
     {
         var q = _db.HomeDestinations.AsQueryable();
         if (activeOnly == true) q = q.Where(d => d.IsActive);
+        if (tourIdsFilter != null)
+        {
+            if (tourIdsFilter.Count == 0) return Enumerable.Empty<HomeDestinationDto>();
+            var allowed = tourIdsFilter.ToHashSet();
+            q = q.Where(d => _db.HomeDestinationTours.Any(l => l.HomeDestinationId == d.Id && allowed.Contains(l.TourId)));
+        }
         var rows = await q.OrderBy(d => d.SortOrder).ThenBy(d => d.Id).ToListAsync();
 
         var ids = rows.Select(r => r.Id).ToList();

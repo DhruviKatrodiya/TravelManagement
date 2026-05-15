@@ -23,7 +23,7 @@ import { AuthService } from '../../core/services/auth.service';
 
               <form [formGroup]="form" (ngSubmit)="submit()">
                 <div class="mb-3">
-                  <label class="form-label">Email</label>
+                  <label class="form-label">Email <span class="text-danger">*</span></label>
                   <input type="email" class="form-control" formControlName="email"
                          [class.is-invalid]="emailCtl.touched && emailCtl.invalid" />
                   <small class="text-danger d-block mt-1" *ngIf="emailCtl.touched && emailCtl.errors?.['required']">
@@ -34,7 +34,7 @@ import { AuthService } from '../../core/services/auth.service';
                   </small>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label">Password</label>
+                  <label class="form-label">Password <span class="text-danger">*</span></label>
                   <input type="password" class="form-control" formControlName="password"
                          [class.is-invalid]="passwordCtl.touched && passwordCtl.invalid" />
                   <small class="text-danger d-block mt-1" *ngIf="passwordCtl.touched && passwordCtl.errors?.['required']">

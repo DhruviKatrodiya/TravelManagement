@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
 
@@ -10,6 +11,87 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
     <div class="mb-4">
       <h2 class="fw-bold mb-1">All Bookings</h2>
       <p class="text-muted small mb-0">Track every booking, change its status, and search by reference or customer.</p>
+    </div>
+
+    <!-- View modal -->
+    <div *ngIf="viewing" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewing" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onViewBackdrop($event)">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">Booking details</h5>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="text-muted small">Reference</div>
+                <div class="fw-semibold"><code>{{ viewing.bookingReference }}</code></div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Status</div>
+                <span class="badge" [ngClass]="badgeClass(viewing.status)">{{ viewing.status }}</span>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Customer</div>
+                <div class="fw-semibold">{{ viewing.customerName }}</div>
+                <div class="small text-muted">{{ viewing.customerEmail }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Tour / Package</div>
+                <div class="fw-semibold">{{ viewing.tourName }}</div>
+                <div class="small text-muted">{{ viewing.packageName }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Trip dates</div>
+                <div>{{ viewing.tripStartDate | date:'mediumDate' }} → {{ viewing.tripEndDate | date:'mediumDate' }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Travellers</div>
+                <div>{{ viewing.adults }} adult{{ viewing.adults === 1 ? '' : 's' }}<span *ngIf="viewing.children > 0">, {{ viewing.children }} child{{ viewing.children === 1 ? '' : 'ren' }}</span></div>
+              </div>
+              <div class="col-12"><hr class="my-1" /></div>
+              <div class="col-md-3">
+                <div class="text-muted small">Sub-total</div>
+                <div>₹ {{ viewing.subTotal | number:'1.0-0' }}</div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-muted small">Discount</div>
+                <div>₹ {{ viewing.discount | number:'1.0-0' }}</div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-muted small">Tax</div>
+                <div>₹ {{ viewing.tax | number:'1.0-0' }}</div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-muted small">Total</div>
+                <div class="fw-bold">₹ {{ viewing.totalAmount | number:'1.0-0' }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Paid</div>
+                <div class="text-success fw-semibold">₹ {{ viewing.amountPaid | number:'1.0-0' }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Due</div>
+                <div [class.text-danger]="viewing.amountDue > 0" [class.fw-semibold]="viewing.amountDue > 0">₹ {{ viewing.amountDue | number:'1.0-0' }}</div>
+              </div>
+              <div class="col-12" *ngIf="viewing.specialRequests">
+                <div class="text-muted small">Special requests</div>
+                <div>{{ viewing.specialRequests }}</div>
+              </div>
+              <div class="col-12" *ngIf="viewing.customItinerary">
+                <div class="text-muted small">Custom itinerary</div>
+                <div class="small">{{ viewing.customItinerary }}</div>
+              </div>
+              <div class="col-12 text-muted small">
+                Booked {{ viewing.bookedAt | date:'mediumDate' }}<span *ngIf="viewing.cancelledAt"> • Cancelled {{ viewing.cancelledAt | date:'mediumDate' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -69,7 +151,7 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
               <td class="text-nowrap">₹ {{ b.amountPaid | number:'1.0-0' }}</td>
               <td class="text-nowrap"><span class="badge" [ngClass]="badgeClass(b.status)">{{ b.status }}</span></td>
               <td class="text-end">
-                <div class="dropdown">
+                <div class="dropdown" *ngIf="auth.hasPermission('bookings.edit')">
                   <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-strategy="fixed">Status</button>
                   <ul class="dropdown-menu dropdown-menu-end shadow">
                     <li *ngFor="let s of statuses">
@@ -80,6 +162,9 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
                     </li>
                   </ul>
                 </div>
+                <button *ngIf="!auth.hasPermission('bookings.edit')" class="btn btn-sm btn-outline-primary" (click)="view(b)" title="View booking details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filtered().length === 0"><td colspan="8" class="text-center text-muted py-3">{{ items.length === 0 ? 'No bookings found.' : 'No bookings match the filters.' }}</td></tr>
@@ -109,6 +194,7 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
 export class AdminBookingsComponent implements OnInit {
   items: Booking[] = [];
   tours: Tour[] = [];
+  viewing: Booking | null = null;
   query = '';
   statusFilter: string = '';
   tourFilter: string | number = '';
@@ -129,6 +215,7 @@ export class AdminBookingsComponent implements OnInit {
   page = 1;
   readonly pageSize = 10;
 
+  auth = inject(AuthService);
   constructor(private api: ApiService, private toast: ToastService) {}
 
   ngOnInit(): void {
@@ -235,5 +322,19 @@ export class AdminBookingsComponent implements OnInit {
 
   badgeClass(s: string): string {
     return ({ Confirmed: 'bg-success', Pending: 'bg-warning text-dark', Cancelled: 'bg-danger', Completed: 'bg-secondary', Refunded: 'bg-info text-dark' } as Record<string, string>)[s] || 'bg-secondary';
+  }
+
+  view(b: Booking): void {
+    this.viewing = b;
+    document.body.classList.add('modal-open');
+  }
+
+  closeView(): void {
+    this.viewing = null;
+    document.body.classList.remove('modal-open');
+  }
+
+  onViewBackdrop(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closeView();
   }
 }

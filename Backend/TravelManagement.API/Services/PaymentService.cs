@@ -121,6 +121,18 @@ public class PaymentService : IPaymentService
                 _ = _email.SendAsync(payment.Booking.Customer.User.Email, payment.Booking.Customer.User.FullName,
                     $"Trip booked successfully: {payment.Booking.BookingReference}",
                     $"<h2>Trip booked successfully</h2><p>Your booking <b>{payment.Booking.BookingReference}</b> is confirmed. Total paid ₹{payment.Booking.AmountPaid:N2}. Have a great trip!</p>");
+
+                _ = _email.SendToAdminAsync(
+                    $"New paid booking: {payment.Booking.BookingReference}",
+                    $@"<h2>New paid booking</h2>
+                       <p><b>Reference:</b> {payment.Booking.BookingReference}</p>
+                       <p><b>Customer:</b> {payment.Booking.Customer.User.FullName} ({payment.Booking.Customer.User.Email})</p>
+                       <p><b>Tour:</b> {payment.Booking.TourPackage.Tour.Name} — {payment.Booking.TourPackage.Name}</p>
+                       <p><b>Trip:</b> {payment.Booking.TripStartDate:dd MMM yyyy} → {payment.Booking.TripEndDate:dd MMM yyyy}</p>
+                       <p><b>Guests:</b> {payment.Booking.Adults} adult(s), {payment.Booking.Children} child(ren)</p>
+                       <p><b>Total amount:</b> ₹{payment.Booking.TotalAmount:N2}</p>
+                       <p><b>Paid:</b> ₹{payment.Booking.AmountPaid:N2} via {payment.Method}</p>
+                       <p><b>Transaction:</b> {payment.TransactionReference}</p>");
             }
         }
 

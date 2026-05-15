@@ -47,6 +47,7 @@ public class UserDto
     public string? Phone { get; set; }
     public UserRole Role { get; set; }
     public bool IsActive { get; set; }
+    public List<string> Permissions { get; set; } = new();
 }
 
 public class ChangePasswordRequest

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -27,4 +28,22 @@ public class StaffController : ControllerBase
 
     [HttpDelete("{id}")] public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));
+
+    [HttpGet("permissions/catalog")]
+    [AllowAnonymous]
+    public ActionResult<ApiResponse<IEnumerable<string>>> PermissionsCatalog()
+        => Ok(ApiResponse<IEnumerable<string>>.Ok(Permissions.All));
+
+    [HttpGet("{id}/permissions")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<string>>>> GetPermissions(int id)
+        => Ok(ApiResponse<IEnumerable<string>>.Ok(await _svc.GetPermissionsAsync(id)));
+
+    [HttpPut("{id}/permissions")]
+    public async Task<ActionResult<ApiResponse<object>>> SetPermissions(int id, StaffPermissionsUpdateRequest req)
+    {
+        var allowed = Permissions.All.ToHashSet();
+        var sanitized = req.Permissions.Where(p => allowed.Contains(p)).ToList();
+        var ok = await _svc.SetPermissionsAsync(id, sanitized);
+        return ok ? Ok(ApiResponse<object>.Ok(new { }, "Permissions updated")) : NotFound(ApiResponse<object>.Fail("Staff not found"));
+    }
 }

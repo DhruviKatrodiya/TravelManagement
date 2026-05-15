@@ -31,19 +31,19 @@ import { TourPackage } from '../../core/models/api.models';
             <h5 class="fw-bold mb-3">Trip details</h5>
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label">Start date</label>
+                <label class="form-label">Start date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" formControlName="tripStartDate" (change)="recalcEnd()" />
               </div>
               <div class="col-md-6">
-                <label class="form-label">End date</label>
+                <label class="form-label">End date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" formControlName="tripEndDate" />
               </div>
               <div class="col-md-3">
-                <label class="form-label">Adults</label>
+                <label class="form-label">Adults <span class="text-danger">*</span></label>
                 <input type="number" min="1" class="form-control" formControlName="adults" (input)="recalc()" />
               </div>
               <div class="col-md-3">
-                <label class="form-label">Children</label>
+                <label class="form-label">Children <span class="text-danger">*</span></label>
                 <input type="number" min="0" class="form-control" formControlName="children" (input)="recalc()" />
               </div>
               <div class="col-md-6">

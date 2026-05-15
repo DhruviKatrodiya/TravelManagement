@@ -30,6 +30,7 @@ public class TravelDbContext : DbContext
     public DbSet<HomeDestination> HomeDestinations => Set<HomeDestination>();
     public DbSet<HomeDestinationTour> HomeDestinationTours => Set<HomeDestinationTour>();
     public DbSet<VehicleAllocationStaff> VehicleAllocationStaff => Set<VehicleAllocationStaff>();
+    public DbSet<StaffPermission> StaffPermissions => Set<StaffPermission>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -101,6 +102,12 @@ public class TravelDbContext : DbContext
         {
             e.HasKey(x => new { x.VehicleAllocationId, x.StaffId });
             e.HasOne(x => x.VehicleAllocation).WithMany(a => a.StaffAssignments).HasForeignKey(x => x.VehicleAllocationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Staff).WithMany().HasForeignKey(x => x.StaffId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<StaffPermission>(e =>
+        {
+            e.HasKey(x => new { x.StaffId, x.Permission });
             e.HasOne(x => x.Staff).WithMany().HasForeignKey(x => x.StaffId).OnDelete(DeleteBehavior.Cascade);
         });
 

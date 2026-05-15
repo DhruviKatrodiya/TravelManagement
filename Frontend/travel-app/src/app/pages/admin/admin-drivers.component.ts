@@ -12,7 +12,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Drivers</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add driver</button>
+      <button *ngIf="auth.hasPermission('drivers.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add driver</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -45,10 +45,15 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title fw-bold">{{ editingId ? 'Edit driver' : 'New driver' }}</h5>
+            <h5 class="modal-title fw-bold">{{ viewMode ? 'Driver details' : (editingId ? 'Edit driver' : 'New driver') }}</h5>
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-4">
                   <label class="form-label">Full name <span class="text-danger">*</span></label>
@@ -90,8 +95,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save driver'">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancel()">
+                <i class="bi bi-x-lg me-1"></i>{{ viewMode ? 'Close' : 'Cancel' }}
+              </button>
+              <button *ngIf="!viewMode" class="btn btn-primary" [disabled]="form.invalid" [title]="form.invalid ? 'Fill in all required fields to save' : 'Save driver'">
                 <i class="bi bi-check2-circle me-1"></i>Save
               </button>
             </div>
@@ -161,17 +168,17 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <span *ngIf="d.isActive" class="badge" [class.bg-success]="d.isAvailable" [class.bg-warning]="!d.isAvailable">{{ d.isAvailable ? 'Available' : 'On trip' }}</span>
               </td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyDrv">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(d)" [disabled]="!d.isActive">Edit</button>
-                  <button *ngIf="d.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this driver from allocation">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!d.isActive" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Bring this driver back for allocation">
-                    <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyDrv><span class="text-muted small">View only</span></ng-template>
+                <button *ngIf="auth.hasPermission('drivers.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(d)" [disabled]="!d.isActive">Edit</button>
+                <button *ngIf="d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this driver from allocation">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Bring this driver back for allocation">
+                  <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('drivers.edit') && !auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View driver details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredDrivers().length === 0"><td colspan="6" class="text-center text-muted py-3">{{ items.length === 0 ? 'No drivers yet.' : 'No drivers match the filters.' }}</td></tr>
@@ -206,6 +213,8 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
 
   items: Driver[] = [];
   editingId: number | null = null;
+  viewMode = false;
+  formError = '';
 
   deleteTarget: Driver | null = null;
   deleting = false;
@@ -359,20 +368,42 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
 
   startCreate(): void {
     this.editingId = 0;
+    this.viewMode = false;
+    this.formError = '';
     this.form.reset({ fullName: '', phone: '', email: '', licenseNumber: '', licenseExpiry: '', address: '', experienceYears: 0, isAvailable: true });
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
   edit(d: Driver): void {
     this.editingId = d.id;
+    this.viewMode = false;
+    this.formError = '';
     this.form.reset({ ...d, licenseExpiry: d.licenseExpiry?.substring(0, 10) || '' } as any);
+    this.form.enable({ emitEvent: false });
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.unlockBody(); }
+  view(d: Driver): void {
+    this.editingId = d.id;
+    this.viewMode = true;
+    this.formError = '';
+    this.form.reset({ ...d, licenseExpiry: d.licenseExpiry?.substring(0, 10) || '' } as any);
+    this.form.disable({ emitEvent: false });
+    this.lockBody();
+  }
+
+  cancel(): void {
+    this.editingId = null;
+    this.viewMode = false;
+    this.formError = '';
+    this.form.enable({ emitEvent: false });
+    this.unlockBody();
+  }
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = this.form.getRawValue() as any;
     const label = `"${v.fullName}"`;
     const op = this.editingId ? this.api.updateDriver(this.editingId, v) : this.api.createDriver(v);
@@ -385,7 +416,8 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
         this.editingId = null;
         this.unlockBody();
         this.load();
-      }
+      },
+      error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
     });
   }
 

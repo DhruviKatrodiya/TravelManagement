@@ -11,11 +11,13 @@ public class ReviewService : IReviewService
 {
     private readonly TravelDbContext _db;
     private readonly IMapper _mapper;
+    private readonly IEmailService _email;
 
-    public ReviewService(TravelDbContext db, IMapper mapper)
+    public ReviewService(TravelDbContext db, IMapper mapper, IEmailService email)
     {
         _db = db;
         _mapper = mapper;
+        _email = email;
     }
 
     public async Task<IEnumerable<ReviewDto>> ListByTourAsync(int tourId)
@@ -99,6 +101,17 @@ public class ReviewService : IReviewService
             .Include(r => r.Customer).ThenInclude(c => c.User)
             .Include(r => r.Tour)
             .FirstAsync(r => r.Id == review.Id);
+
+        _ = _email.SendToAdminAsync(
+            $"New review: {fresh.Rating}★ on {fresh.Tour.Name}",
+            $@"<h2>New customer review</h2>
+               <p><b>Tour:</b> {fresh.Tour.Name}</p>
+               <p><b>Customer:</b> {fresh.Customer.User.FullName} ({fresh.Customer.User.Email})</p>
+               <p><b>Rating:</b> {fresh.Rating} / 5</p>
+               <p><b>Title:</b> {fresh.Title}</p>
+               <p><b>Comment:</b><br/>{fresh.Comment}</p>
+               <p><b>Posted:</b> {fresh.CreatedAt:dd MMM yyyy HH:mm} UTC</p>");
+
         return _mapper.Map<ReviewDto>(fresh);
     }
 

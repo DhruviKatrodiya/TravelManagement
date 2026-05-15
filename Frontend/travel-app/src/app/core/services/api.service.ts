@@ -26,8 +26,8 @@ export class ApiService {
     return p;
   }
 
-  listTours(destination?: string, activeOnly: boolean = true, q?: string, homeDestinationId?: number): Observable<Tour[]> {
-    return this.unwrap(this.http.get<ApiResponse<Tour[]>>(`${this.base}/tours`, { params: this.toParams({ destination, activeOnly, q, homeDestinationId }) }));
+  listTours(destination?: string, activeOnly: boolean = true, q?: string, homeDestinationId?: number, assignedToMe?: boolean): Observable<Tour[]> {
+    return this.unwrap(this.http.get<ApiResponse<Tour[]>>(`${this.base}/tours`, { params: this.toParams({ destination, activeOnly, q, homeDestinationId, assignedToMe }) }));
   }
   getTour(id: number): Observable<Tour> { return this.unwrap(this.http.get<ApiResponse<Tour>>(`${this.base}/tours/${id}`)); }
   getTourReviews(id: number): Observable<Review[]> { return this.unwrap(this.http.get<ApiResponse<Review[]>>(`${this.base}/tours/${id}/reviews`)); }
@@ -35,8 +35,8 @@ export class ApiService {
   updateTour(id: number, req: Partial<Tour>): Observable<Tour> { return this.unwrap(this.http.put<ApiResponse<Tour>>(`${this.base}/tours/${id}`, req)); }
   deleteTour(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/tours/${id}`)); }
 
-  listPackages(tourId?: number): Observable<TourPackage[]> {
-    return this.unwrap(this.http.get<ApiResponse<TourPackage[]>>(`${this.base}/packages`, { params: this.toParams({ tourId }) }));
+  listPackages(tourId?: number, assignedToMe?: boolean): Observable<TourPackage[]> {
+    return this.unwrap(this.http.get<ApiResponse<TourPackage[]>>(`${this.base}/packages`, { params: this.toParams({ tourId, assignedToMe }) }));
   }
   getPackage(id: number): Observable<TourPackage> { return this.unwrap(this.http.get<ApiResponse<TourPackage>>(`${this.base}/packages/${id}`)); }
   createPackage(req: any): Observable<TourPackage> { return this.unwrap(this.http.post<ApiResponse<TourPackage>>(`${this.base}/packages`, req)); }
@@ -107,6 +107,9 @@ export class ApiService {
   createStaff(req: any): Observable<Staff> { return this.unwrap(this.http.post<ApiResponse<Staff>>(`${this.base}/staff`, req)); }
   updateStaff(id: number, req: any): Observable<Staff> { return this.unwrap(this.http.put<ApiResponse<Staff>>(`${this.base}/staff/${id}`, req)); }
   deleteStaff(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/staff/${id}`)); }
+  listPermissionCatalog(): Observable<string[]> { return this.unwrap(this.http.get<ApiResponse<string[]>>(`${this.base}/staff/permissions/catalog`)); }
+  getStaffPermissions(id: number): Observable<string[]> { return this.unwrap(this.http.get<ApiResponse<string[]>>(`${this.base}/staff/${id}/permissions`)); }
+  setStaffPermissions(id: number, permissions: string[]): Observable<unknown> { return this.unwrap(this.http.put<ApiResponse<unknown>>(`${this.base}/staff/${id}/permissions`, { permissions })); }
 
   initiatePayment(req: any): Observable<PaymentInitiateResponse> {
     return this.unwrap(this.http.post<ApiResponse<PaymentInitiateResponse>>(`${this.base}/payments/initiate`, req));
@@ -162,8 +165,8 @@ export class ApiService {
     return this.http.put<ApiResponse<any>>(`${this.base}/auth/me`, req);
   }
 
-  listHomeDestinations(activeOnly: boolean = true): Observable<HomeDestination[]> {
-    return this.unwrap(this.http.get<ApiResponse<HomeDestination[]>>(`${this.base}/home-destinations`, { params: this.toParams({ activeOnly }) }));
+  listHomeDestinations(activeOnly: boolean = true, assignedToMe?: boolean): Observable<HomeDestination[]> {
+    return this.unwrap(this.http.get<ApiResponse<HomeDestination[]>>(`${this.base}/home-destinations`, { params: this.toParams({ activeOnly, assignedToMe }) }));
   }
   createHomeDestination(req: Partial<HomeDestination>): Observable<HomeDestination> {
     return this.unwrap(this.http.post<ApiResponse<HomeDestination>>(`${this.base}/home-destinations`, req));

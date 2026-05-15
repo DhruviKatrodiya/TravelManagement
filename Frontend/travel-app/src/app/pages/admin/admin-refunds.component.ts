@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Refund, RefundStatus } from '../../core/models/api.models';
 
@@ -66,7 +67,7 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
               </td>
               <td><span class="badge" [ngClass]="badge(r.status)">{{ r.status }}</span></td>
               <td class="text-end">
-                <div *ngIf="r.status === 'Requested'" class="d-flex gap-1 justify-content-end">
+                <div *ngIf="r.status === 'Requested' && auth.hasPermission('refunds.edit')" class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-success" (click)="process(r, 'Processed')" [disabled]="processingId === r.id">
                     <span *ngIf="processingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="processingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
@@ -75,7 +76,7 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
                     <i class="bi bi-x-circle me-1"></i>Reject
                   </button>
                 </div>
-                <span *ngIf="r.status !== 'Requested'" class="text-muted small">No actions</span>
+                <span *ngIf="r.status !== 'Requested' || !auth.hasPermission('refunds.edit')" class="text-muted small">No actions</span>
               </td>
             </tr>
             <tr *ngIf="filtered().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No refund requests.' : 'No refunds match the filters.' }}</td></tr>
@@ -103,6 +104,7 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
   `
 })
 export class AdminRefundsComponent implements OnInit {
+  auth = inject(AuthService);
   items: Refund[] = [];
   approve: Record<number, number> = {};
   processingId: number | null = null;

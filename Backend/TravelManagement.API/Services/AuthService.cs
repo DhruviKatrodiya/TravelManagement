@@ -13,12 +13,24 @@ public class AuthService : IAuthService
     private readonly TravelDbContext _db;
     private readonly ITokenService _tokens;
     private readonly IMapper _mapper;
+    private readonly IEmailService _email;
+    private readonly IStaffService _staff;
 
-    public AuthService(TravelDbContext db, ITokenService tokens, IMapper mapper)
+    public AuthService(TravelDbContext db, ITokenService tokens, IMapper mapper, IEmailService email, IStaffService staff)
     {
         _db = db;
         _tokens = tokens;
         _mapper = mapper;
+        _email = email;
+        _staff = staff;
+    }
+
+    private async Task<UserDto> MapWithPermissionsAsync(User user)
+    {
+        var dto = _mapper.Map<UserDto>(user);
+        if (user.Role == UserRole.Staff)
+            dto.Permissions = await _staff.GetPermissionsByUserIdAsync(user.Id);
+        return dto;
     }
 
     public async Task<AuthResponse> RegisterCustomerAsync(RegisterRequest request)
@@ -74,12 +86,24 @@ public class AuthService : IAuthService
         user.LastLoginAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        var (token, expiresAt) = _tokens.GenerateToken(user);
+        var perms = user.Role == UserRole.Staff ? await _staff.GetPermissionsByUserIdAsync(user.Id) : null;
+        var (token, expiresAt) = _tokens.GenerateToken(user, perms);
+
+        if (user.Role == UserRole.Customer)
+        {
+            _ = _email.SendAsync(user.Email, user.FullName,
+                "Successful sign-in to Travel Management",
+                $@"<h2>You just signed in</h2>
+                   <p>Hi {user.FullName},</p>
+                   <p>Your Travel Management account was used to sign in on <b>{user.LastLoginAt:dd MMM yyyy HH:mm} UTC</b>.</p>
+                   <p>If this wasn't you, please change your password immediately.</p>");
+        }
+
         return new AuthResponse
         {
             Token = token,
             ExpiresAt = expiresAt,
-            User = _mapper.Map<UserDto>(user)
+            User = await MapWithPermissionsAsync(user)
         };
     }
 
@@ -87,7 +111,7 @@ public class AuthService : IAuthService
     {
         var user = await _db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("User not found.");
-        return _mapper.Map<UserDto>(user);
+        return await MapWithPermissionsAsync(user);
     }
 
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest request)
@@ -100,6 +124,13 @@ public class AuthService : IAuthService
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         await _db.SaveChangesAsync();
+
+        _ = _email.SendAsync(user.Email, user.FullName,
+            "Your password was changed",
+            $@"<h2>Password changed</h2>
+               <p>Hi {user.FullName},</p>
+               <p>The password for your Travel Management account was changed on <b>{DateTime.UtcNow:dd MMM yyyy HH:mm} UTC</b>.</p>
+               <p>If you did not make this change, please contact support immediately.</p>");
     }
 
     public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request)
@@ -118,6 +149,6 @@ public class AuthService : IAuthService
         user.Phone = request.Phone;
         await _db.SaveChangesAsync();
 
-        return _mapper.Map<UserDto>(user);
+        return await MapWithPermissionsAsync(user);
     }
 }

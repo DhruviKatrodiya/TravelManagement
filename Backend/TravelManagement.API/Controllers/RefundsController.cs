@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -26,7 +27,8 @@ public class RefundsController : ControllerBase
         => Ok(ApiResponse<RefundDto>.Ok(await _svc.RequestAsync(CurrentUserId, req), "Refund requested"));
 
     [HttpPost("{id}/process")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
+    [RequirePermission(Permissions.RefundsEdit)]
     public async Task<ActionResult<ApiResponse<RefundDto>>> Process(int id, RefundProcessRequest req)
     {
         var r = await _svc.ProcessAsync(id, req);

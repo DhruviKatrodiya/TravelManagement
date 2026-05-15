@@ -14,7 +14,7 @@ import { HomeDestination } from '../../core/models/api.models';
         <h2 class="fw-bold mb-0">Popular Destinations</h2>
         <p class="text-muted small mb-0">Shown in the "Popular Destinations" section of the public home page.</p>
       </div>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add destination</button>
+      <button *ngIf="auth.hasPermission('destinations.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add destination</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -51,6 +51,11 @@ import { HomeDestination } from '../../core/models/api.models';
           </div>
           <form [formGroup]="form" (ngSubmit)="save()">
             <div class="modal-body" #modalBody>
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="formError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ formError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="formError = ''"></button>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Name <span class="text-danger">*</span></label>
@@ -153,21 +158,17 @@ import { HomeDestination } from '../../core/models/api.models';
               <td>{{ d.sortOrder }}</td>
               <td><span class="badge" [class.bg-success]="d.isActive" [class.bg-secondary]="!d.isActive">{{ d.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyDest">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(d)">Edit</button>
-                  <button *ngIf="d.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this destination">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!d.isActive" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Make this destination visible again">
-                    <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyDest>
-                  <button class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View destination details">
-                    <i class="bi bi-eye me-1"></i>View
-                  </button>
-                </ng-template>
+                <button *ngIf="auth.hasPermission('destinations.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(d)">Edit</button>
+                <button *ngIf="d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this destination">
+                  <i class="bi bi-eye-slash me-1"></i>Deactivate
+                </button>
+                <button *ngIf="!d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Make this destination visible again">
+                  <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                </button>
+                <button *ngIf="!auth.hasPermission('destinations.edit') && !auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View destination details">
+                  <i class="bi bi-eye me-1"></i>View
+                </button>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -211,6 +212,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
   viewMode = false;
   uploading = false;
   previewBroken = false;
+  formError = '';
 
   deleteTarget: HomeDestination | null = null;
   deleting = false;
@@ -301,7 +303,8 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
   private unlockBody(): void { document.body.classList.remove('modal-open'); }
 
   load(): void {
-    this.api.listHomeDestinations(false).subscribe({
+    const onlyAssigned = !this.auth.isAdmin();
+    this.api.listHomeDestinations(false, onlyAssigned).subscribe({
       next: ds => {
         this.items = ds;
         const total = this.totalPages();
@@ -380,6 +383,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
     this.editingId = 0;
     this.viewMode = false;
     this.previewBroken = false;
+    this.formError = '';
     const nextOrder = this.items.length === 0 ? 1 : Math.max(...this.items.map(i => i.sortOrder)) + 1;
     this.form.reset({ name: '', country: 'India', imageUrl: '', blurb: '', sortOrder: nextOrder, isActive: true });
     this.form.enable({ emitEvent: false });
@@ -390,6 +394,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
     this.editingId = d.id;
     this.viewMode = false;
     this.previewBroken = false;
+    this.formError = '';
     this.form.reset({
       name: d.name, country: d.country, imageUrl: d.imageUrl,
       blurb: d.blurb || '', sortOrder: d.sortOrder, isActive: d.isActive
@@ -402,6 +407,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
     this.editingId = d.id;
     this.viewMode = true;
     this.previewBroken = false;
+    this.formError = '';
     this.form.reset({
       name: d.name, country: d.country, imageUrl: d.imageUrl,
       blurb: d.blurb || '', sortOrder: d.sortOrder, isActive: d.isActive
@@ -413,6 +419,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
   cancel(): void {
     this.editingId = null;
     this.viewMode = false;
+    this.formError = '';
     this.form.enable({ emitEvent: false });
     this.unlockBody();
   }
@@ -423,6 +430,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.formError = '';
     const v = this.form.getRawValue() as any;
     const label = `"${v.name}" (${v.country})`;
     const op = this.editingId
@@ -437,7 +445,8 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
         this.editingId = null;
         this.unlockBody();
         this.load();
-      }
+      },
+      error: (err: any) => { this.formError = err?.error?.message || err?.error?.errors?.[0] || 'Could not save. Please try again.'; setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0); }
     });
   }
 
