@@ -158,17 +158,17 @@ import { HomeDestination } from '../../core/models/api.models';
               <td>{{ d.sortOrder }}</td>
               <td><span class="badge" [class.bg-success]="d.isActive" [class.bg-secondary]="!d.isActive">{{ d.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('destinations.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(d)">Edit</button>
-                <button *ngIf="d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this destination">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Make this destination visible again">
-                  <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('destinations.edit') && !auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View destination details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View destination details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('destinations.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(d)">Edit</button>
+                  <button *ngIf="d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this destination">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Make this destination visible again">
+                    <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">
@@ -432,6 +432,17 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.formError = '';
     const v = this.form.getRawValue() as any;
+
+    // Client-side duplicate order check
+    const orderConflict = this.items.find(
+      d => d.sortOrder === v.sortOrder && d.id !== (this.editingId ?? 0)
+    );
+    if (orderConflict) {
+      this.formError = `Order number ${v.sortOrder} is already assigned to "${orderConflict.name}". Please choose a different order number.`;
+      setTimeout(() => this.modalBodyRef?.nativeElement?.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+      return;
+    }
+
     const label = `"${v.name}" (${v.country})`;
     const op = this.editingId
       ? this.api.updateHomeDestination(this.editingId, v)

@@ -165,6 +165,14 @@ export class ApiService {
     return this.http.put<ApiResponse<any>>(`${this.base}/auth/me`, req);
   }
 
+  forgotPassword(email: string): Observable<unknown> {
+    return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/auth/forgot-password`, { email }));
+  }
+
+  sendTestEmail(to?: string): Observable<string> {
+    return this.unwrap(this.http.post<ApiResponse<string>>(`${this.base}/settings/test-email`, { to }));
+  }
+
   listHomeDestinations(activeOnly: boolean = true, assignedToMe?: boolean): Observable<HomeDestination[]> {
     return this.unwrap(this.http.get<ApiResponse<HomeDestination[]>>(`${this.base}/home-destinations`, { params: this.toParams({ activeOnly, assignedToMe }) }));
   }

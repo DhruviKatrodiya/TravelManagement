@@ -10,8 +10,13 @@ namespace TravelManagement.API.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly IAppSettingsService _settings;
+    private readonly IEmailService _email;
 
-    public SettingsController(IAppSettingsService settings) => _settings = settings;
+    public SettingsController(IAppSettingsService settings, IEmailService email)
+    {
+        _settings = settings;
+        _email = email;
+    }
 
     [HttpGet]
     [AllowAnonymous]
@@ -22,4 +27,23 @@ public class SettingsController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<AppSettingsDto>>> Update(AppSettingsUpdateRequest req)
         => Ok(ApiResponse<AppSettingsDto>.Ok(await _settings.UpdateAsync(req), "Settings updated"));
+
+    [HttpPost("test-email")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<string>>> TestEmail([FromBody] TestEmailRequest req)
+    {
+        var to = string.IsNullOrWhiteSpace(req.To)
+            ? User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty
+            : req.To;
+
+        if (string.IsNullOrWhiteSpace(to))
+            return BadRequest(ApiResponse<string>.Fail("No recipient email address provided."));
+
+        var (success, message) = await _email.SendTestAsync(to);
+        return success
+            ? Ok(ApiResponse<string>.Ok(message))
+            : BadRequest(ApiResponse<string>.Fail(message));
+    }
 }
+
+public record TestEmailRequest(string? To);

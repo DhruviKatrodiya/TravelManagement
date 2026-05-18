@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 import { BrandService } from '../../core/services/brand.service';
 import { ThemeService } from '../../core/services/theme.service';
@@ -18,7 +18,7 @@ const LANG_KEY = 'travel.lang';
           <button class="btn btn-link p-1 me-2 sidebar-toggle" type="button" (click)="toggleSidebar()" [attr.aria-label]="sidebarOpen() ? 'Hide menu' : 'Show menu'">
             <i class="bi" [class.bi-list]="sidebarOpen()" [class.bi-layout-sidebar-inset]="!sidebarOpen()" style="font-size:1.4rem"></i>
           </button>
-          <a class="navbar-brand fw-bold d-flex align-items-center mb-0" routerLink="/admin">
+          <a class="navbar-brand fw-bold d-flex align-items-center mb-0" [routerLink]="basePath()">
             {{ displayBrandName() }}
           </a>
         </div>
@@ -63,7 +63,7 @@ const LANG_KEY = 'travel.lang';
                 <span class="role-badge mt-1">{{ auth.role() }}</span>
               </div>
               <a class="dropdown-item" routerLink="/"><i class="bi bi-globe me-2"></i>View site</a>
-              <a class="dropdown-item" routerLink="/admin/settings"><i class="bi bi-gear me-2"></i>Settings</a>
+              <a class="dropdown-item" [routerLink]="basePath() + '/settings'"><i class="bi bi-gear me-2"></i>Settings</a>
               <div class="dropdown-divider my-0"></div>
               <button class="dropdown-item text-danger" (click)="auth.logout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
             </div>
@@ -120,24 +120,24 @@ const LANG_KEY = 'travel.lang';
 
     <div class="admin-shell" [class.sidebar-hidden]="!sidebarOpen()">
       <aside class="sidebar">
-        <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}"><i class="bi bi-graph-up"></i> Dashboard</a>
-        <a *ngIf="auth.hasPermission('tours.view')" routerLink="/admin/tours" routerLinkActive="active"><i class="bi bi-globe2"></i> Tours</a>
-        <a *ngIf="auth.hasPermission('destinations.view')" routerLink="/admin/destinations" routerLinkActive="active"><i class="bi bi-geo-alt"></i> Destinations</a>
-        <a *ngIf="auth.hasPermission('packages.view')" routerLink="/admin/packages" routerLinkActive="active"><i class="bi bi-box-seam"></i> Packages</a>
-        <a *ngIf="auth.hasPermission('facilities.view')" routerLink="/admin/facilities" routerLinkActive="active"><i class="bi bi-cup-hot"></i> Facilities</a>
-        <a *ngIf="auth.hasPermission('schedules.view')" routerLink="/admin/schedules" routerLinkActive="active"><i class="bi bi-calendar3"></i> Trip Calendar</a>
-        <a *ngIf="auth.hasPermission('bookings.view')" routerLink="/admin/bookings" routerLinkActive="active"><i class="bi bi-bookmark-check"></i> Bookings</a>
-        <a *ngIf="auth.hasPermission('payments.view')" routerLink="/admin/payments" routerLinkActive="active"><i class="bi bi-credit-card-2-front"></i> Payments</a>
-        <a *ngIf="auth.hasPermission('refunds.view')" routerLink="/admin/refunds" routerLinkActive="active"><i class="bi bi-arrow-counterclockwise"></i> Refunds</a>
-        <a *ngIf="auth.hasPermission('expenses.view')" routerLink="/admin/expenses" routerLinkActive="active"><i class="bi bi-cash-coin"></i> Expenses</a>
-        <a *ngIf="auth.hasPermission('customers.view')" routerLink="/admin/customers" routerLinkActive="active"><i class="bi bi-people"></i> Customers</a>
-        <a *ngIf="auth.hasPermission('reviews.view')" routerLink="/admin/reviews" routerLinkActive="active"><i class="bi bi-chat-quote"></i> Reviews</a>
-        <a *ngIf="auth.hasPermission('vehicles.view')" routerLink="/admin/vehicles" routerLinkActive="active"><i class="bi bi-truck"></i> Vehicles</a>
-        <a *ngIf="auth.hasPermission('allocations.view')" routerLink="/admin/allocations" routerLinkActive="active"><i class="bi bi-pin-map"></i> Allocations</a>
-        <a *ngIf="auth.hasPermission('drivers.view')" routerLink="/admin/drivers" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
-        <a *ngIf="auth.isAdmin()" routerLink="/admin/staff" routerLinkActive="active"><i class="bi bi-shield-lock"></i> Staff</a>
-        <a *ngIf="auth.hasPermission('reports.view')" routerLink="/admin/reports" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
-        <a routerLink="/admin/settings" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
+        <a [routerLink]="basePath()" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}"><i class="bi bi-graph-up"></i> Dashboard</a>
+        <a *ngIf="auth.hasPermission('tours.view')" [routerLink]="basePath() + '/tours'" routerLinkActive="active"><i class="bi bi-globe2"></i> Tours</a>
+        <a *ngIf="auth.hasPermission('destinations.view')" [routerLink]="basePath() + '/destinations'" routerLinkActive="active"><i class="bi bi-geo-alt"></i> Destinations</a>
+        <a *ngIf="auth.hasPermission('packages.view')" [routerLink]="basePath() + '/packages'" routerLinkActive="active"><i class="bi bi-box-seam"></i> Packages</a>
+        <a *ngIf="auth.hasPermission('facilities.view')" [routerLink]="basePath() + '/facilities'" routerLinkActive="active"><i class="bi bi-cup-hot"></i> Facilities</a>
+        <a *ngIf="auth.hasPermission('schedules.view')" [routerLink]="basePath() + '/schedules'" routerLinkActive="active"><i class="bi bi-calendar3"></i> Trip Calendar</a>
+        <a *ngIf="auth.hasPermission('bookings.view')" [routerLink]="basePath() + '/bookings'" routerLinkActive="active"><i class="bi bi-bookmark-check"></i> Bookings</a>
+        <a *ngIf="auth.hasPermission('payments.view')" [routerLink]="basePath() + '/payments'" routerLinkActive="active"><i class="bi bi-credit-card-2-front"></i> Payments</a>
+        <a *ngIf="auth.hasPermission('refunds.view')" [routerLink]="basePath() + '/refunds'" routerLinkActive="active"><i class="bi bi-arrow-counterclockwise"></i> Refunds</a>
+        <a *ngIf="auth.hasPermission('expenses.view')" [routerLink]="basePath() + '/expenses'" routerLinkActive="active"><i class="bi bi-cash-coin"></i> Expenses</a>
+        <a *ngIf="auth.hasPermission('customers.view')" [routerLink]="basePath() + '/customers'" routerLinkActive="active"><i class="bi bi-people"></i> Customers</a>
+        <a *ngIf="auth.hasPermission('reviews.view')" [routerLink]="basePath() + '/reviews'" routerLinkActive="active"><i class="bi bi-chat-quote"></i> Reviews</a>
+        <a *ngIf="auth.hasPermission('vehicles.view')" [routerLink]="basePath() + '/vehicles'" routerLinkActive="active"><i class="bi bi-truck"></i> Vehicles</a>
+        <a *ngIf="auth.hasPermission('allocations.view')" [routerLink]="basePath() + '/allocations'" routerLinkActive="active"><i class="bi bi-pin-map"></i> Allocations</a>
+        <a *ngIf="auth.hasPermission('drivers.view')" [routerLink]="basePath() + '/drivers'" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
+        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/staff'" routerLinkActive="active"><i class="bi bi-shield-lock"></i> Staff</a>
+        <a *ngIf="auth.hasPermission('reports.view')" [routerLink]="basePath() + '/reports'" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+        <a [routerLink]="basePath() + '/settings'" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
       </aside>
       <section class="content">
         <router-outlet></router-outlet>
@@ -152,6 +152,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   private store = inject(NotificationStore);
   private router = inject(Router);
 
+  readonly basePath = computed(() => this.auth.role() === 'Staff' ? '/staff' : '/admin');
   readonly sidebarOpen = signal<boolean>(this.readStored());
 
   readonly languages: Lang[] = [

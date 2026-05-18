@@ -13,12 +13,14 @@ public class StaffService : IStaffService
     private readonly TravelDbContext _db;
     private readonly IMapper _mapper;
     private readonly IEmailService _email;
+    private readonly INotificationService _notifications;
 
-    public StaffService(TravelDbContext db, IMapper mapper, IEmailService email)
+    public StaffService(TravelDbContext db, IMapper mapper, IEmailService email, INotificationService notifications)
     {
         _db = db;
         _mapper = mapper;
         _email = email;
+        _notifications = notifications;
     }
 
     public async Task<IEnumerable<StaffDto>> ListAsync()
@@ -168,20 +170,82 @@ public class StaffService : IStaffService
 
     public async Task<bool> SetPermissionsAsync(int staffId, IEnumerable<string> permissions)
     {
-        var staff = await _db.StaffMembers.FindAsync(staffId);
+        var staff = await _db.StaffMembers.Include(s => s.User).FirstOrDefaultAsync(s => s.Id == staffId);
         if (staff == null) return false;
 
         var desired = permissions.Distinct().ToHashSet();
         var current = await _db.StaffPermissions.Where(p => p.StaffId == staffId).ToListAsync();
         var currentSet = current.Select(p => p.Permission).ToHashSet();
 
+        var added = desired.Where(x => !currentSet.Contains(x)).ToList();
+        var removed = currentSet.Where(x => !desired.Contains(x)).ToList();
+
         foreach (var p in current.Where(x => !desired.Contains(x.Permission)))
             _db.StaffPermissions.Remove(p);
 
-        foreach (var p in desired.Where(x => !currentSet.Contains(x)))
+        foreach (var p in added)
             _db.StaffPermissions.Add(new StaffPermission { StaffId = staffId, Permission = p });
 
         await _db.SaveChangesAsync();
+
+        if (added.Count > 0 || removed.Count > 0)
+        {
+            var notifMessage = BuildPermissionChangeMessage(added, removed);
+            await _notifications.CreateAsync(
+                staff.User.Id,
+                NotificationType.General,
+                "Your permissions have been updated",
+                notifMessage,
+                "/staff/allocations"
+            );
+
+            _ = _email.SendAsync(
+                staff.User.Email,
+                staff.User.FullName,
+                "Your access permissions have been updated",
+                BuildPermissionChangeEmail(staff.User.FullName, added, removed)
+            );
+        }
+
         return true;
+    }
+
+    private static string BuildPermissionChangeMessage(List<string> added, List<string> removed)
+    {
+        var parts = new List<string>();
+        if (added.Count > 0)
+            parts.Add($"Granted: {string.Join(", ", added.Select(FormatPermission))}");
+        if (removed.Count > 0)
+            parts.Add($"Revoked: {string.Join(", ", removed.Select(FormatPermission))}");
+        return string.Join(" | ", parts);
+    }
+
+    private static string BuildPermissionChangeEmail(string name, List<string> added, List<string> removed)
+    {
+        var addedRows = added.Count > 0
+            ? $@"<p><strong>✅ Permissions granted:</strong></p>
+                 <ul>{string.Join("", added.Select(p => $"<li>{FormatPermission(p)}</li>"))}</ul>"
+            : "";
+
+        var removedRows = removed.Count > 0
+            ? $@"<p><strong>❌ Permissions revoked:</strong></p>
+                 <ul>{string.Join("", removed.Select(p => $"<li>{FormatPermission(p)}</li>"))}</ul>"
+            : "";
+
+        return $@"<h2>Access Permissions Updated</h2>
+                  <p>Hi {name},</p>
+                  <p>An administrator has updated your access permissions in the Travel Management system.</p>
+                  {addedRows}
+                  {removedRows}
+                  <p>These changes are effective immediately. If you believe this is an error, please contact your administrator.</p>";
+    }
+
+    private static string FormatPermission(string perm)
+    {
+        var parts = perm.Split('.');
+        if (parts.Length != 2) return perm;
+        var module = char.ToUpper(parts[0][0]) + parts[0][1..];
+        var action = char.ToUpper(parts[1][0]) + parts[1][1..];
+        return $"{action} {module}";
     }
 }

@@ -168,17 +168,17 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <span *ngIf="d.isActive" class="badge" [class.bg-success]="d.isAvailable" [class.bg-warning]="!d.isAvailable">{{ d.isAvailable ? 'Available' : 'On trip' }}</span>
               </td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('drivers.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(d)" [disabled]="!d.isActive">Edit</button>
-                <button *ngIf="d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this driver from allocation">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Bring this driver back for allocation">
-                  <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('drivers.edit') && !auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View driver details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View driver details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('drivers.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(d)" [disabled]="!d.isActive">Edit</button>
+                  <button *ngIf="d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this driver from allocation">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Bring this driver back for allocation">
+                    <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredDrivers().length === 0"><td colspan="6" class="text-center text-muted py-3">{{ items.length === 0 ? 'No drivers yet.' : 'No drivers match the filters.' }}</td></tr>

@@ -54,6 +54,7 @@ public class VehiclesController : ControllerBase
             : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpGet("allocations")]
+    [RequirePermission(Permissions.AllocationsView)]
     public async Task<ActionResult<ApiResponse<IEnumerable<VehicleAllocationDto>>>> Allocations([FromQuery] DateTime? from, [FromQuery] DateTime? to)
         => Ok(ApiResponse<IEnumerable<VehicleAllocationDto>>.Ok(await _svc.ListAllocationsAsync(from, to)));
 

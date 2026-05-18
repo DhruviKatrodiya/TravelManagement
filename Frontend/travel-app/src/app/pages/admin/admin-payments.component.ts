@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
 import { Payment } from '../../core/models/api.models';
 
@@ -9,6 +9,47 @@ import { Payment } from '../../core/models/api.models';
     <div class="mb-4">
       <h2 class="fw-bold mb-1">Payments</h2>
       <p class="text-muted small mb-0">All transactions captured by the payment gateway, linked to their bookings.</p>
+    </div>
+
+    <!-- View modal -->
+    <div *ngIf="viewTarget" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onViewBackdrop($event)">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-credit-card me-2"></i>Payment details</h5>
+          </div>
+          <div class="modal-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5 text-muted">Transaction ref</dt>
+              <dd class="col-sm-7"><code>{{ viewTarget.transactionReference }}</code></dd>
+              <dt class="col-sm-5 text-muted">Booking ref</dt>
+              <dd class="col-sm-7"><code>{{ viewTarget.bookingReference }}</code></dd>
+              <ng-container *ngIf="viewTarget.gatewayTransactionId">
+                <dt class="col-sm-5 text-muted">Gateway ID</dt>
+                <dd class="col-sm-7"><code>{{ viewTarget.gatewayTransactionId }}</code></dd>
+              </ng-container>
+              <dt class="col-sm-5 text-muted">Method</dt>
+              <dd class="col-sm-7">{{ viewTarget.method }}</dd>
+              <dt class="col-sm-5 text-muted">Amount</dt>
+              <dd class="col-sm-7 fw-semibold">₹ {{ viewTarget.amount | number:'1.2-2' }}</dd>
+              <dt class="col-sm-5 text-muted">Status</dt>
+              <dd class="col-sm-7"><span class="badge" [ngClass]="badge(viewTarget.status)">{{ viewTarget.status }}</span></dd>
+              <dt class="col-sm-5 text-muted">Initiated</dt>
+              <dd class="col-sm-7">{{ viewTarget.initiatedAt | date:'medium' }}</dd>
+              <dt class="col-sm-5 text-muted">Completed</dt>
+              <dd class="col-sm-7">{{ viewTarget.completedAt ? (viewTarget.completedAt | date:'medium') : '—' }}</dd>
+              <ng-container *ngIf="viewTarget.notes">
+                <dt class="col-sm-5 text-muted">Notes</dt>
+                <dd class="col-sm-7">{{ viewTarget.notes }}</dd>
+              </ng-container>
+            </dl>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -55,6 +96,7 @@ import { Payment } from '../../core/models/api.models';
               <th class="sortable" (click)="toggleSort('status')">Status <i class="bi" [ngClass]="sortIcon('status')"></i></th>
               <th class="sortable" (click)="toggleSort('initiated')">Initiated <i class="bi" [ngClass]="sortIcon('initiated')"></i></th>
               <th class="sortable" (click)="toggleSort('completed')">Completed <i class="bi" [ngClass]="sortIcon('completed')"></i></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -66,8 +108,11 @@ import { Payment } from '../../core/models/api.models';
               <td><span class="badge" [ngClass]="badge(p.status)">{{ p.status }}</span></td>
               <td>{{ p.initiatedAt | date:'short' }}</td>
               <td>{{ p.completedAt | date:'short' }}</td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View payment details"><i class="bi bi-eye me-1"></i>View</button>
+              </td>
             </tr>
-            <tr *ngIf="filtered().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No payments yet.' : 'No payments match the filters.' }}</td></tr>
+            <tr *ngIf="filtered().length === 0"><td colspan="8" class="text-center text-muted py-3">{{ items.length === 0 ? 'No payments yet.' : 'No payments match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -91,11 +136,12 @@ import { Payment } from '../../core/models/api.models';
     </div>
   `
 })
-export class AdminPaymentsComponent implements OnInit {
+export class AdminPaymentsComponent implements OnInit, OnDestroy {
   items: Payment[] = [];
   query = '';
   methodFilter = '';
   statusFilter = '';
+  viewTarget: Payment | null = null;
 
   statuses = ['Initiated', 'Pending', 'Success', 'Failed', 'Refunded'];
 
@@ -126,6 +172,20 @@ export class AdminPaymentsComponent implements OnInit {
       }
     });
   }
+
+  ngOnDestroy(): void { this.unlockBody(); }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void { if (this.viewTarget) this.closeView(); }
+
+  view(p: Payment): void { this.viewTarget = p; this.lockBody(); }
+  closeView(): void { this.viewTarget = null; this.unlockBody(); }
+  onViewBackdrop(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closeView();
+  }
+
+  private lockBody(): void { document.body.classList.add('modal-open'); }
+  private unlockBody(): void { document.body.classList.remove('modal-open'); }
 
   count(s: string): number { return this.items.filter(i => i.status === s).length; }
 

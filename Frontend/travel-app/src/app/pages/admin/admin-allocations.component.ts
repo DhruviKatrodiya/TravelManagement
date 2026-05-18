@@ -182,13 +182,13 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ a.startDate | date:'mediumDate' }} → {{ a.endDate | date:'mediumDate' }}</td>
               <td>{{ a.notes }}</td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('allocations.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(a)">Edit</button>
-                <button *ngIf="auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(a)" [disabled]="deleting && deleteTarget?.id === a.id" title="Remove this allocation">
-                  <i class="bi bi-trash me-1"></i>Remove
-                </button>
-                <button *ngIf="!auth.hasPermission('allocations.edit') && !auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-primary" (click)="view(a)" title="View allocation details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(a)" title="View allocation details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('allocations.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(a)">Edit</button>
+                  <button *ngIf="auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(a)" [disabled]="deleting && deleteTarget?.id === a.id" title="Remove this allocation">
+                    <i class="bi bi-trash me-1"></i>Remove
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredAllocations().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No allocations yet.' : 'No allocations match the filters.' }}</td></tr>

@@ -117,7 +117,7 @@ public class CustomerService : ICustomerService
             $@"<h2>Welcome, {customer.User.FullName}!</h2>
                <p>An account has been created for you on Travel Management.</p>
                <p><b>Email:</b> {customer.User.Email}</p>
-               <p><b>Temporary password:</b> {req.Password}</p>
+               <p><b>Temporary password:</b> {req.Password}</p> 
                <p>Please sign in and change your password as soon as possible.</p>");
 
         return (await GetAsync(customer.Id))!;

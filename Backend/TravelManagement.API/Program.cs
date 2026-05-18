@@ -158,17 +158,6 @@ BEGIN
         IsActive BIT NOT NULL DEFAULT 1,
         CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
-
-    EXEC sp_executesql N'
-        INSERT INTO HomeDestinations (Name, Country, ImageUrl, Blurb, SortOrder, TourId, Keyword, IsActive) VALUES
-        (N''Taj Mahal'', N''India'', N''https://images.unsplash.com/photo-1564507592333-c60657eea523?w=1200'', N''Agra • Wonder of the world'', 1, 1, N''Agra'', 1),
-        (N''Kerala Backwaters'', N''India'', N''https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1200'', N''Alleppey • Houseboats & canals'', 2, 2, N''Kerala'', 1),
-        (N''Jaipur — Pink City'', N''India'', N''https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200'', N''Rajasthan • Forts & palaces'', 3, 5, N''Jaipur'', 1),
-        (N''Tiger''''s Nest Monastery'', N''Bhutan'', N''/bhutan.jpg'', N''Paro • Cliff-side monastery'', 4, 3, N''Bhutan'', 1),
-        (N''Pokhara & Annapurna'', N''Nepal'', N''https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=1200'', N''Phewa Lake & sunrise treks'', 5, 4, N''Nepal'', 1),
-        (N''Ladakh'', N''India'', N''https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=1600'', N''High-altitude lakes & monasteries'', 6, 6, N''Ladakh'', 1),
-        (N''Goa Beaches'', N''India'', N''https://images.unsplash.com/photo-1551918120-9739cb430c6d?w=1200'', N''Sun, sand & seafood'', 7, 7, N''Goa'', 1),
-        (N''Kashmir Valley'', N''India'', N''https://images.unsplash.com/photo-1477587458883-47145ed94245?w=1200'', N''Srinagar • Shikara rides on Dal Lake'', 8, 8, N''Kashmir'', 1);';
 END
 ELSE
 BEGIN
@@ -176,25 +165,6 @@ BEGIN
         ALTER TABLE HomeDestinations ADD TourId INT NULL;
     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'Keyword' AND Object_ID = Object_ID(N'HomeDestinations'))
         ALTER TABLE HomeDestinations ADD Keyword NVARCHAR(60) NULL;
-
-    EXEC sp_executesql N'
-        UPDATE HomeDestinations SET TourId = 1 WHERE Name = N''Taj Mahal'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 2 WHERE Name = N''Kerala Backwaters'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 5 WHERE Name = N''Jaipur — Pink City'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 3 WHERE Name = N''Tiger''''s Nest Monastery'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 4 WHERE Name = N''Pokhara & Annapurna'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 6 WHERE Name = N''Ladakh'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 7 WHERE Name = N''Goa Beaches'' AND TourId IS NULL;
-        UPDATE HomeDestinations SET TourId = 8 WHERE Name = N''Kashmir Valley'' AND TourId IS NULL;
-
-        UPDATE HomeDestinations SET Keyword = N''Agra''    WHERE Name = N''Taj Mahal'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Kerala''  WHERE Name = N''Kerala Backwaters'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Jaipur''  WHERE Name = N''Jaipur — Pink City'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Bhutan''  WHERE Name = N''Tiger''''s Nest Monastery'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Nepal''   WHERE Name = N''Pokhara & Annapurna'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Ladakh''  WHERE Name = N''Ladakh'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Goa''     WHERE Name = N''Goa Beaches'' AND Keyword IS NULL;
-        UPDATE HomeDestinations SET Keyword = N''Kashmir'' WHERE Name = N''Kashmir Valley'' AND Keyword IS NULL;';
 END");
     }
     catch (Exception ex)
@@ -217,27 +187,7 @@ BEGIN
         CONSTRAINT FK_HomeDestinationTours_Tours
             FOREIGN KEY (TourId) REFERENCES Tours(Id) ON DELETE CASCADE
     );
-END;
-
-INSERT INTO HomeDestinationTours (HomeDestinationId, TourId, SortOrder)
-SELECT hd.Id, t.Id, m.SortOrder
-FROM (VALUES
-    (N'Taj Mahal',              1, 1),
-    (N'Kerala Backwaters',      2, 1),
-    (N'Jaipur — Pink City',     1, 1),
-    (N'Jaipur — Pink City',     5, 2),
-    (N'Tiger''s Nest Monastery', 3, 1),
-    (N'Pokhara & Annapurna',    4, 1),
-    (N'Ladakh',                 6, 1),
-    (N'Goa Beaches',            7, 1),
-    (N'Kashmir Valley',         8, 1)
-) AS m(DestName, TourId, SortOrder)
-JOIN HomeDestinations hd ON hd.Name = m.DestName
-JOIN Tours t ON t.Id = m.TourId
-WHERE NOT EXISTS (
-    SELECT 1 FROM HomeDestinationTours x
-    WHERE x.HomeDestinationId = hd.Id AND x.TourId = t.Id
-);");
+END;");
     }
     catch (Exception ex)
     {
@@ -295,23 +245,6 @@ END");
         app.Logger.LogError(ex, "Failed to ensure Expenses.IsActive column on startup");
     }
 
-    try
-    {
-        await db.Database.ExecuteSqlRawAsync(@"
-IF NOT EXISTS (SELECT 1 FROM Tours WHERE Id = 10)
-BEGIN
-    SET IDENTITY_INSERT Tours ON;
-    INSERT INTO Tours (Id, Name, Destination, Region, Description, Highlights, ImageUrl, IsActive, CreatedAt) VALUES
-    (10, N'Andaman Island Escape', 0, N'Port Blair-Havelock-Neil', N'Turquoise waters, coral reefs and pristine beaches in the Bay of Bengal.', N'Radhanagar Beach, Cellular Jail, scuba at Elephant Beach, Neil Island sunsets', N'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800', 1, '2026-01-01T00:00:00'),
-    (11, N'Meghalaya Cloud Trail', 0, N'Shillong-Cherrapunji-Mawlynnong', N'Living root bridges, waterfalls and the cleanest village in Asia.', N'Nohkalikai Falls, Double Decker Root Bridge, Dawki river, Mawlynnong', N'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', 1, '2026-01-01T00:00:00'),
-    (12, N'Hampi Heritage Circuit', 0, N'Hampi-Hospet-Anegundi', N'Boulder-strewn ruins of the Vijayanagara Empire on the banks of the Tungabhadra.', N'Virupaksha Temple, Vittala Stone Chariot, Matanga Hill sunrise, Anegundi coracle ride', N'https://images.unsplash.com/photo-1582510003544-4eb04ad9636e?w=800', 1, '2026-01-01T00:00:00');
-    SET IDENTITY_INSERT Tours OFF;
-END");
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to seed additional tours on startup");
-    }
 }
 
 app.UseSwagger();

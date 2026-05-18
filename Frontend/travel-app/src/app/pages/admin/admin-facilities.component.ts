@@ -61,7 +61,7 @@ import { Facility } from '../../core/models/api.models';
                 </div>
                 <div class="col-md-5">
                   <label class="form-label">Type <span class="text-danger">*</span></label>
-                  <app-select [options]="typeOptions" formControlName="type"></app-select>
+                  <app-select [options]="typeOptions" formControlName="type" [invalid]="isInvalid(form.get('type'))"></app-select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('type'))">Type is required.</div>
                 </div>
                 <div class="col-md-6">
@@ -136,17 +136,17 @@ import { Facility } from '../../core/models/api.models';
               <td>₹ {{ f.cost | number:'1.2-2' }}</td>
               <td><span class="badge" [class.bg-success]="f.isActive" [class.bg-secondary]="!f.isActive">{{ f.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('facilities.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(f)">Edit</button>
-                <button *ngIf="f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(f)" [disabled]="togglingId === f.id" title="Hide this facility">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-success" (click)="activate(f)" [disabled]="togglingId === f.id" title="Make this facility available again">
-                  <span *ngIf="togglingId === f.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== f.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('facilities.edit') && !auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-primary" (click)="view(f)" title="View facility details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(f)" title="View facility details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('facilities.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(f)">Edit</button>
+                  <button *ngIf="f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(f)" [disabled]="togglingId === f.id" title="Hide this facility">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-success" (click)="activate(f)" [disabled]="togglingId === f.id" title="Make this facility available again">
+                    <span *ngIf="togglingId === f.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== f.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using TravelManagement.API.Data;
@@ -15,14 +16,16 @@ public class AuthService : IAuthService
     private readonly IMapper _mapper;
     private readonly IEmailService _email;
     private readonly IStaffService _staff;
+    private readonly IConfiguration _config;
 
-    public AuthService(TravelDbContext db, ITokenService tokens, IMapper mapper, IEmailService email, IStaffService staff)
+    public AuthService(TravelDbContext db, ITokenService tokens, IMapper mapper, IEmailService email, IStaffService staff, IConfiguration config)
     {
         _db = db;
         _tokens = tokens;
         _mapper = mapper;
         _email = email;
         _staff = staff;
+        _config = config;
     }
 
     private async Task<UserDto> MapWithPermissionsAsync(User user)
@@ -131,6 +134,41 @@ public class AuthService : IAuthService
                <p>Hi {user.FullName},</p>
                <p>The password for your Travel Management account was changed on <b>{DateTime.UtcNow:dd MMM yyyy HH:mm} UTC</b>.</p>
                <p>If you did not make this change, please contact support immediately.</p>");
+    }
+
+    public async Task ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        if (user is null || !user.IsActive)
+            return; // Never reveal whether the email exists
+
+        // Generate a readable 10-char temporary password (no ambiguous chars)
+        const string chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        var buf = new byte[10];
+        RandomNumberGenerator.Fill(buf);
+        var tempPassword = new string(buf.Select(b => chars[b % chars.Length]).ToArray());
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+        await _db.SaveChangesAsync();
+
+        _ = _email.SendAsync(user.Email, user.FullName,
+            "Your TravelHub temporary password",
+            $@"<h2>Password reset</h2>
+               <p>Hi {user.FullName},</p>
+               <p>We received a request to reset your TravelHub password. Here is your temporary password:</p>
+               <p style=""margin:20px 0;text-align:center;"">
+                 <span style=""font-size:1.5rem;font-weight:bold;letter-spacing:4px;
+                               background:#f5f5f0;padding:12px 24px;border-radius:6px;
+                               border:1px solid #ddd;display:inline-block;"">
+                   {tempPassword}
+                 </span>
+               </p>
+               <p style=""background:#fffbe6;border-left:4px solid #f0a500;padding:12px 16px;border-radius:4px;"">
+                 <strong>Important:</strong> This is a temporary password. Once you change your password,
+                 this temporary password will no longer work. Please log in using the temporary password
+                 above and update your password from your <strong>Profile → Change Password</strong> settings.
+               </p>
+               <p style=""color:#888;font-size:0.9em;"">If you did not request this, please contact support immediately.</p>");
     }
 
     public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request)

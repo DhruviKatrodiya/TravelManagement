@@ -57,7 +57,7 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Tour <span class="text-danger">*</span></label>
-                  <app-select [options]="tourOptions()" formControlName="tourId"></app-select>
+                  <app-select [options]="tourOptions()" formControlName="tourId" [invalid]="isInvalid(form.get('tourId'))"></app-select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('tourId'))">Tour is required.</div>
                 </div>
                 <div class="col-md-6">
@@ -213,16 +213,16 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
               <td>₹ {{ p.pricePerPerson | number:'1.0-0' }}</td>
               <td><span class="badge" [class.bg-success]="p.isActive" [class.bg-secondary]="!p.isActive">{{ p.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id" title="Hide this package from customers">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id" title="Make this package visible again">
-                  <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View package details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View package details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id" title="Hide this package from customers">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id" title="Make this package visible again">
+                    <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredPackages().length === 0">

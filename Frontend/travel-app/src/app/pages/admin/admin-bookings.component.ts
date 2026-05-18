@@ -151,20 +151,20 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
               <td class="text-nowrap">₹ {{ b.amountPaid | number:'1.0-0' }}</td>
               <td class="text-nowrap"><span class="badge" [ngClass]="badgeClass(b.status)">{{ b.status }}</span></td>
               <td class="text-end">
-                <div class="dropdown" *ngIf="auth.hasPermission('bookings.edit')">
-                  <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-strategy="fixed">Status</button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <li *ngFor="let s of statuses">
-                      <a class="dropdown-item d-flex align-items-center justify-content-between" href="javascript:void(0)" (click)="setStatus(b, s)">
-                        <span>{{ s }}</span>
-                        <i class="bi bi-check2 text-success" *ngIf="b.status === s"></i>
-                      </a>
-                    </li>
-                  </ul>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(b)" title="View booking details"><i class="bi bi-eye me-1"></i>View</button>
+                  <div class="dropdown" *ngIf="auth.hasPermission('bookings.edit')">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-strategy="fixed">Status</button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                      <li *ngFor="let s of statuses">
+                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="javascript:void(0)" (click)="setStatus(b, s)">
+                          <span>{{ s }}</span>
+                          <i class="bi bi-check2 text-success" *ngIf="b.status === s"></i>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-                <button *ngIf="!auth.hasPermission('bookings.edit')" class="btn btn-sm btn-outline-primary" (click)="view(b)" title="View booking details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
               </td>
             </tr>
             <tr *ngIf="filtered().length === 0"><td colspan="8" class="text-center text-muted py-3">{{ items.length === 0 ? 'No bookings found.' : 'No bookings match the filters.' }}</td></tr>

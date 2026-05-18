@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -11,6 +11,45 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
     <div class="mb-4">
       <h2 class="fw-bold mb-1">Refund requests</h2>
       <p class="text-muted small mb-0">Review customer refund requests and approve or reject them. The customer is notified by email + in-app.</p>
+    </div>
+
+    <!-- View modal -->
+    <div *ngIf="viewTarget" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onViewBackdrop($event)">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-arrow-return-left me-2"></i>Refund details</h5>
+          </div>
+          <div class="modal-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-5 text-muted">Booking ref</dt>
+              <dd class="col-sm-7"><code>{{ viewTarget.bookingReference }}</code></dd>
+              <dt class="col-sm-5 text-muted">Customer</dt>
+              <dd class="col-sm-7">{{ viewTarget.customerName }}</dd>
+              <dt class="col-sm-5 text-muted">Reason</dt>
+              <dd class="col-sm-7">{{ viewTarget.reason || '—' }}</dd>
+              <dt class="col-sm-5 text-muted">Requested amount</dt>
+              <dd class="col-sm-7 fw-semibold">₹ {{ viewTarget.requestedAmount | number:'1.2-2' }}</dd>
+              <dt class="col-sm-5 text-muted">Approved amount</dt>
+              <dd class="col-sm-7">{{ viewTarget.approvedAmount != null ? ('₹ ' + (viewTarget.approvedAmount | number:'1.2-2')) : '—' }}</dd>
+              <dt class="col-sm-5 text-muted">Status</dt>
+              <dd class="col-sm-7"><span class="badge" [ngClass]="badge(viewTarget.status)">{{ viewTarget.status }}</span></dd>
+              <dt class="col-sm-5 text-muted">Requested at</dt>
+              <dd class="col-sm-7">{{ viewTarget.requestedAt | date:'medium' }}</dd>
+              <dt class="col-sm-5 text-muted">Processed at</dt>
+              <dd class="col-sm-7">{{ viewTarget.processedAt ? (viewTarget.processedAt | date:'medium') : '—' }}</dd>
+              <ng-container *ngIf="viewTarget.adminNotes">
+                <dt class="col-sm-5 text-muted">Admin notes</dt>
+                <dd class="col-sm-7">{{ viewTarget.adminNotes }}</dd>
+              </ng-container>
+            </dl>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -63,20 +102,22 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
               <td>₹ {{ r.requestedAmount | number:'1.2-2' }}</td>
               <td>
                 <span *ngIf="r.approvedAmount != null">₹ {{ r.approvedAmount | number:'1.2-2' }}</span>
-                <input *ngIf="r.status === 'Requested'" type="number" min="0" class="form-control form-control-sm w-auto" [(ngModel)]="approve[r.id]" [value]="r.requestedAmount" />
+                <input *ngIf="r.status === 'Requested'" type="number" min="0" class="form-control form-control-sm w-auto" [(ngModel)]="approveAmounts[r.id]" [value]="r.requestedAmount" />
               </td>
               <td><span class="badge" [ngClass]="badge(r.status)">{{ r.status }}</span></td>
               <td class="text-end">
-                <div *ngIf="r.status === 'Requested' && auth.hasPermission('refunds.edit')" class="d-flex gap-1 justify-content-end">
-                  <button class="btn btn-sm btn-outline-success" (click)="process(r, 'Processed')" [disabled]="processingId === r.id">
-                    <span *ngIf="processingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="processingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
-                  </button>
-                  <button class="btn btn-sm btn-outline-danger" (click)="process(r, 'Rejected')" [disabled]="processingId === r.id">
-                    <i class="bi bi-x-circle me-1"></i>Reject
-                  </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(r)" title="View refund details"><i class="bi bi-eye me-1"></i>View</button>
+                  <ng-container *ngIf="r.status === 'Requested' && auth.hasPermission('refunds.edit')">
+                    <button class="btn btn-sm btn-outline-success" (click)="process(r, 'Processed')" [disabled]="processingId === r.id">
+                      <span *ngIf="processingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="processingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" (click)="process(r, 'Rejected')" [disabled]="processingId === r.id">
+                      <i class="bi bi-x-circle me-1"></i>Reject
+                    </button>
+                  </ng-container>
                 </div>
-                <span *ngIf="r.status !== 'Requested' || !auth.hasPermission('refunds.edit')" class="text-muted small">No actions</span>
               </td>
             </tr>
             <tr *ngIf="filtered().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No refund requests.' : 'No refunds match the filters.' }}</td></tr>
@@ -103,11 +144,12 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
     </div>
   `
 })
-export class AdminRefundsComponent implements OnInit {
+export class AdminRefundsComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   items: Refund[] = [];
-  approve: Record<number, number> = {};
+  approveAmounts: Record<number, number> = {};
   processingId: number | null = null;
+  viewTarget: Refund | null = null;
 
   query = '';
   statusFilter = '';
@@ -131,6 +173,19 @@ export class AdminRefundsComponent implements OnInit {
   constructor(private api: ApiService, private toast: ToastService) {}
 
   ngOnInit(): void { this.load(); }
+  ngOnDestroy(): void { this.unlockBody(); }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void { if (this.viewTarget) this.closeView(); }
+
+  view(r: Refund): void { this.viewTarget = r; this.lockBody(); }
+  closeView(): void { this.viewTarget = null; this.unlockBody(); }
+  onViewBackdrop(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closeView();
+  }
+
+  private lockBody(): void { document.body.classList.add('modal-open'); }
+  private unlockBody(): void { document.body.classList.remove('modal-open'); }
 
   load(): void {
     this.api.listRefunds().subscribe({
@@ -210,7 +265,7 @@ export class AdminRefundsComponent implements OnInit {
   process(r: Refund, status: RefundStatus): void {
     if (this.processingId !== null) return;
     this.processingId = r.id;
-    const amount = status === 'Rejected' ? 0 : (this.approve[r.id] ?? r.requestedAmount);
+    const amount = status === 'Rejected' ? 0 : (this.approveAmounts[r.id] ?? r.requestedAmount);
     const notes = status === 'Rejected' ? 'Refund request rejected' : 'Refund processed';
     this.api.processRefund(r.id, { status, approvedAmount: amount, adminNotes: notes }).subscribe({
       next: () => {

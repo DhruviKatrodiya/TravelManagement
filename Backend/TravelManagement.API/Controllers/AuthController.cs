@@ -57,4 +57,13 @@ public class AuthController : ControllerBase
         var u = await _auth.UpdateProfileAsync(id, req);
         return Ok(ApiResponse<UserDto>.Ok(u, "Profile updated."));
     }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> ForgotPassword(ForgotPasswordRequest req)
+    {
+        await _auth.ForgotPasswordAsync(req);
+        return Ok(ApiResponse<object>.Ok(new { }, "If an account with that email exists, a reset link has been sent."));
+    }
+
 }

@@ -19,6 +19,41 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       Staff accounts are seeded by an admin only. Customers cannot self-register as staff.
     </div>
 
+    <!-- View modal -->
+    <div *ngIf="viewTarget" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onViewBackdrop($event)">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-person-badge me-2"></i>Staff details</h5>
+          </div>
+          <div class="modal-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4 text-muted">Full name</dt>
+              <dd class="col-sm-8 fw-semibold">{{ viewTarget.fullName }}</dd>
+              <dt class="col-sm-4 text-muted">Email</dt>
+              <dd class="col-sm-8">{{ viewTarget.email }}</dd>
+              <dt class="col-sm-4 text-muted">Phone</dt>
+              <dd class="col-sm-8">{{ viewTarget.phone || '—' }}</dd>
+              <dt class="col-sm-4 text-muted">Designation</dt>
+              <dd class="col-sm-8">{{ viewTarget.designation || '—' }}</dd>
+              <dt class="col-sm-4 text-muted">Department</dt>
+              <dd class="col-sm-8">{{ viewTarget.department || '—' }}</dd>
+              <dt class="col-sm-4 text-muted">Salary</dt>
+              <dd class="col-sm-8">{{ viewTarget.salary != null ? ('₹ ' + (viewTarget.salary | number:'1.2-2')) : '—' }}</dd>
+              <dt class="col-sm-4 text-muted">Joined</dt>
+              <dd class="col-sm-8">{{ viewTarget.joinedAt | date:'mediumDate' }}</dd>
+              <dt class="col-sm-4 text-muted">Status</dt>
+              <dd class="col-sm-8"><span class="badge" [class.bg-success]="viewTarget.isActive" [class.bg-secondary]="!viewTarget.isActive">{{ viewTarget.isActive ? 'Active' : 'Disabled' }}</span></dd>
+            </dl>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Permissions modal -->
     <div *ngIf="permsTarget" class="modal-backdrop fade show"></div>
     <div *ngIf="permsTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onPermsBackdrop($event)">
@@ -211,20 +246,22 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ s.joinedAt | date:'mediumDate' }}</td>
               <td><span class="badge" [class.bg-success]="s.isActive" [class.bg-secondary]="!s.isActive">{{ s.isActive ? 'Active' : 'Disabled' }}</span></td>
               <td class="text-end">
-                <ng-container *ngIf="auth.isAdmin(); else readOnlyStf">
-                  <button class="btn btn-sm btn-outline-primary me-1" (click)="edit(s)">Edit</button>
-                  <button class="btn btn-sm btn-outline-secondary me-1" (click)="openPermissions(s)" title="Manage permissions">
-                    <i class="bi bi-shield-lock me-1"></i>Permissions
-                  </button>
-                  <button *ngIf="s.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Block this staff from logging in">
-                    <i class="bi bi-eye-slash me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!s.isActive" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Allow this staff to log in again">
-                    <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
-                </ng-container>
-                <ng-template #readOnlyStf><span class="text-muted small">View only</span></ng-template>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View staff details"><i class="bi bi-eye me-1"></i>View</button>
+                  <ng-container *ngIf="auth.isAdmin()">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="edit(s)">Edit</button>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="openPermissions(s)" title="Manage permissions">
+                      <i class="bi bi-shield-lock me-1"></i>Permissions
+                    </button>
+                    <button *ngIf="s.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Block this staff from logging in">
+                      <i class="bi bi-eye-slash me-1"></i>Deactivate
+                    </button>
+                    <button *ngIf="!s.isActive" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Allow this staff to log in again">
+                      <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Activate
+                    </button>
+                  </ng-container>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredStaff().length === 0"><td colspan="8" class="text-center text-muted py-3">{{ items.length === 0 ? 'No staff members yet.' : 'No staff match the filters.' }}</td></tr>
@@ -258,6 +295,7 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
 
   items: Staff[] = [];
+  viewTarget: Staff | null = null;
   editingId: number | null = null;
   formError = '';
 
@@ -381,8 +419,15 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.viewTarget) { this.closeView(); return; }
     if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
+  }
+
+  view(s: Staff): void { this.viewTarget = s; this.lockBody(); }
+  closeView(): void { this.viewTarget = null; if (this.editingId === null && !this.deleteTarget && !this.permsTarget) this.unlockBody(); }
+  onViewBackdrop(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closeView();
   }
 
   onBackdropClick(event: MouseEvent): void {

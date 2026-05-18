@@ -166,25 +166,25 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <span *ngIf="v.isActive" class="badge" [class.bg-success]="v.isAvailable" [class.bg-warning]="!v.isAvailable">{{ v.isAvailable ? 'Available' : 'In service' }}</span>
               </td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(v)" [disabled]="!v.isActive">Edit</button>
-                <button *ngIf="v.isActive && v.isAvailable && auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-warning me-1" (click)="toggleAvailable(v, false)" [disabled]="togglingId === v.id" title="Mark this vehicle as in service">
-                  <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== v.id" class="bi bi-eye-slash me-1"></i>Mark in service
-                </button>
-                <button *ngIf="v.isActive && !v.isAvailable && auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-success me-1" (click)="toggleAvailable(v, true)" [disabled]="togglingId === v.id" title="Make this vehicle available for booking">
-                  <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Mark available
-                </button>
-                <button *ngIf="v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(v)" [disabled]="deleting && deleteTarget?.id === v.id" title="Hide this vehicle from the fleet">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-success" (click)="activate(v)" [disabled]="togglingId === v.id" title="Bring this vehicle back into the fleet">
-                  <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('vehicles.edit') && !auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-primary" (click)="view(v)" title="View vehicle details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(v)" title="View vehicle details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(v)" [disabled]="!v.isActive">Edit</button>
+                  <button *ngIf="v.isActive && v.isAvailable && auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-warning" (click)="toggleAvailable(v, false)" [disabled]="togglingId === v.id" title="Mark this vehicle as in service">
+                    <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== v.id" class="bi bi-eye-slash me-1"></i>Mark in service
+                  </button>
+                  <button *ngIf="v.isActive && !v.isAvailable && auth.hasPermission('vehicles.edit')" class="btn btn-sm btn-outline-success" (click)="toggleAvailable(v, true)" [disabled]="togglingId === v.id" title="Make this vehicle available for booking">
+                    <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Mark available
+                  </button>
+                  <button *ngIf="v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(v)" [disabled]="deleting && deleteTarget?.id === v.id" title="Hide this vehicle from the fleet">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-success" (click)="activate(v)" [disabled]="togglingId === v.id" title="Bring this vehicle back into the fleet">
+                    <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredVehicles().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No vehicles yet.' : 'No vehicles match the filters.' }}</td></tr>

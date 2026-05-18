@@ -13,6 +13,7 @@ import { ToastService } from '../../core/services/toast.service';
     <ul class="nav nav-tabs mb-3">
       <li class="nav-item"><a class="nav-link" [class.active]="tab==='profile'" href="javascript:;" (click)="tab='profile'">Profile</a></li>
       <li class="nav-item"><a class="nav-link" [class.active]="tab==='password'" href="javascript:;" (click)="tab='password'">Password</a></li>
+      <li class="nav-item" *ngIf="auth.isAdmin()"><a class="nav-link" [class.active]="tab==='email'" href="javascript:;" (click)="tab='email'">Email</a></li>
     </ul>
 
     <div class="table-card" *ngIf="tab==='profile'">
@@ -57,12 +58,24 @@ import { ToastService } from '../../core/services/toast.service';
       <form [formGroup]="passwordForm" (ngSubmit)="savePassword()" class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Current password <span class="text-danger">*</span></label>
-          <input type="password" class="form-control" formControlName="currentPassword" autocomplete="current-password" placeholder="Your current password" [class.is-invalid]="isInvalid(passwordForm.get('currentPassword'))" />
-          <div class="invalid-feedback" *ngIf="isInvalid(passwordForm.get('currentPassword'))">Current password is required.</div>
+          <div class="input-group">
+            <input [type]="showCurrentPwd ? 'text' : 'password'" class="form-control" formControlName="currentPassword" autocomplete="current-password" placeholder="Your current password" [class.is-invalid]="isInvalid(passwordForm.get('currentPassword'))" />
+            <button type="button" class="btn btn-outline-secondary" (click)="showCurrentPwd = !showCurrentPwd" tabindex="-1">
+              <i class="bi" [class.bi-eye]="!showCurrentPwd" [class.bi-eye-slash]="showCurrentPwd"></i>
+            </button>
+          </div>
+          <small class="text-danger d-block mt-1" *ngIf="isInvalid(passwordForm.get('currentPassword'))">
+            <i class="bi bi-exclamation-circle me-1"></i>Current password is required.
+          </small>
         </div>
         <div class="col-md-6">
           <label class="form-label">New password <span class="text-danger">*</span></label>
-          <input type="password" class="form-control" formControlName="newPassword" autocomplete="new-password" placeholder="At least 6 characters" [class.is-invalid]="isInvalid(passwordForm.get('newPassword'))" />
+          <div class="input-group">
+            <input [type]="showNewPwd ? 'text' : 'password'" class="form-control" formControlName="newPassword" autocomplete="new-password" placeholder="At least 6 characters" [class.is-invalid]="isInvalid(passwordForm.get('newPassword'))" />
+            <button type="button" class="btn btn-outline-secondary" (click)="showNewPwd = !showNewPwd" tabindex="-1">
+              <i class="bi" [class.bi-eye]="!showNewPwd" [class.bi-eye-slash]="showNewPwd"></i>
+            </button>
+          </div>
           <small class="d-block mt-1"
                  *ngIf="passwordForm.get('newPassword')?.touched || newPwdLen() > 0"
                  [class.text-danger]="newPwdLen() < 6"
@@ -81,6 +94,37 @@ import { ToastService } from '../../core/services/toast.service';
       </form>
     </div>
 
+    <div class="table-card" *ngIf="tab==='email' && auth.isAdmin()">
+      <div class="d-flex align-items-center mb-1">
+        <h5 class="fw-bold mb-0"><i class="bi bi-envelope-check me-2"></i>Email configuration</h5>
+      </div>
+      <p class="text-muted small mb-3">
+        Send a test email to verify your SMTP settings are working.
+        Emails are sent via Gmail SMTP. If authentication fails, you need a
+        <strong>Gmail App Password</strong> — go to
+        <a href="https://myaccount.google.com/security" target="_blank" rel="noopener">myaccount.google.com/security</a>
+        → 2-Step Verification → App Passwords, create one for Mail, and paste the 16-character code
+        into <code>appsettings.json</code> under <code>Email.Password</code>.
+      </p>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label">Send test email to</label>
+          <input type="email" class="form-control" [(ngModel)]="testEmailAddress" placeholder="recipient@example.com" />
+          <div class="form-text">Leave blank to send to your own account email.</div>
+        </div>
+        <div class="col-md-auto">
+          <button class="btn btn-primary" (click)="sendTestEmail()" [disabled]="sendingTestEmail">
+            <span *ngIf="sendingTestEmail" class="spinner-border spinner-border-sm me-2"></span>
+            <i *ngIf="!sendingTestEmail" class="bi bi-send me-1"></i>{{ sendingTestEmail ? 'Sending…' : 'Send test email' }}
+          </button>
+        </div>
+      </div>
+      <div *ngIf="testEmailResult" class="mt-3 alert" [class.alert-success]="testEmailResult.ok" [class.alert-danger]="!testEmailResult.ok">
+        <i class="bi me-2" [class.bi-check-circle-fill]="testEmailResult.ok" [class.bi-exclamation-triangle-fill]="!testEmailResult.ok"></i>
+        {{ testEmailResult.message }}
+      </div>
+    </div>
+
   `
 })
 export class AdminSettingsComponent implements OnInit {
@@ -89,10 +133,15 @@ export class AdminSettingsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
 
-  tab: 'profile' | 'password' = 'profile';
+  tab: 'profile' | 'password' | 'email' = 'profile';
 
   savingProfile = false;
   savingPassword = false;
+  showCurrentPwd = false;
+  showNewPwd = false;
+  sendingTestEmail = false;
+  testEmailAddress = '';
+  testEmailResult: { ok: boolean; message: string } | null = null;
 
   profileForm = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -153,5 +202,22 @@ export class AdminSettingsComponent implements OnInit {
 
   newPwdLen(): number {
     return (this.passwordForm.value.newPassword || '').length;
+  }
+
+  sendTestEmail(): void {
+    this.sendingTestEmail = true;
+    this.testEmailResult = null;
+    const to = this.testEmailAddress.trim() || undefined;
+    this.api.sendTestEmail(to).subscribe({
+      next: msg => {
+        this.sendingTestEmail = false;
+        this.testEmailResult = { ok: true, message: msg || 'Test email sent successfully.' };
+      },
+      error: (err: any) => {
+        this.sendingTestEmail = false;
+        const msg = err?.error?.message || 'Failed to send test email. Check the server logs for details.';
+        this.testEmailResult = { ok: false, message: msg };
+      }
+    });
   }
 }

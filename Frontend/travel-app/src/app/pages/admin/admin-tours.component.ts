@@ -4,7 +4,7 @@ import { forkJoin } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { Facility, Tour, TourPackage } from '../../core/models/api.models';
+import { Facility, HomeDestination, Tour, TourPackage } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
 @Component({
@@ -60,11 +60,16 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('name'))">Tour name is required.</div>
                 </div>
                 <div class="col-md-3">
-                  <label class="form-label">Destination <span class="text-danger">*</span></label>
+                  <label class="form-label">Country <span class="text-danger">*</span></label>
                   <app-select [options]="destinationOptions" formControlName="destination"></app-select>
-                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('destination'))">Destination is required.</div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('destination'))">Country is required.</div>
                 </div>
                 <div class="col-md-3"><label class="form-label">Region</label><input class="form-control" formControlName="region" /></div>
+                <div class="col-md-6">
+                  <label class="form-label">Destination</label>
+                  <app-select [options]="homeDestinationOptions" formControlName="homeDestinationId" [searchable]="true"></app-select>
+                  <small class="text-muted" *ngIf="!viewMode">Link this tour to a popular destination card shown on the home page.</small>
+                </div>
                 <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" rows="2" formControlName="description"></textarea></div>
                 <div class="col-12"><label class="form-label">Highlights</label><input class="form-control" formControlName="highlights" /></div>
                 <div class="col-12">
@@ -83,14 +88,14 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   <div class="col-12"><hr class="my-2" /></div>
                   <div class="col-12 d-flex align-items-center justify-content-between">
                     <h6 class="fw-bold mb-0"><i class="bi bi-box-seam me-2"></i>Packages</h6>
-                    <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-primary" (click)="addPackage()" [disabled]="!tourDetailsValid()" [title]="tourDetailsValid() ? 'Add a pricing package' : 'Fill in Name and Destination first'">
+                    <button *ngIf="!viewMode" type="button" class="btn btn-sm btn-outline-primary" (click)="addPackage()" [disabled]="!tourDetailsValid()" [title]="tourDetailsValid() ? 'Add a pricing package' : 'Fill in Name and Country first'">
                       <i class="bi bi-plus-lg me-1"></i>Add package
                     </button>
                   </div>
                   <div class="col-12">
                     <div *ngIf="!tourDetailsValid()" class="alert alert-warning d-flex align-items-center mb-2 py-2 px-3">
                       <i class="bi bi-info-circle-fill me-2"></i>
-                      <span class="small">Enter the tour <strong>Name</strong> and <strong>Destination</strong> above to enable adding packages.</span>
+                      <span class="small">Enter the tour <strong>Name</strong> and <strong>Country</strong> above to enable adding packages.</span>
                     </div>
                     <div *ngIf="tourDetailsValid() && packages.length === 0" class="alert alert-light border d-flex align-items-center mb-2 py-2 px-3">
                       <i class="bi bi-lightbulb me-2 text-primary"></i>
@@ -236,7 +241,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           </div>
         </div>
         <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Destination</label>
+          <label class="form-label small text-muted mb-1">Country</label>
           <app-select size="sm" [options]="destinationFilterOptions" [(ngModel)]="filterDestination" (valueChange)="onFilterChange()"></app-select>
         </div>
         <div class="col-md-3">
@@ -257,7 +262,8 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           <thead>
             <tr>
               <th class="sortable" (click)="toggleSort('name')">Name <i class="bi" [ngClass]="sortIcon('name')"></i></th>
-              <th class="sortable" (click)="toggleSort('destination')">Destination <i class="bi" [ngClass]="sortIcon('destination')"></i></th>
+              <th class="sortable" (click)="toggleSort('destination')">Country <i class="bi" [ngClass]="sortIcon('destination')"></i></th>
+              <th>Destination</th>
               <th class="sortable" (click)="toggleSort('region')">Region <i class="bi" [ngClass]="sortIcon('region')"></i></th>
               <th class="sortable" (click)="toggleSort('packages')">Packages <i class="bi" [ngClass]="sortIcon('packages')"></i></th>
               <th class="sortable" (click)="toggleSort('status')">Status <i class="bi" [ngClass]="sortIcon('status')"></i></th>
@@ -268,6 +274,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
             <tr *ngFor="let t of pagedTours()">
               <td><strong>{{ t.name }}</strong></td>
               <td><span class="badge bg-secondary">{{ t.destination }}</span></td>
+              <td>
+                <span *ngIf="linkedDestination(t.id) as dest" class="badge bg-info text-dark">{{ dest.name }}</span>
+                <span *ngIf="!linkedDestination(t.id)" class="text-muted small">—</span>
+              </td>
               <td>{{ t.region }}</td>
               <td>
                 <ng-container *ngIf="activePackageCount(t) as count">
@@ -277,20 +287,20 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               </td>
               <td><span class="badge" [class.bg-success]="t.isActive" [class.bg-secondary]="!t.isActive">{{ t.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('tours.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(t)">Edit</button>
-                <button *ngIf="t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(t)" [disabled]="togglingId === t.id" title="Hide this tour from customers">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-success" (click)="activate(t)" [disabled]="togglingId === t.id" title="Make this tour visible again">
-                  <span *ngIf="togglingId === t.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== t.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('tours.edit') && !auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-primary" (click)="view(t)" title="View tour details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(t)" title="View tour details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('tours.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(t)">Edit</button>
+                  <button *ngIf="t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(t)" [disabled]="togglingId === t.id" title="Hide this tour from customers">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-success" (click)="activate(t)" [disabled]="togglingId === t.id" title="Make this tour visible again">
+                    <span *ngIf="togglingId === t.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== t.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
-            <tr *ngIf="filteredTours().length === 0"><td colspan="6" class="text-center text-muted py-3">{{ tours.length === 0 ? 'No tours yet.' : 'No tours match the filters.' }}</td></tr>
+            <tr *ngIf="filteredTours().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ tours.length === 0 ? 'No tours yet.' : 'No tours match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -343,7 +353,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   sortDir: 'asc' | 'desc' = 'asc';
 
   readonly destinationFilterOptions = [
-    { value: '', label: 'All destinations' },
+    { value: '', label: 'All countries' },
     { value: 'India', label: 'India' },
     { value: 'Bhutan', label: 'Bhutan' },
     { value: 'Nepal', label: 'Nepal' }
@@ -365,6 +375,19 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   }
 
   facilities: Facility[] = [];
+  homeDestinations: HomeDestination[] = [];
+  originalHomeDestinationId: number | null = null;
+
+  get homeDestinationOptions(): { value: number | string; label: string }[] {
+    return [
+      { value: '', label: '— None —' },
+      ...this.homeDestinations.map(d => ({ value: d.id, label: d.name }))
+    ];
+  }
+
+  linkedDestination(tourId: number): HomeDestination | undefined {
+    return this.homeDestinations.find(d => d.tourId === tourId);
+  }
 
   @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
 
@@ -379,6 +402,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     highlights: [''],
     imageUrl: [''],
     isActive: [true],
+    homeDestinationId: [null as any],
     packages: this.fb.array([])
   });
 
@@ -497,6 +521,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.load();
     this.api.listFacilities().subscribe({ next: fs => this.facilities = fs.filter(f => f.isActive) });
+    this.api.listHomeDestinations(false).subscribe({ next: ds => this.homeDestinations = ds });
   }
 
   ngOnDestroy(): void { this.unlockBody(); }
@@ -626,8 +651,9 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.editingId = 0;
     this.previewBroken = false;
     this.formError = '';
+    this.originalHomeDestinationId = null;
     this.packages.clear();
-    this.form.reset({ name: '', destination: 'India', region: '', description: '', highlights: '', imageUrl: '', isActive: true });
+    this.form.reset({ name: '', destination: 'India', region: '', description: '', highlights: '', imageUrl: '', isActive: true, homeDestinationId: null });
     this.lockBody();
   }
 
@@ -638,7 +664,9 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.formError = '';
     this.packages.clear();
     this.removedPackageIds = [];
-    this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive });
+    const linked = this.homeDestinations.find(d => d.tourId === t.id);
+    this.originalHomeDestinationId = linked?.id ?? null;
+    this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive, homeDestinationId: this.originalHomeDestinationId });
     this.form.enable({ emitEvent: false });
     this.lockBody();
     this.api.listPackages(t.id).subscribe({
@@ -653,7 +681,9 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.formError = '';
     this.packages.clear();
     this.removedPackageIds = [];
-    this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive });
+    const linked = this.homeDestinations.find(d => d.tourId === t.id);
+    this.originalHomeDestinationId = linked?.id ?? null;
+    this.form.reset({ name: t.name, destination: t.destination, region: t.region || '', description: t.description || '', highlights: t.highlights || '', imageUrl: t.imageUrl || '', isActive: t.isActive, homeDestinationId: this.originalHomeDestinationId });
     this.lockBody();
     this.api.listPackages(t.id).subscribe({
       next: pkgs => {
@@ -671,6 +701,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.packages.clear();
     this.removedPackageIds = [];
     this.removedItineraryIds.clear();
+    this.originalHomeDestinationId = null;
     this.form.enable({ emitEvent: false });
     this.unlockBody();
   }
@@ -700,7 +731,8 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   save(): void {
     if (this.form.invalid) { this.markAllTouched(); return; }
     this.formError = '';
-    const { packages, ...tourFields } = this.form.getRawValue() as any;
+    const { packages, homeDestinationId: rawHdId, ...tourFields } = this.form.getRawValue() as any;
+    const newHdId: number | null = rawHdId ? Number(rawHdId) : null;
     const pkgRows: any[] = packages || [];
     const pkgControls = this.packages.controls;
 
@@ -736,6 +768,25 @@ export class AdminToursComponent implements OnInit, OnDestroy {
       });
     });
 
+    const linkHd = (tourId: number): Promise<void> => {
+      const oldId = this.originalHomeDestinationId;
+      if (newHdId === oldId) return Promise.resolve();
+      const calls: any[] = [];
+      if (oldId) {
+        const d = this.homeDestinations.find(x => x.id === oldId);
+        if (d) calls.push(this.api.updateHomeDestination(d.id, { ...d, tourId: null } as any));
+      }
+      if (newHdId) {
+        const d = this.homeDestinations.find(x => x.id === newHdId);
+        if (d) calls.push(this.api.updateHomeDestination(d.id, { ...d, tourId } as any));
+      }
+      if (calls.length === 0) return Promise.resolve();
+      return new Promise<void>(resolve => forkJoin(calls).subscribe({
+        next: () => { this.api.listHomeDestinations(false).subscribe({ next: ds => this.homeDestinations = ds }); resolve(); },
+        error: () => resolve()
+      }));
+    };
+
     if (this.editingId) {
       const tourId = this.editingId;
       this.api.updateTour(tourId, tourFields).subscribe({
@@ -758,7 +809,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
             ? Promise.resolve()
             : new Promise((resolve, reject) => forkJoin(otherCalls).subscribe({ next: () => resolve(null), error: () => reject() }));
 
-          Promise.all([otherPromise, ...newCreates]).then(() => {
+          Promise.all([otherPromise, ...newCreates]).then(() => linkHd(tourId)).then(() => {
             const summary = `Tour ${label} saved — ${pkgRows.length} package${pkgRows.length === 1 ? '' : 's'}` + (this.removedPackageIds.length ? `, ${this.removedPackageIds.length} removed.` : '.');
             this.toast.show(summary, 'success', 4000, { title: 'Tour saved' });
             this.finishEdit();
@@ -774,16 +825,16 @@ export class AdminToursComponent implements OnInit, OnDestroy {
 
     this.api.createTour(tourFields).subscribe({
       next: created => {
-        if (pkgRows.length === 0) {
-          this.toast.show(`New tour ${label} added.`, 'success', 4000, { title: 'Tour created' });
+        const finish = () => linkHd(created.id).then(() => {
+          this.toast.show(pkgRows.length === 0
+            ? `New tour ${label} added.`
+            : `New tour ${label} added with ${pkgRows.length} package${pkgRows.length === 1 ? '' : 's'}.`,
+            'success', 4000, { title: 'Tour created' });
           this.finishEdit();
-          return;
-        }
+        });
+        if (pkgRows.length === 0) { finish(); return; }
         const newCreates = pkgRows.map((p, idx) => createPackageWithItineraries(p, pkgControls[idx], created.id));
-        Promise.all(newCreates).then(() => {
-          this.toast.show(`New tour ${label} added with ${pkgRows.length} package${pkgRows.length === 1 ? '' : 's'}.`, 'success', 4000, { title: 'Tour created' });
-          this.finishEdit();
-        }).catch(() => {
+        Promise.all(newCreates).then(() => finish()).catch(() => {
           this.toast.show(`Tour ${label} created, but some packages failed to save.`, 'danger', 4000, { title: 'Partial save' });
           this.finishEdit();
         });
@@ -794,11 +845,13 @@ export class AdminToursComponent implements OnInit, OnDestroy {
 
   private finishEdit(): void {
     this.editingId = null;
+    this.originalHomeDestinationId = null;
     this.packages.clear();
     this.removedPackageIds = [];
     this.removedItineraryIds.clear();
     this.unlockBody();
     this.load();
+    this.api.listHomeDestinations(false).subscribe({ next: ds => this.homeDestinations = ds });
   }
 
   remove(t: Tour): void {

@@ -204,17 +204,17 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ c.createdAt | date:'mediumDate' }}</td>
               <td><span class="badge" [class.bg-success]="c.isActive" [class.bg-secondary]="!c.isActive">{{ c.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(c)">Edit</button>
-                <button *ngIf="c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id" title="Block this customer from logging in">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id" title="Allow this customer to log in again">
-                  <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
-                <button *ngIf="!auth.hasPermission('customers.edit') && !auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-primary" (click)="view(c)" title="View customer details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(c)" title="View customer details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(c)">Edit</button>
+                  <button *ngIf="c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id" title="Block this customer from logging in">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id" title="Allow this customer to log in again">
+                    <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredCustomers().length === 0"><td colspan="9" class="text-center text-muted py-3">{{ items.length === 0 ? 'No customers yet.' : 'No customers match the filters.' }}</td></tr>

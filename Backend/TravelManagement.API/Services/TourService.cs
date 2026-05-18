@@ -34,7 +34,9 @@ public class TourService : ITourService
         if (homeDestinationId.HasValue)
         {
             var did = homeDestinationId.Value;
-            query = query.Where(t => _db.HomeDestinationTours.Any(l => l.HomeDestinationId == did && l.TourId == t.Id));
+            query = query.Where(t =>
+                _db.HomeDestinationTours.Any(l => l.HomeDestinationId == did && l.TourId == t.Id) ||
+                _db.HomeDestinations.Any(d => d.Id == did && d.TourId == t.Id));
         }
         if (tourIdsFilter != null)
         {

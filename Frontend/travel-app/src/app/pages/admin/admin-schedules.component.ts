@@ -56,12 +56,12 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Tour <span class="text-danger">*</span></label>
-                  <app-select [options]="tourOptions()" formControlName="tourId" (valueChange)="onTourChange()"></app-select>
+                  <app-select [options]="tourOptions()" formControlName="tourId" (valueChange)="onTourChange()" [invalid]="isInvalid(form.get('tourId'))"></app-select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('tourId'))">Tour is required.</div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Package <span class="text-danger">*</span></label>
-                  <app-select [options]="packageOptionsForSelectedTour()" formControlName="tourPackageId" (valueChange)="onPackageChange()"></app-select>
+                  <app-select [options]="packageOptionsForSelectedTour()" formControlName="tourPackageId" (valueChange)="onPackageChange()" [invalid]="isInvalid(form.get('tourPackageId'))"></app-select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('tourPackageId'))">Package is required.</div>
                   <small *ngIf="selectedPackage() as p" class="text-muted">Package capacity: {{ p.minPersons }}–{{ p.maxPersons }} persons.</small>
                 </div>
@@ -153,17 +153,17 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
               </td>
               <td><span class="badge" [class.bg-success]="s.isActive" [class.bg-secondary]="!s.isActive">{{ s.isActive ? 'Open' : 'Closed' }}</span></td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('schedules.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(s)">Edit</button>
-                <button *ngIf="s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Close this trip">
-                  <i class="bi bi-eye-slash me-1"></i>Close
-                </button>
-                <button *ngIf="!s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Reopen this trip">
-                  <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Reopen
-                </button>
-                <button *ngIf="!auth.hasPermission('schedules.edit') && !auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View trip details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View trip details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('schedules.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(s)">Edit</button>
+                  <button *ngIf="s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Close this trip">
+                    <i class="bi bi-eye-slash me-1"></i>Close
+                  </button>
+                  <button *ngIf="!s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Reopen this trip">
+                    <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Reopen
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredItems().length === 0">

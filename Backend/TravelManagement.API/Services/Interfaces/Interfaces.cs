@@ -15,6 +15,7 @@ public interface IAuthService
     Task<UserDto> GetCurrentUserAsync(int userId);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request);
+    Task ForgotPasswordAsync(ForgotPasswordRequest request);
 }
 
 public interface IAppSettingsService
@@ -40,6 +41,7 @@ public interface IEmailService
 {
     Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default);
     Task SendToAdminAsync(string subject, string htmlBody, CancellationToken ct = default);
+    Task<(bool success, string message)> SendTestAsync(string toEmail, CancellationToken ct = default);
 }
 
 public interface INotificationService

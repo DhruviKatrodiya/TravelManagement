@@ -8,37 +8,47 @@ namespace TravelManagement.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
 public class StaffController : ControllerBase
 {
     private readonly IStaffService _svc;
     public StaffController(IStaffService svc) => _svc = svc;
 
-    [HttpGet] public async Task<ActionResult<ApiResponse<IEnumerable<StaffDto>>>> List()
+    [HttpGet]
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<StaffDto>>>> List()
         => Ok(ApiResponse<IEnumerable<StaffDto>>.Ok(await _svc.ListAsync()));
 
-    [HttpPost] public async Task<ActionResult<ApiResponse<StaffDto>>> Create(StaffCreateRequest req)
+    [HttpPost] 
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<ActionResult<ApiResponse<StaffDto>>> Create(StaffCreateRequest req)
         => Ok(ApiResponse<StaffDto>.Ok(await _svc.CreateAsync(req), "Staff created"));
 
-    [HttpPut("{id}")] public async Task<ActionResult<ApiResponse<StaffDto>>> Update(int id, StaffUpdateRequest req)
+    [HttpPut("{id}")] 
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<ActionResult<ApiResponse<StaffDto>>> Update(int id, StaffUpdateRequest req)
     {
         var s = await _svc.UpdateAsync(id, req);
         return s == null ? NotFound(ApiResponse<StaffDto>.Fail("Not found")) : Ok(ApiResponse<StaffDto>.Ok(s, "Updated"));
     }
 
-    [HttpDelete("{id}")] public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
+    [HttpDelete("{id}")] 
+    [Authorize(Roles = "Admin,Staff")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpGet("permissions/catalog")]
     [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     public ActionResult<ApiResponse<IEnumerable<string>>> PermissionsCatalog()
         => Ok(ApiResponse<IEnumerable<string>>.Ok(Permissions.All));
 
     [HttpGet("{id}/permissions")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<ActionResult<ApiResponse<IEnumerable<string>>>> GetPermissions(int id)
         => Ok(ApiResponse<IEnumerable<string>>.Ok(await _svc.GetPermissionsAsync(id)));
 
     [HttpPut("{id}/permissions")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<object>>> SetPermissions(int id, StaffPermissionsUpdateRequest req)
     {
         var allowed = Permissions.All.ToHashSet();

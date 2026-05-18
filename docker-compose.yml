@@ -1,0 +1,55 @@
+services:
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: travelhub-db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "TravelMgmt@2024!"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'TravelMgmt@2024!' -Q 'SELECT 1' -b || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./Backend/TravelManagement.API
+      dockerfile: Dockerfile
+    container_name: travelhub-api
+    ports:
+      - "5011:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=TravelManagementDb;User Id=sa;Password=TravelMgmt@2024!;MultipleActiveResultSets=true;TrustServerCertificate=True;"
+      Jwt__SecretKey: "CHANGE_THIS_TO_A_SECURE_64_CHAR_SECRET_IN_PRODUCTION_ENV!!"
+      Cors__AllowedOrigins__0: "http://localhost:4200"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/wwwroot/uploads
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./Frontend/travel-app
+      dockerfile: Dockerfile
+    container_name: travelhub-web
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
+  uploads_data:

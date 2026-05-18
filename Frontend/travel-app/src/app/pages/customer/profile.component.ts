@@ -18,7 +18,12 @@ import { AuthService } from '../../core/services/auth.service';
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label">Full name <span class="text-danger">*</span></label>
-                <input class="form-control" formControlName="fullName" />
+                <input class="form-control" formControlName="fullName"
+                       [class.is-invalid]="form.get('fullName')?.touched && form.get('fullName')?.invalid" />
+                <small class="text-danger d-block mt-1"
+                       *ngIf="form.get('fullName')?.touched && form.get('fullName')?.errors?.['required']">
+                  <i class="bi bi-exclamation-circle me-1"></i>Full name is required.
+                </small>
               </div>
               <div class="col-md-6">
                 <label class="form-label">Phone</label>
@@ -59,14 +64,26 @@ import { AuthService } from '../../core/services/auth.service';
             <h5 class="fw-bold mb-3">Change password</h5>
             <div class="mb-3">
               <label class="form-label">Current password <span class="text-danger">*</span></label>
-              <input type="password" class="form-control" formControlName="currentPassword" autocomplete="current-password" placeholder="Your current password" />
-              <small class="text-danger d-block mt-1" *ngIf="passForm.get('currentPassword')?.touched && !passForm.value.currentPassword">
-                <i class="bi bi-exclamation-circle me-1"></i>Required.
+              <div class="input-group">
+                <input [type]="showCurrentPwd ? 'text' : 'password'" class="form-control" formControlName="currentPassword" autocomplete="current-password" placeholder="Your current password"
+                       [class.is-invalid]="passForm.get('currentPassword')?.touched && passForm.get('currentPassword')?.invalid" />
+                <button type="button" class="btn btn-outline-secondary" (click)="showCurrentPwd = !showCurrentPwd" tabindex="-1">
+                  <i class="bi" [class.bi-eye]="!showCurrentPwd" [class.bi-eye-slash]="showCurrentPwd"></i>
+                </button>
+              </div>
+              <small class="text-danger d-block mt-1" *ngIf="passForm.get('currentPassword')?.touched && passForm.get('currentPassword')?.errors?.['required']">
+                <i class="bi bi-exclamation-circle me-1"></i>Current password is required.
               </small>
             </div>
             <div class="mb-3">
               <label class="form-label">New password <span class="text-danger">*</span></label>
-              <input type="password" class="form-control" formControlName="newPassword" autocomplete="new-password" placeholder="At least 6 characters" />
+              <div class="input-group">
+                <input [type]="showNewPwd ? 'text' : 'password'" class="form-control" formControlName="newPassword" autocomplete="new-password" placeholder="At least 6 characters"
+                       [class.is-invalid]="passForm.get('newPassword')?.touched && passForm.get('newPassword')?.invalid" />
+                <button type="button" class="btn btn-outline-secondary" (click)="showNewPwd = !showNewPwd" tabindex="-1">
+                  <i class="bi" [class.bi-eye]="!showNewPwd" [class.bi-eye-slash]="showNewPwd"></i>
+                </button>
+              </div>
               <small class="d-block mt-1"
                      *ngIf="passForm.get('newPassword')?.touched || newPwdLen() > 0"
                      [class.text-danger]="newPwdLen() < 6"
@@ -76,7 +93,15 @@ import { AuthService } from '../../core/services/auth.service';
                 <span *ngIf="newPwdLen() < 6"> — need {{ 6 - newPwdLen() }} more</span>
               </small>
             </div>
-            <button type="submit" class="btn btn-primary w-100" [disabled]="passForm.invalid">Update password</button>
+            <button type="submit" class="btn btn-primary w-100" [disabled]="passForm.invalid || changingPwd">
+              <span *ngIf="changingPwd" class="spinner-border spinner-border-sm me-2"></span>
+              {{ changingPwd ? 'Updating…' : 'Update password' }}
+            </button>
+            <div *ngIf="pwdResult" class="alert mt-3 mb-0 py-2 d-flex align-items-center gap-2"
+                 [class.alert-success]="pwdResult.ok" [class.alert-danger]="!pwdResult.ok">
+              <i class="bi" [class.bi-check-circle-fill]="pwdResult.ok" [class.bi-exclamation-triangle-fill]="!pwdResult.ok"></i>
+              {{ pwdResult.text }}
+            </div>
           </div>
         </form>
       </div>
@@ -107,6 +132,11 @@ export class ProfileComponent implements OnInit {
     currentPassword: ['', Validators.required],
     newPassword: ['', [Validators.required, Validators.minLength(6)]]
   });
+
+  changingPwd = false;
+  pwdResult: { ok: boolean; text: string } | null = null;
+  showCurrentPwd = false;
+  showNewPwd = false;
 
   ngOnInit(): void {
     this.api.getMyProfile().subscribe({
@@ -139,9 +169,23 @@ export class ProfileComponent implements OnInit {
 
   changePassword(): void {
     if (this.passForm.invalid) return;
+    this.changingPwd = true;
+    this.pwdResult = null;
     const v = this.passForm.getRawValue();
     this.auth.changePassword(v.currentPassword!, v.newPassword!).subscribe({
-      next: () => { this.toast.show('Password updated', 'success'); this.passForm.reset(); }
+      next: () => {
+        this.changingPwd = false;
+        this.passForm.reset();
+        this.pwdResult = { ok: true, text: 'Password updated successfully.' };
+        this.toast.show('Password updated successfully.', 'success');
+        setTimeout(() => this.pwdResult = null, 5000);
+      },
+      error: (err: any) => {
+        this.changingPwd = false;
+        const msg = err?.error?.message || 'Failed to update password. Please check your current password and try again.';
+        this.pwdResult = { ok: false, text: msg };
+        setTimeout(() => this.pwdResult = null, 5000);
+      }
     });
   }
 

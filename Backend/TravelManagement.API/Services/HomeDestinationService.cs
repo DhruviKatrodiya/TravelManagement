@@ -20,7 +20,9 @@ public class HomeDestinationService : IHomeDestinationService
         {
             if (tourIdsFilter.Count == 0) return Enumerable.Empty<HomeDestinationDto>();
             var allowed = tourIdsFilter.ToHashSet();
-            q = q.Where(d => _db.HomeDestinationTours.Any(l => l.HomeDestinationId == d.Id && allowed.Contains(l.TourId)));
+            q = q.Where(d =>
+                _db.HomeDestinationTours.Any(l => l.HomeDestinationId == d.Id && allowed.Contains(l.TourId)) ||
+                (d.TourId.HasValue && allowed.Contains(d.TourId.Value)));
         }
         var rows = await q.OrderBy(d => d.SortOrder).ThenBy(d => d.Id).ToListAsync();
 
@@ -62,6 +64,14 @@ public class HomeDestinationService : IHomeDestinationService
 
     public async Task<HomeDestinationDto> CreateAsync(HomeDestinationRequest req)
     {
+        var conflict = await _db.HomeDestinations
+            .Where(d => d.SortOrder == req.SortOrder)
+            .Select(d => d.Name)
+            .FirstOrDefaultAsync();
+        if (conflict != null)
+            throw new InvalidOperationException(
+                $"Sort order {req.SortOrder} is already assigned to \"{conflict}\". Please choose a different order number.");
+
         var row = new HomeDestination
         {
             Name = req.Name,
@@ -83,6 +93,14 @@ public class HomeDestinationService : IHomeDestinationService
     {
         var row = await _db.HomeDestinations.FindAsync(id);
         if (row == null) return null;
+
+        var conflict = await _db.HomeDestinations
+            .Where(d => d.SortOrder == req.SortOrder && d.Id != id)
+            .Select(d => d.Name)
+            .FirstOrDefaultAsync();
+        if (conflict != null)
+            throw new InvalidOperationException(
+                $"Sort order {req.SortOrder} is already assigned to \"{conflict}\". Please choose a different order number.");
 
         row.Name = req.Name;
         row.Country = req.Country;

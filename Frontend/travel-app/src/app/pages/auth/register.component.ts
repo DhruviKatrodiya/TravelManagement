@@ -59,8 +59,13 @@ import { ToastService } from '../../core/services/toast.service';
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Password <span class="text-danger">*</span></label>
-                    <input type="password" class="form-control" formControlName="password"
-                           [class.is-invalid]="passwordCtl.touched && passwordCtl.invalid" />
+                    <div class="input-group">
+                      <input [type]="showPassword ? 'text' : 'password'" class="form-control" formControlName="password"
+                             [class.is-invalid]="passwordCtl.touched && passwordCtl.invalid" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="showPassword = !showPassword" tabindex="-1">
+                        <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+                      </button>
+                    </div>
                     <small class="text-danger d-block mt-1" *ngIf="passwordCtl.touched && passwordCtl.errors?.['required']">
                       <i class="bi bi-exclamation-circle me-1"></i>Password is required.
                     </small>
@@ -117,6 +122,7 @@ export class RegisterComponent {
 
   loading = false;
   errorMessage = '';
+  showPassword = false;
   form = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(100)]],
     email: ['', [Validators.required, Validators.email]],

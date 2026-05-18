@@ -13,6 +13,46 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       <h2 class="fw-bold mb-0">Reviews</h2>
     </div>
 
+    <!-- View modal -->
+    <div *ngIf="viewTarget" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onViewBackdrop($event)">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-chat-left-text me-2"></i>Review details</h5>
+          </div>
+          <div class="modal-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4 text-muted">Customer</dt>
+              <dd class="col-sm-8">{{ viewTarget.customerName }}</dd>
+              <dt class="col-sm-4 text-muted">Tour</dt>
+              <dd class="col-sm-8">{{ viewTarget.tourName }}</dd>
+              <dt class="col-sm-4 text-muted">Rating</dt>
+              <dd class="col-sm-8">
+                <span *ngFor="let s of [1,2,3,4,5]">
+                  <i class="bi" [ngClass]="s <= viewTarget.rating ? 'bi-star-fill text-warning' : 'bi-star text-muted'"></i>
+                </span>
+                <span class="ms-1 text-muted small">({{ viewTarget.rating }}/5)</span>
+              </dd>
+              <ng-container *ngIf="viewTarget.title">
+                <dt class="col-sm-4 text-muted">Title</dt>
+                <dd class="col-sm-8"><strong>{{ viewTarget.title }}</strong></dd>
+              </ng-container>
+              <dt class="col-sm-4 text-muted">Comment</dt>
+              <dd class="col-sm-8">{{ viewTarget.comment || '—' }}</dd>
+              <dt class="col-sm-4 text-muted">Status</dt>
+              <dd class="col-sm-8"><span class="badge" [class.bg-success]="viewTarget.isApproved" [class.bg-secondary]="!viewTarget.isApproved">{{ viewTarget.isApproved ? 'Visible' : 'Hidden' }}</span></dd>
+              <dt class="col-sm-4 text-muted">Posted</dt>
+              <dd class="col-sm-8">{{ viewTarget.createdAt | date:'medium' }}</dd>
+            </dl>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete confirmation -->
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
     <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onDeleteBackdrop($event)">
@@ -101,18 +141,20 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ r.createdAt | date:'short' }}</td>
               <td><span class="badge" [class.bg-success]="r.isApproved" [class.bg-secondary]="!r.isApproved">{{ r.isApproved ? 'Visible' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="r.isApproved && auth.hasPermission('reviews.edit')" class="btn btn-sm btn-outline-warning me-1" (click)="approve(r, false)" [disabled]="togglingId === r.id" title="Hide this review from customers">
-                  <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== r.id" class="bi bi-eye-slash me-1"></i>Hide
-                </button>
-                <button *ngIf="!r.isApproved && auth.hasPermission('reviews.edit')" class="btn btn-sm btn-outline-success me-1" (click)="approve(r, true)" [disabled]="togglingId === r.id" title="Show this review on the tour page">
-                  <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
-                </button>
-                <button *ngIf="auth.hasPermission('reviews.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(r)" [disabled]="deleting && deleteTarget?.id === r.id" title="Delete this review">
-                  <i class="bi bi-trash me-1"></i>Delete
-                </button>
-                <span *ngIf="!auth.hasPermission('reviews.edit') && !auth.hasPermission('reviews.delete')" class="text-muted small">View only</span>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(r)" title="View review details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="r.isApproved && auth.hasPermission('reviews.edit')" class="btn btn-sm btn-outline-warning" (click)="approve(r, false)" [disabled]="togglingId === r.id" title="Hide this review from customers">
+                    <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== r.id" class="bi bi-eye-slash me-1"></i>Hide
+                  </button>
+                  <button *ngIf="!r.isApproved && auth.hasPermission('reviews.edit')" class="btn btn-sm btn-outline-success" (click)="approve(r, true)" [disabled]="togglingId === r.id" title="Show this review on the tour page">
+                    <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
+                  </button>
+                  <button *ngIf="auth.hasPermission('reviews.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(r)" [disabled]="deleting && deleteTarget?.id === r.id" title="Delete this review">
+                    <i class="bi bi-trash me-1"></i>Delete
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filteredReviews().length === 0"><td colspan="7" class="text-center text-muted py-3">{{ items.length === 0 ? 'No reviews yet.' : 'No reviews match the filters.' }}</td></tr>
@@ -146,6 +188,7 @@ export class AdminReviewsComponent implements OnInit, OnDestroy {
 
   items: Review[] = [];
 
+  viewTarget: Review | null = null;
   deleteTarget: Review | null = null;
   deleting = false;
   togglingId: number | null = null;
@@ -165,7 +208,14 @@ export class AdminReviewsComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.viewTarget) { this.closeView(); return; }
     if (this.deleteTarget) this.cancelDelete();
+  }
+
+  view(r: Review): void { this.viewTarget = r; this.lockBody(); }
+  closeView(): void { this.viewTarget = null; if (!this.deleteTarget) this.unlockBody(); }
+  onViewBackdrop(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closeView();
   }
 
   onDeleteBackdrop(event: MouseEvent): void {

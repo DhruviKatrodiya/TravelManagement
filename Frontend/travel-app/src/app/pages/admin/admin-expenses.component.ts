@@ -171,17 +171,17 @@ import { Booking, Expense } from '../../core/models/api.models';
               <td class="text-end">₹ {{ e.amount | number:'1.2-2' }}</td>
               <td><span class="badge" [class.bg-success]="e.isActive" [class.bg-secondary]="!e.isActive">{{ e.isActive ? 'Active' : 'Hidden' }}</span></td>
               <td class="text-end">
-                <button *ngIf="auth.hasPermission('expenses.edit')" class="btn btn-sm btn-outline-primary me-1" (click)="edit(e)">Edit</button>
-                <button *ngIf="!auth.hasPermission('expenses.edit') && !auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-primary" (click)="view(e)" title="View expense details">
-                  <i class="bi bi-eye me-1"></i>View
-                </button>
-                <button *ngIf="e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(e)" [disabled]="togglingId === e.id" title="Hide this expense from reports">
-                  <i class="bi bi-eye-slash me-1"></i>Deactivate
-                </button>
-                <button *ngIf="!e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-success" (click)="activate(e)" [disabled]="togglingId === e.id" title="Include this expense again">
-                  <span *ngIf="togglingId === e.id" class="spinner-border spinner-border-sm me-1"></span>
-                  <i *ngIf="togglingId !== e.id" class="bi bi-check2-circle me-1"></i>Activate
-                </button>
+                <div class="d-flex gap-1 justify-content-end">
+                  <button class="btn btn-sm btn-outline-primary" (click)="view(e)" title="View expense details"><i class="bi bi-eye me-1"></i>View</button>
+                  <button *ngIf="auth.hasPermission('expenses.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(e)">Edit</button>
+                  <button *ngIf="e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(e)" [disabled]="togglingId === e.id" title="Hide this expense from reports">
+                    <i class="bi bi-eye-slash me-1"></i>Deactivate
+                  </button>
+                  <button *ngIf="!e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-success" (click)="activate(e)" [disabled]="togglingId === e.id" title="Include this expense again">
+                    <span *ngIf="togglingId === e.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="togglingId !== e.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                </div>
               </td>
             </tr>
             <tr *ngIf="filtered().length === 0"><td colspan="8" class="text-center text-muted py-3">{{ items.length === 0 ? 'No expenses recorded.' : 'No expenses match the filters.' }}</td></tr>

@@ -15,16 +15,26 @@ export interface SelectOption {
     <div class="dropdown app-select w-100" [class.app-select-sm]="size === 'sm'">
       <button #toggleBtn class="form-select text-start app-select-toggle"
               [class.form-select-sm]="size === 'sm'"
+              [class.is-invalid]="invalid"
               type="button"
               data-bs-toggle="dropdown"
               aria-expanded="false"
-              (click)="closeOthers($event)"
+              (click)="closeOthers($event); onToggle()"
               [disabled]="disabled">
         <span *ngIf="selectedLabel() as l; else placeholderTpl">{{ l }}</span>
         <ng-template #placeholderTpl><span class="text-muted">{{ placeholder }}</span></ng-template>
       </button>
       <ul class="dropdown-menu w-100 app-select-menu">
-        <li *ngFor="let opt of options">
+        <li *ngIf="searchable" class="px-2 pt-2 pb-1" (click)="$event.stopPropagation()">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input #searchInput type="text" class="form-control" placeholder="Search…"
+                   [(ngModel)]="searchText"
+                   (keydown.escape)="$event.stopPropagation(); clearAndClose()"
+                   (keydown.enter)="pickFirst($event)" />
+          </div>
+        </li>
+        <li *ngFor="let opt of filteredOptions()">
           <a class="dropdown-item d-flex align-items-center justify-content-between"
              href="javascript:void(0)"
              (click)="pick(opt)">
@@ -32,7 +42,7 @@ export interface SelectOption {
             <i class="bi bi-check2 text-success" *ngIf="isSelected(opt)"></i>
           </a>
         </li>
-        <li *ngIf="options.length === 0" class="px-3 py-2 text-muted small">No options</li>
+        <li *ngIf="filteredOptions().length === 0" class="px-3 py-2 text-muted small">{{ searchText ? 'No matches' : 'No options' }}</li>
       </ul>
     </div>
   `,
@@ -49,11 +59,15 @@ export class SelectFieldComponent implements ControlValueAccessor {
   @Input() placeholder = 'Select…';
   @Input() size: '' | 'sm' = '';
   @Input() disabled = false;
+  @Input() searchable = false;
+  @Input() invalid = false;
   @Output() valueChange = new EventEmitter<string | number>();
 
   @ViewChild('toggleBtn') toggleBtn?: ElementRef<HTMLButtonElement>;
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
   value: string | number | null = null;
+  searchText = '';
 
   private onChange: (v: string | number | null) => void = () => {};
   private onTouched: () => void = () => {};
@@ -72,11 +86,34 @@ export class SelectFieldComponent implements ControlValueAccessor {
     return opt.value === this.value || String(opt.value) === String(this.value);
   }
 
+  filteredOptions(): SelectOption[] {
+    if (!this.searchable || !this.searchText.trim()) return this.options;
+    const q = this.searchText.trim().toLowerCase();
+    return this.options.filter(o => o.label.toLowerCase().includes(q));
+  }
+
+  onToggle(): void {
+    if (!this.searchable) return;
+    setTimeout(() => this.searchInput?.nativeElement?.focus(), 50);
+  }
+
+  pickFirst(event: Event): void {
+    event.preventDefault();
+    const opts = this.filteredOptions();
+    if (opts.length > 0) this.pick(opts[0]);
+  }
+
+  clearAndClose(): void {
+    this.searchText = '';
+    this.close();
+  }
+
   pick(opt: SelectOption): void {
     this.value = opt.value;
     this.onChange(opt.value);
     this.onTouched();
     this.valueChange.emit(opt.value);
+    this.searchText = '';
     this.close();
   }
 

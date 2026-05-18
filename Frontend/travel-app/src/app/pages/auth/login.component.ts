@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { ToastService } from '../../core/services/toast.service';
 
 @Component({
   selector: 'app-login',
@@ -34,9 +35,17 @@ import { AuthService } from '../../core/services/auth.service';
                   </small>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label">Password <span class="text-danger">*</span></label>
-                  <input type="password" class="form-control" formControlName="password"
-                         [class.is-invalid]="passwordCtl.touched && passwordCtl.invalid" />
+                  <div class="d-flex justify-content-between align-items-baseline">
+                    <label class="form-label">Password <span class="text-danger">*</span></label>
+                    <a routerLink="/auth/forgot-password" class="small">Forgot password?</a>
+                  </div>
+                  <div class="input-group">
+                    <input [type]="showPassword ? 'text' : 'password'" class="form-control" formControlName="password"
+                           [class.is-invalid]="passwordCtl.touched && passwordCtl.invalid" />
+                    <button type="button" class="btn btn-outline-secondary" (click)="showPassword = !showPassword" tabindex="-1">
+                      <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+                    </button>
+                  </div>
                   <small class="text-danger d-block mt-1" *ngIf="passwordCtl.touched && passwordCtl.errors?.['required']">
                     <i class="bi bi-exclamation-circle me-1"></i>Password is required.
                   </small>
@@ -64,9 +73,11 @@ export class LoginComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private toast = inject(ToastService);
 
   loading = false;
   errorMessage = '';
+  showPassword = false;
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]]
@@ -84,7 +95,9 @@ export class LoginComponent {
       next: r => {
         this.loading = false;
         if (r.success) {
-          const role = r.data?.user.role;
+          const user = r.data?.user;
+          const role = user?.role;
+          this.toast.show(`Welcome back, ${user?.fullName ?? 'there'}!`, 'success', 4000, { title: 'Signed in', persist: false });
           const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
           this.router.navigateByUrl(returnUrl || this.defaultLanding(role));
         }
@@ -98,7 +111,8 @@ export class LoginComponent {
   }
 
   private defaultLanding(role?: string): string {
-    if (role === 'Admin' || role === 'Staff') return '/admin';
+    if (role === 'Admin') return '/admin';
+    if (role === 'Staff') return '/staff';
     if (role === 'Customer') return '/customer';
     return '/';
   }

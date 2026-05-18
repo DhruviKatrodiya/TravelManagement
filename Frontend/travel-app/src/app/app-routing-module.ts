@@ -13,6 +13,7 @@ import { AboutComponent } from './pages/public/about.component';
 
 import { LoginComponent } from './pages/auth/login.component';
 import { RegisterComponent } from './pages/auth/register.component';
+import { ForgotPasswordComponent } from './pages/auth/forgot-password.component';
 
 import { CustomerDashboardComponent } from './pages/customer/customer-dashboard.component';
 import { CustomerBookingsComponent } from './pages/customer/customer-bookings.component';
@@ -56,7 +57,8 @@ const routes: Routes = [
     component: PublicLayoutComponent,
     children: [
       { path: 'login', component: LoginComponent },
-      { path: 'register', component: RegisterComponent }
+      { path: 'register', component: RegisterComponent },
+      { path: 'forgot-password', component: ForgotPasswordComponent }
     ]
   },
   {
@@ -77,7 +79,7 @@ const routes: Routes = [
     path: 'admin',
     component: AdminLayoutComponent,
     canActivate: [authGuard],
-    data: { roles: ['Admin', 'Staff'] },
+    data: { roles: ['Admin'] },
     children: [
       { path: '', component: AdminDashboardComponent },
       { path: 'tours', component: AdminToursComponent, canActivate: [authGuard], data: { permission: 'tours.view' } },
@@ -85,7 +87,32 @@ const routes: Routes = [
       { path: 'facilities', component: AdminFacilitiesComponent, canActivate: [authGuard], data: { permission: 'facilities.view' } },
       { path: 'vehicles', component: AdminVehiclesComponent, canActivate: [authGuard], data: { permission: 'vehicles.view' } },
       { path: 'drivers', component: AdminDriversComponent, canActivate: [authGuard], data: { permission: 'drivers.view' } },
-      { path: 'staff', component: AdminStaffComponent, data: { roles: ['Admin'] } },
+      { path: 'staff', component: AdminStaffComponent },
+      { path: 'customers', component: AdminCustomersComponent, canActivate: [authGuard], data: { permission: 'customers.view' } },
+      { path: 'bookings', component: AdminBookingsComponent, canActivate: [authGuard], data: { permission: 'bookings.view' } },
+      { path: 'payments', component: AdminPaymentsComponent, canActivate: [authGuard], data: { permission: 'payments.view' } },
+      { path: 'expenses', component: AdminExpensesComponent, canActivate: [authGuard], data: { permission: 'expenses.view' } },
+      { path: 'refunds', component: AdminRefundsComponent, canActivate: [authGuard], data: { permission: 'refunds.view' } },
+      { path: 'reviews', component: AdminReviewsComponent, canActivate: [authGuard], data: { permission: 'reviews.view' } },
+      { path: 'schedules', component: AdminSchedulesComponent, canActivate: [authGuard], data: { permission: 'schedules.view' } },
+      { path: 'allocations', component: AdminAllocationsComponent, canActivate: [authGuard], data: { permission: 'allocations.view' } },
+      { path: 'reports', component: AdminReportsComponent, canActivate: [authGuard], data: { permission: 'reports.view' } },
+      { path: 'destinations', component: AdminDestinationsComponent, canActivate: [authGuard], data: { permission: 'destinations.view' } },
+      { path: 'settings', component: AdminSettingsComponent }
+    ]
+  },
+  {
+    path: 'staff',
+    component: AdminLayoutComponent,
+    canActivate: [authGuard],
+    data: { roles: ['Staff'] },
+    children: [
+      { path: '', component: AdminDashboardComponent },
+      { path: 'tours', component: AdminToursComponent, canActivate: [authGuard], data: { permission: 'tours.view' } },
+      { path: 'packages', component: AdminPackagesComponent, canActivate: [authGuard], data: { permission: 'packages.view' } },
+      { path: 'facilities', component: AdminFacilitiesComponent, canActivate: [authGuard], data: { permission: 'facilities.view' } },
+      { path: 'vehicles', component: AdminVehiclesComponent, canActivate: [authGuard], data: { permission: 'vehicles.view' } },
+      { path: 'drivers', component: AdminDriversComponent, canActivate: [authGuard], data: { permission: 'drivers.view' } },
       { path: 'customers', component: AdminCustomersComponent, canActivate: [authGuard], data: { permission: 'customers.view' } },
       { path: 'bookings', component: AdminBookingsComponent, canActivate: [authGuard], data: { permission: 'bookings.view' } },
       { path: 'payments', component: AdminPaymentsComponent, canActivate: [authGuard], data: { permission: 'payments.view' } },

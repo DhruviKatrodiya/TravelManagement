@@ -14,6 +14,7 @@ import { ToastHostComponent } from './shared/toast-host.component';
 
 import { LoginComponent } from './pages/auth/login.component';
 import { RegisterComponent } from './pages/auth/register.component';
+import { ForgotPasswordComponent } from './pages/auth/forgot-password.component';
 
 import { HomeComponent } from './pages/public/home.component';
 import { ToursListComponent } from './pages/public/tours-list.component';
@@ -56,6 +57,7 @@ import { SelectFieldComponent } from './shared/select-field.component';
     ToastHostComponent,
     LoginComponent,
     RegisterComponent,
+    ForgotPasswordComponent,
     HomeComponent,
     ToursListComponent,
     TourDetailComponent,
