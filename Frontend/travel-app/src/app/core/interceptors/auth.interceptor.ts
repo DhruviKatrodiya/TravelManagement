@@ -31,7 +31,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       } else if (err.status >= 500) {
         toast.show('Server error. Please try again.', 'danger', 5000, { title: 'Server error', persist: false });
       } else if (err.status === 0) {
-        toast.show('Cannot reach API. Make sure backend is running on https://localhost:7138.', 'danger', 6000, { title: 'Connection error', persist: false });
+        toast.show('Cannot reach API. Make sure backend is running on http://192.168.1.24/api.', 'danger', 6000, { title: 'Connection error', persist: false });
       } else {
         const message = err.error?.message || err.message || 'Request failed.';
         if (req.method !== 'GET') toast.show(message, 'danger', 5000, { title: 'Request failed', persist: false });
