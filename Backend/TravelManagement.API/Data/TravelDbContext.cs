@@ -31,6 +31,7 @@ public class TravelDbContext : DbContext
     public DbSet<HomeDestinationTour> HomeDestinationTours => Set<HomeDestinationTour>();
     public DbSet<VehicleAllocationStaff> VehicleAllocationStaff => Set<VehicleAllocationStaff>();
     public DbSet<StaffPermission> StaffPermissions => Set<StaffPermission>();
+    public DbSet<OtpRecord> OtpRecords => Set<OtpRecord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

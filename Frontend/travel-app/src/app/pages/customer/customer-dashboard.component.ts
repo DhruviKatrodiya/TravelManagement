@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
-import { Booking, Notification } from '../../core/models/api.models';
+import { Booking } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-customer-dashboard',
@@ -27,7 +27,7 @@ import { Booking, Notification } from '../../core/models/api.models';
     </div>
 
     <div class="row g-4">
-      <div class="col-lg-7">
+      <div class="col-12">
         <div class="table-card">
           <h5 class="fw-bold mb-3">Upcoming trips</h5>
           <div *ngIf="upcoming.length === 0" class="text-muted">No upcoming bookings yet.</div>
@@ -42,18 +42,59 @@ import { Booking, Notification } from '../../core/models/api.models';
           </ul>
         </div>
       </div>
-      <div class="col-lg-5">
+
+      <div class="col-12">
         <div class="table-card">
-          <h5 class="fw-bold mb-3">Notifications</h5>
-          <div *ngIf="notifications.length === 0" class="text-muted">No notifications.</div>
-          <div class="list-group list-group-flush">
-            <a class="list-group-item list-group-item-action" *ngFor="let n of notifications" [routerLink]="n.link || []">
-              <div class="d-flex justify-content-between">
-                <strong>{{ n.title }}</strong>
-                <small class="text-muted">{{ n.createdAt | date:'short' }}</small>
-              </div>
-              <p class="mb-0 small text-muted">{{ n.message }}</p>
-            </a>
+          <h5 class="fw-bold mb-3">Tour History</h5>
+          <div *ngIf="history.length === 0" class="text-muted">No past tours yet.</div>
+          <div *ngIf="history.length > 0" class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Tour</th>
+                  <th>Dates</th>
+                  <th>Travelers</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let b of history">
+                  <td>
+                    <div class="fw-semibold">{{ b.tourName }}</div>
+                    <small class="text-muted">{{ b.packageName }}</small><br/>
+                    <small class="text-muted">{{ b.bookingReference }}</small>
+                  </td>
+                  <td>
+                    <div>{{ b.tripStartDate | date:'d MMM yyyy' }}</div>
+                    <small class="text-muted">→ {{ b.tripEndDate | date:'d MMM yyyy' }}</small>
+                  </td>
+                  <td>
+                    <span>{{ b.adults }} adult<span *ngIf="b.adults !== 1">s</span></span>
+                    <span *ngIf="b.children > 0">, {{ b.children }} child<span *ngIf="b.children !== 1">ren</span></span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold">₹{{ b.totalAmount | number:'1.0-0' }}</div>
+                    <small class="text-success" *ngIf="b.amountDue === 0">Paid</small>
+                    <small class="text-warning" *ngIf="b.amountDue > 0">Due: ₹{{ b.amountDue | number:'1.0-0' }}</small>
+                  </td>
+                  <td>
+                    <span class="badge"
+                          [class.bg-success]="b.status === 'Confirmed' || b.status === 'Completed'"
+                          [class.bg-danger]="b.status === 'Cancelled'"
+                          [class.bg-info]="b.status === 'Refunded'"
+                          [class.bg-warning]="b.status === 'Pending'"
+                          [class.text-dark]="b.status === 'Pending'">
+                      {{ b.status }}
+                    </span>
+                  </td>
+                  <td>
+                    <a class="btn btn-sm btn-outline-primary" [routerLink]="['/customer/bookings', b.id]">View</a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -62,13 +103,11 @@ import { Booking, Notification } from '../../core/models/api.models';
 })
 export class CustomerDashboardComponent implements OnInit {
   bookings: Booking[] = [];
-  notifications: Notification[] = [];
 
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
     this.api.listBookings().subscribe({ next: bs => this.bookings = bs });
-    this.api.listNotifications().subscribe({ next: ns => this.notifications = ns.slice(0, 10) });
   }
 
   count(status: string): number {
@@ -81,5 +120,12 @@ export class CustomerDashboardComponent implements OnInit {
       .filter(b => new Date(b.tripEndDate) >= today && b.status !== 'Cancelled')
       .sort((a, b) => new Date(a.tripStartDate).getTime() - new Date(b.tripStartDate).getTime())
       .slice(0, 5);
+  }
+
+  get history(): Booking[] {
+    const today = new Date();
+    return this.bookings
+      .filter(b => new Date(b.tripEndDate) < today || b.status === 'Cancelled' || b.status === 'Refunded')
+      .sort((a, b) => new Date(b.tripEndDate).getTime() - new Date(a.tripEndDate).getTime());
   }
 }

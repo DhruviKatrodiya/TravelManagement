@@ -66,7 +66,7 @@ public class BookingsController : ControllerBase
     }
 
     [HttpPost("{id}/cancel")]
-    public async Task<ActionResult<ApiResponse<BookingDto>>> Cancel(int id, [FromBody] BookingUpdateStatusRequest req)
+    public async Task<ActionResult<ApiResponse<BookingDto>>> Cancel(int id, [FromBody] BookingCancelRequest req)
     {
         var b = await _svc.CancelAsync(id, CurrentUserId, req.Note);
         return b == null ? NotFound(ApiResponse<BookingDto>.Fail("Booking not found")) : Ok(ApiResponse<BookingDto>.Ok(b, "Booking cancelled"));

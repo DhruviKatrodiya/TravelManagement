@@ -16,16 +16,14 @@ public class AuthService : IAuthService
     private readonly IMapper _mapper;
     private readonly IEmailService _email;
     private readonly IStaffService _staff;
-    private readonly IConfiguration _config;
 
-    public AuthService(TravelDbContext db, ITokenService tokens, IMapper mapper, IEmailService email, IStaffService staff, IConfiguration config)
+    public AuthService(TravelDbContext db, ITokenService tokens, IMapper mapper, IEmailService email, IStaffService staff)
     {
         _db = db;
         _tokens = tokens;
         _mapper = mapper;
         _email = email;
         _staff = staff;
-        _config = config;
     }
 
     private async Task<UserDto> MapWithPermissionsAsync(User user)
@@ -117,6 +115,45 @@ public class AuthService : IAuthService
         return await MapWithPermissionsAsync(user);
     }
 
+    public async Task SendChangePasswordOtpAsync(int userId, SendChangePasswordOtpRequest request)
+    {
+        var user = await _db.Users.FindAsync(userId)
+            ?? throw new KeyNotFoundException("User not found.");
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            throw new InvalidOperationException("Current password is incorrect.");
+
+        // Remove any existing OTPs for this email
+        var existing = _db.OtpRecords.Where(o => o.Email == user.Email);
+        _db.OtpRecords.RemoveRange(existing);
+
+        // Generate 6-digit OTP — expires in 1 minute 25 seconds
+        var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        _db.OtpRecords.Add(new OtpRecord
+        {
+            Email     = user.Email,
+            OtpHash   = BCrypt.Net.BCrypt.HashPassword(otp),
+            ExpiresAt = DateTime.UtcNow.AddSeconds(85)
+        });
+        await _db.SaveChangesAsync();
+
+        _ = _email.SendAsync(user.Email, user.FullName,
+            "Your password change OTP",
+            $@"<h2>Password Change Verification</h2>
+               <p>Hi {user.FullName},</p>
+               <p>Use the OTP below to confirm your password change. It expires in <strong>10 minutes</strong>.</p>
+               <p style=""margin:24px 0;text-align:center;"">
+                 <span style=""font-size:2rem;font-weight:bold;letter-spacing:8px;
+                               background:#f5f5f0;padding:14px 28px;border-radius:6px;
+                               border:1px solid #ddd;display:inline-block;"">
+                   {otp}
+                 </span>
+               </p>
+               <p style=""background:#fffbe6;border-left:4px solid #f0a500;padding:12px 16px;border-radius:4px;"">
+                 If you did not request this, your account may be compromised. Change your password immediately.
+               </p>");
+    }
+
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest request)
     {
         var user = await _db.Users.FindAsync(userId)
@@ -125,15 +162,38 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             throw new InvalidOperationException("Current password is incorrect.");
 
+        var record = await _db.OtpRecords.FirstOrDefaultAsync(o => o.Email == user.Email);
+        if (record == null || record.ExpiresAt < DateTime.UtcNow)
+            throw new InvalidOperationException("OTP has expired. Please request a new one.");
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Otp, record.OtpHash))
+            throw new InvalidOperationException("Invalid OTP. Please check the code sent to your email.");
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        _db.OtpRecords.Remove(record);
         await _db.SaveChangesAsync();
 
+        var changedAt = DateTime.UtcNow;
         _ = _email.SendAsync(user.Email, user.FullName,
-            "Your password was changed",
-            $@"<h2>Password changed</h2>
-               <p>Hi {user.FullName},</p>
-               <p>The password for your Travel Management account was changed on <b>{DateTime.UtcNow:dd MMM yyyy HH:mm} UTC</b>.</p>
-               <p>If you did not make this change, please contact support immediately.</p>");
+            "✅ Your TravelHub password was changed",
+            $@"<div style=""font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"">
+                 <h2 style=""color:#2d6a4f;"">Password Changed Successfully</h2>
+                 <p>Hi <strong>{user.FullName}</strong>,</p>
+                 <p>Your TravelHub account password was changed successfully.</p>
+                 <table style=""width:100%;background:#f8f9fa;border-radius:8px;padding:16px;margin:20px 0;border-collapse:collapse;"">
+                   <tr><td style=""padding:6px 0;color:#555;"">Account</td><td style=""padding:6px 0;font-weight:bold;"">{user.Email}</td></tr>
+                   <tr><td style=""padding:6px 0;color:#555;"">Changed on</td><td style=""padding:6px 0;font-weight:bold;"">{changedAt:dd MMM yyyy} at {changedAt:HH:mm} UTC</td></tr>
+                   <tr><td style=""padding:6px 0;color:#555;"">Verified via</td><td style=""padding:6px 0;font-weight:bold;"">Email OTP</td></tr>
+                 </table>
+                 <div style=""background:#d4edda;border-left:4px solid #28a745;padding:12px 16px;border-radius:4px;margin-bottom:16px;"">
+                   <strong>✅ Action confirmed:</strong> Your password has been updated. You can now sign in with your new password.
+                 </div>
+                 <div style=""background:#fff3cd;border-left:4px solid #f0a500;padding:12px 16px;border-radius:4px;"">
+                   <strong>⚠️ Didn't make this change?</strong> Your account may be compromised.
+                   Please <a href=""#"" style=""color:#856404;"">contact support</a> immediately and reset your password.
+                 </div>
+                 <p style=""color:#aaa;font-size:0.85em;margin-top:24px;"">This is an automated security notification from TravelHub. Please do not reply to this email.</p>
+               </div>");
     }
 
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request)
@@ -142,20 +202,65 @@ public class AuthService : IAuthService
         if (user is null || !user.IsActive)
             return; // Never reveal whether the email exists
 
-        // Generate a readable 10-char temporary password (no ambiguous chars)
+        // Remove any existing OTPs for this email and issue a fresh one
+        var existing = _db.OtpRecords.Where(o => o.Email == user.Email);
+        _db.OtpRecords.RemoveRange(existing);
+
+        var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        _db.OtpRecords.Add(new OtpRecord
+        {
+            Email     = user.Email,
+            OtpHash   = BCrypt.Net.BCrypt.HashPassword(otp),
+            ExpiresAt = DateTime.UtcNow.AddSeconds(85)
+        });
+        await _db.SaveChangesAsync();
+
+        _ = _email.SendAsync(user.Email, user.FullName,
+            "Your TravelHub password reset OTP",
+            $@"<h2>Password Reset Verification</h2>
+               <p>Hi {user.FullName},</p>
+               <p>We received a request to reset your TravelHub password. Use the OTP below to verify it's you.</p>
+               <p style=""margin:24px 0;text-align:center;"">
+                 <span style=""font-size:2rem;font-weight:bold;letter-spacing:8px;
+                               background:#f5f5f0;padding:14px 28px;border-radius:6px;
+                               border:1px solid #ddd;display:inline-block;"">
+                   {otp}
+                 </span>
+               </p>
+               <p style=""text-align:center;color:#888;font-size:0.9em;"">This OTP expires in <strong>1 minute 25 seconds</strong>.</p>
+               <p style=""background:#fffbe6;border-left:4px solid #f0a500;padding:12px 16px;border-radius:4px;"">
+                 If you did not request a password reset, please ignore this email or contact support if you have concerns.
+               </p>");
+    }
+
+    public async Task VerifyForgotPasswordOtpAsync(VerifyForgotPasswordOtpRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        if (user is null || !user.IsActive)
+            throw new InvalidOperationException("Invalid request.");
+
+        var record = await _db.OtpRecords.FirstOrDefaultAsync(o => o.Email == request.Email);
+        if (record == null || record.ExpiresAt < DateTime.UtcNow)
+            throw new InvalidOperationException("OTP has expired. Please request a new one.");
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Otp, record.OtpHash))
+            throw new InvalidOperationException("Invalid OTP. Please check the code sent to your email.");
+
+        // OTP verified — generate and set the temporary password
         const string chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
         var buf = new byte[10];
         RandomNumberGenerator.Fill(buf);
         var tempPassword = new string(buf.Select(b => chars[b % chars.Length]).ToArray());
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+        _db.OtpRecords.Remove(record);
         await _db.SaveChangesAsync();
 
         _ = _email.SendAsync(user.Email, user.FullName,
             "Your TravelHub temporary password",
-            $@"<h2>Password reset</h2>
+            $@"<h2>Password Reset Successful</h2>
                <p>Hi {user.FullName},</p>
-               <p>We received a request to reset your TravelHub password. Here is your temporary password:</p>
+               <p>Your identity has been verified. Here is your temporary password:</p>
                <p style=""margin:20px 0;text-align:center;"">
                  <span style=""font-size:1.5rem;font-weight:bold;letter-spacing:4px;
                                background:#f5f5f0;padding:12px 24px;border-radius:6px;

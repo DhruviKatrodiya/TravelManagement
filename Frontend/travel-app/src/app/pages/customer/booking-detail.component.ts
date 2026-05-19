@@ -57,11 +57,29 @@ import { FormBuilder, Validators } from '@angular/forms';
             <div class="card-body">
               <h5 class="fw-bold">Actions</h5>
               <ng-container *ngIf="canCancel(); else cancelExpired">
-                <button class="btn btn-outline-danger" (click)="cancel()">Cancel booking</button>
-                <small class="d-block text-muted mt-2">
-                  You can cancel up to <strong>{{ cancelDeadline() | date:'short' }}</strong>
-                  (24 hours after booking).
-                </small>
+                <ng-container *ngIf="!showCancelForm">
+                  <button class="btn btn-outline-danger" (click)="showCancelForm = true">Cancel booking</button>
+                  <small class="d-block text-muted mt-2">
+                    You can cancel up to <strong>{{ cancelDeadline() | date:'short' }}</strong>
+                    (24 hours after booking).
+                  </small>
+                </ng-container>
+                <ng-container *ngIf="showCancelForm">
+                  <p class="text-danger fw-semibold mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Please provide a reason for cancellation.</p>
+                  <textarea class="form-control mb-2" [(ngModel)]="cancelNote" rows="3"
+                            placeholder="Reason for cancellation (required, min 5 characters)"
+                            [class.is-invalid]="cancelNoteInvalid"></textarea>
+                  <small class="text-danger d-block mb-2" *ngIf="cancelNoteInvalid">
+                    <i class="bi bi-exclamation-circle me-1"></i>Cancellation reason is required (minimum 5 characters).
+                  </small>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-danger" (click)="cancel()" [disabled]="cancelling">
+                      <span *ngIf="cancelling" class="spinner-border spinner-border-sm me-1"></span>
+                      {{ cancelling ? 'Cancelling…' : 'Confirm cancellation' }}
+                    </button>
+                    <button class="btn btn-outline-secondary" (click)="showCancelForm = false; cancelNote = ''; cancelNoteInvalid = false">Back</button>
+                  </div>
+                </ng-container>
               </ng-container>
               <ng-template #cancelExpired>
                 <small class="text-muted">
@@ -149,6 +167,10 @@ export class BookingDetailComponent implements OnInit {
   booking?: Booking;
   payments: Payment[] = [];
   paying = false;
+  showCancelForm = false;
+  cancelNote = '';
+  cancelNoteInvalid = false;
+  cancelling = false;
 
   payForm = this.fb.group({
     method: ['Paytm' as PaymentMethod, Validators.required],
@@ -199,13 +221,23 @@ export class BookingDetailComponent implements OnInit {
 
   cancel(): void {
     if (!this.booking) return;
-    if (!this.canCancel()) {
-      this.toast.show('Cancellation window has closed.', 'danger');
-      return;
-    }
-    if (!confirm('Cancel this booking?')) return;
-    this.api.cancelBooking(this.booking.id, 'Cancelled by customer').subscribe({
-      next: () => { this.toast.show('Booking cancelled.', 'info'); this.load(this.booking!.id); }
+    if (!this.canCancel()) { this.toast.show('Cancellation window has closed.', 'danger'); return; }
+    const note = this.cancelNote.trim();
+    if (note.length < 5) { this.cancelNoteInvalid = true; return; }
+    this.cancelNoteInvalid = false;
+    this.cancelling = true;
+    this.api.cancelBooking(this.booking.id, note).subscribe({
+      next: () => {
+        this.cancelling = false;
+        this.showCancelForm = false;
+        this.cancelNote = '';
+        this.toast.show('Booking cancelled.', 'info');
+        this.load(this.booking!.id);
+      },
+      error: (err: any) => {
+        this.cancelling = false;
+        this.toast.show(err?.error?.message || 'Could not cancel booking.', 'danger');
+      }
     });
   }
 

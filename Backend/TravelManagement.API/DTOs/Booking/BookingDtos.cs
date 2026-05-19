@@ -45,6 +45,15 @@ public class BookingCreateRequest
 
 public class BookingUpdateStatusRequest
 {
+    [Required, EnumDataType(typeof(BookingStatus))]
     public BookingStatus Status { get; set; }
+
+    [MaxLength(1000)]
     public string? Note { get; set; }
+}
+
+public class BookingCancelRequest
+{
+    [Required, MinLength(5), MaxLength(500)]
+    public string Note { get; set; } = string.Empty;
 }

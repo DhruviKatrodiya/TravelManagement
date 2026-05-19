@@ -152,7 +152,7 @@ public class BookingService : IBookingService
         return _mapper.Map<BookingDto>(b);
     }
 
-    public async Task<BookingDto?> CancelAsync(int bookingId, int customerUserId, string? reason)
+    public async Task<BookingDto?> CancelAsync(int bookingId, int customerUserId, string reason)
     {
         var b = await Query().FirstOrDefaultAsync(x => x.Id == bookingId);
         if (b == null || b.Customer.UserId != customerUserId) return null;

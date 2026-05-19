@@ -40,6 +40,15 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<UserDto>.Ok(u));
     }
 
+    [HttpPost("send-change-password-otp")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<object>>> SendChangePasswordOtp(SendChangePasswordOtpRequest req)
+    {
+        var id = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        await _auth.SendChangePasswordOtpAsync(id, req);
+        return Ok(ApiResponse<object>.Ok(new { }, "OTP sent to your email."));
+    }
+
     [HttpPost("change-password")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<object>>> ChangePassword(ChangePasswordRequest req)
@@ -63,7 +72,15 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> ForgotPassword(ForgotPasswordRequest req)
     {
         await _auth.ForgotPasswordAsync(req);
-        return Ok(ApiResponse<object>.Ok(new { }, "If an account with that email exists, a reset link has been sent."));
+        return Ok(ApiResponse<object>.Ok(new { }, "OTP sent to your email."));
+    }
+
+    [HttpPost("verify-forgot-password-otp")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> VerifyForgotPasswordOtp(VerifyForgotPasswordOtpRequest req)
+    {
+        await _auth.VerifyForgotPasswordOtpAsync(req);
+        return Ok(ApiResponse<object>.Ok(new { }, "Identity verified. Check your email for the temporary password."));
     }
 
 }

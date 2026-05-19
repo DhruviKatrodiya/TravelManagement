@@ -51,8 +51,12 @@ export class AuthService {
     return this.http.get<ApiResponse<User>>(`${this.base}/me`);
   }
 
-  changePassword(currentPassword: string, newPassword: string): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(`${this.base}/change-password`, { currentPassword, newPassword });
+  sendChangePasswordOtp(currentPassword: string): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.base}/send-change-password-otp`, { currentPassword });
+  }
+
+  changePassword(currentPassword: string, newPassword: string, otp: string): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.base}/change-password`, { currentPassword, newPassword, otp });
   }
 
   logout(): void {

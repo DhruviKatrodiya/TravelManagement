@@ -59,7 +59,7 @@ import { AuthService } from '../../core/services/auth.service';
       </div>
 
       <div class="col-lg-5">
-        <form [formGroup]="passForm" (ngSubmit)="changePassword()" class="card border-0 shadow-sm">
+        <form [formGroup]="passForm" (ngSubmit)="otpSent ? changePassword() : sendOtp()" class="card border-0 shadow-sm">
           <div class="card-body">
             <h5 class="fw-bold mb-3">Change password</h5>
             <div class="mb-3">
@@ -93,10 +93,42 @@ import { AuthService } from '../../core/services/auth.service';
                 <span *ngIf="newPwdLen() < 6"> — need {{ 6 - newPwdLen() }} more</span>
               </small>
             </div>
-            <button type="submit" class="btn btn-primary w-100" [disabled]="passForm.invalid || changingPwd">
-              <span *ngIf="changingPwd" class="spinner-border spinner-border-sm me-2"></span>
-              {{ changingPwd ? 'Updating…' : 'Update password' }}
+
+            <!-- OTP step -->
+            <div *ngIf="otpSent" class="mb-3">
+              <div class="alert alert-info py-2 small mb-3">
+                <i class="bi bi-envelope-check me-1"></i>
+                A 6-digit OTP was sent to <strong>{{ auth.currentUser()?.email }}</strong>. It expires in 10 minutes.
+              </div>
+              <label class="form-label">Enter OTP <span class="text-danger">*</span></label>
+              <input class="form-control form-control-lg text-center fw-bold tracking-wide"
+                     formControlName="otp" maxlength="6" placeholder="• • • • • •"
+                     style="letter-spacing: 0.5rem;"
+                     [class.is-invalid]="passForm.get('otp')?.touched && passForm.get('otp')?.invalid" />
+              <small class="text-danger d-block mt-1" *ngIf="passForm.get('otp')?.touched && passForm.get('otp')?.errors?.['required']">
+                <i class="bi bi-exclamation-circle me-1"></i>OTP is required.
+              </small>
+              <small class="text-danger d-block mt-1" *ngIf="passForm.get('otp')?.touched && passForm.get('otp')?.errors?.['pattern']">
+                <i class="bi bi-exclamation-circle me-1"></i>OTP must be 6 digits.
+              </small>
+              <button type="button" class="btn btn-link btn-sm px-0 mt-1" (click)="resendOtp()" [disabled]="sendingOtp">
+                <span *ngIf="sendingOtp" class="spinner-border spinner-border-sm me-1"></span>
+                Resend OTP
+              </button>
+            </div>
+
+            <button *ngIf="!otpSent" type="submit" class="btn btn-primary w-100" [disabled]="passForm.get('currentPassword')?.invalid || passForm.get('newPassword')?.invalid || sendingOtp">
+              <span *ngIf="sendingOtp" class="spinner-border spinner-border-sm me-2"></span>
+              {{ sendingOtp ? 'Sending OTP…' : 'Send OTP to email' }}
             </button>
+            <div *ngIf="otpSent" class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary flex-grow-1" [disabled]="passForm.invalid || changingPwd">
+                <span *ngIf="changingPwd" class="spinner-border spinner-border-sm me-2"></span>
+                {{ changingPwd ? 'Verifying…' : 'Verify & Update Password' }}
+              </button>
+              <button type="button" class="btn btn-outline-secondary" (click)="cancelOtp()">Cancel</button>
+            </div>
+
             <div *ngIf="pwdResult" class="alert mt-3 mb-0 py-2 d-flex align-items-center gap-2"
                  [class.alert-success]="pwdResult.ok" [class.alert-danger]="!pwdResult.ok">
               <i class="bi" [class.bi-check-circle-fill]="pwdResult.ok" [class.bi-exclamation-triangle-fill]="!pwdResult.ok"></i>
@@ -130,10 +162,13 @@ export class ProfileComponent implements OnInit {
 
   passForm = this.fb.group({
     currentPassword: ['', Validators.required],
-    newPassword: ['', [Validators.required, Validators.minLength(6)]]
+    newPassword: ['', [Validators.required, Validators.minLength(6)]],
+    otp: ['']
   });
 
   changingPwd = false;
+  sendingOtp = false;
+  otpSent = false;
   pwdResult: { ok: boolean; text: string } | null = null;
   showCurrentPwd = false;
   showNewPwd = false;
@@ -167,14 +202,61 @@ export class ProfileComponent implements OnInit {
     });
   }
 
+  sendOtp(): void {
+    const currentPassword = this.passForm.get('currentPassword')!;
+    const newPassword = this.passForm.get('newPassword')!;
+    currentPassword.markAsTouched();
+    newPassword.markAsTouched();
+    if (currentPassword.invalid || newPassword.invalid) return;
+    this.sendingOtp = true;
+    this.pwdResult = null;
+    this.auth.sendChangePasswordOtp(currentPassword.value!).subscribe({
+      next: () => {
+        this.sendingOtp = false;
+        this.otpSent = true;
+        const otpCtrl = this.passForm.get('otp')!;
+        otpCtrl.reset();
+        otpCtrl.setValidators([Validators.required, Validators.pattern(/^\d{6}$/)]);
+        otpCtrl.updateValueAndValidity();
+      },
+      error: (err: any) => {
+        this.sendingOtp = false;
+        const msg = err?.error?.message || 'Failed to send OTP. Please check your current password.';
+        this.pwdResult = { ok: false, text: msg };
+        setTimeout(() => this.pwdResult = null, 5000);
+      }
+    });
+  }
+
+  resendOtp(): void {
+    this.sendingOtp = true;
+    this.auth.sendChangePasswordOtp(this.passForm.get('currentPassword')!.value!).subscribe({
+      next: () => { this.sendingOtp = false; this.passForm.get('otp')!.reset(); this.toast.show('OTP resent to your email.', 'info'); },
+      error: () => { this.sendingOtp = false; this.toast.show('Failed to resend OTP.', 'danger'); }
+    });
+  }
+
+  cancelOtp(): void {
+    this.otpSent = false;
+    const otpCtrl = this.passForm.get('otp')!;
+    otpCtrl.clearValidators();
+    otpCtrl.reset();
+    otpCtrl.updateValueAndValidity();
+    this.pwdResult = null;
+  }
+
   changePassword(): void {
-    if (this.passForm.invalid) return;
+    if (this.passForm.invalid) { this.passForm.markAllAsTouched(); return; }
     this.changingPwd = true;
     this.pwdResult = null;
     const v = this.passForm.getRawValue();
-    this.auth.changePassword(v.currentPassword!, v.newPassword!).subscribe({
+    this.auth.changePassword(v.currentPassword!, v.newPassword!, v.otp!).subscribe({
       next: () => {
         this.changingPwd = false;
+        this.otpSent = false;
+        const otpCtrl = this.passForm.get('otp')!;
+        otpCtrl.clearValidators();
+        otpCtrl.updateValueAndValidity();
         this.passForm.reset();
         this.pwdResult = { ok: true, text: 'Password updated successfully.' };
         this.toast.show('Password updated successfully.', 'success');
@@ -182,7 +264,7 @@ export class ProfileComponent implements OnInit {
       },
       error: (err: any) => {
         this.changingPwd = false;
-        const msg = err?.error?.message || 'Failed to update password. Please check your current password and try again.';
+        const msg = err?.error?.message || 'Failed to update password. Please try again.';
         this.pwdResult = { ok: false, text: msg };
         setTimeout(() => this.pwdResult = null, 5000);
       }

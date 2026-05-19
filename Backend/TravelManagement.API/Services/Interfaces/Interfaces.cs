@@ -13,9 +13,11 @@ public interface IAuthService
     Task<AuthResponse> RegisterCustomerAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<UserDto> GetCurrentUserAsync(int userId);
+    Task SendChangePasswordOtpAsync(int userId, SendChangePasswordOtpRequest request);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest request);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request);
     Task ForgotPasswordAsync(ForgotPasswordRequest request);
+    Task VerifyForgotPasswordOtpAsync(VerifyForgotPasswordOtpRequest request);
 }
 
 public interface IAppSettingsService
@@ -122,7 +124,7 @@ public interface IBookingService
     Task<BookingDto?> GetByReferenceAsync(string reference);
     Task<BookingDto> CreateAsync(int customerUserId, BookingCreateRequest req);
     Task<BookingDto?> UpdateStatusAsync(int id, BookingUpdateStatusRequest req);
-    Task<BookingDto?> CancelAsync(int bookingId, int customerUserId, string? reason);
+    Task<BookingDto?> CancelAsync(int bookingId, int customerUserId, string reason);
 }
 
 public interface ICustomerService

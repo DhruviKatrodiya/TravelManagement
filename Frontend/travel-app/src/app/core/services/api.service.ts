@@ -90,8 +90,8 @@ export class ApiService {
   updateBookingStatus(id: number, status: string, note?: string): Observable<Booking> {
     return this.unwrap(this.http.post<ApiResponse<Booking>>(`${this.base}/bookings/${id}/status`, { status, note }));
   }
-  cancelBooking(id: number, note?: string): Observable<Booking> {
-    return this.unwrap(this.http.post<ApiResponse<Booking>>(`${this.base}/bookings/${id}/cancel`, { status: 'Cancelled', note }));
+  cancelBooking(id: number, note: string): Observable<Booking> {
+    return this.unwrap(this.http.post<ApiResponse<Booking>>(`${this.base}/bookings/${id}/cancel`, { note }));
   }
 
   listCustomers(): Observable<Customer[]> { return this.unwrap(this.http.get<ApiResponse<Customer[]>>(`${this.base}/customers`)); }
@@ -167,6 +167,18 @@ export class ApiService {
 
   forgotPassword(email: string): Observable<unknown> {
     return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/auth/forgot-password`, { email }));
+  }
+
+  verifyForgotPasswordOtp(email: string, otp: string): Observable<unknown> {
+    return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/auth/verify-forgot-password-otp`, { email, otp }));
+  }
+
+  sendChangePasswordOtp(currentPassword: string): Observable<unknown> {
+    return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/auth/send-change-password-otp`, { currentPassword }));
+  }
+
+  changePasswordWithOtp(currentPassword: string, newPassword: string, otp: string): Observable<unknown> {
+    return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/auth/change-password`, { currentPassword, newPassword, otp }));
   }
 
   sendTestEmail(to?: string): Observable<string> {
