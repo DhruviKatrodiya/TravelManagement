@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Booking;
@@ -25,10 +25,19 @@ public class BookingsController : ControllerBase
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private string CurrentRole => User.FindFirstValue(ClaimTypes.Role)!;
 
+    private int PrivilegeLevel
+    {
+        get
+        {
+            if (int.TryParse(User.FindFirstValue("lvl"), out var lvl)) return lvl;
+            return CurrentRole switch { "SuperAdmin" => 3, "Admin" => 2, "Staff" => 1, _ => 0 };
+        }
+    }
+
     [HttpGet]
     public async Task<ActionResult<ApiResponse<IEnumerable<BookingDto>>>> List()
     {
-        if (CurrentRole is "Admin" or "Staff")
+        if (PrivilegeLevel >= 1)
             return Ok(ApiResponse<IEnumerable<BookingDto>>.Ok(await _svc.ListAsync()));
 
         var profile = await _customers.GetByUserIdAsync(CurrentUserId);
@@ -41,7 +50,7 @@ public class BookingsController : ControllerBase
     {
         var b = await _svc.GetAsync(id);
         if (b == null) return NotFound(ApiResponse<BookingDto>.Fail("Booking not found"));
-        if (CurrentRole == "Customer")
+        if (PrivilegeLevel == 0)
         {
             var profile = await _customers.GetByUserIdAsync(CurrentUserId);
             if (profile == null || profile.Id != b.CustomerId) return Forbid();
@@ -57,7 +66,7 @@ public class BookingsController : ControllerBase
     }
 
     [HttpPost("{id}/status")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.BookingsEdit)]
     public async Task<ActionResult<ApiResponse<BookingDto>>> UpdateStatus(int id, BookingUpdateStatusRequest req)
     {

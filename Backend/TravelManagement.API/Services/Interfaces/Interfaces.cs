@@ -245,3 +245,13 @@ public interface IDesignationService
     Task<DesignationDto?> UpdateAsync(int id, DesignationRequest req);
     Task<bool> SetActiveAsync(int id, bool active);
 }
+
+public interface IRoleService
+{
+    Task<IEnumerable<AppRoleDto>> ListAsync(bool? activeOnly = null);
+    Task<AppRoleDto?> GetAsync(int id);
+    Task<AppRoleDto> CreateAsync(AppRoleCreateRequest req);
+    Task<AppRoleDto?> UpdateAsync(int id, AppRoleUpdateRequest req);
+    Task<bool> DeleteAsync(int id);
+    Task<bool> SetActiveAsync(int id, bool active);
+}

@@ -28,12 +28,12 @@ public class CountriesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<CountryDto>>> Create(CountryRequest req)
         => Ok(ApiResponse<CountryDto>.Ok(await _svc.CreateAsync(req), "Country added"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<CountryDto>>> Update(int id, CountryRequest req)
     {
         var c = await _svc.UpdateAsync(id, req);
@@ -41,7 +41,7 @@ public class CountriesController : ControllerBase
     }
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

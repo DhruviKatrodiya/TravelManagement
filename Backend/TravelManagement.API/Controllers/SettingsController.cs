@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.Services.Interfaces;
@@ -24,12 +24,12 @@ public class SettingsController : ControllerBase
         => Ok(ApiResponse<AppSettingsDto>.Ok(await _settings.GetAsync()));
 
     [HttpPut]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<AppSettingsDto>>> Update(AppSettingsUpdateRequest req)
         => Ok(ApiResponse<AppSettingsDto>.Ok(await _settings.UpdateAsync(req), "Settings updated"));
 
     [HttpPost("test-email")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<string>>> TestEmail([FromBody] TestEmailRequest req)
     {
         var to = string.IsNullOrWhiteSpace(req.To)

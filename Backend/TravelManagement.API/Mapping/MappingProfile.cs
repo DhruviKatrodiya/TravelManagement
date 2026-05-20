@@ -12,7 +12,8 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<User, UserDto>();
+        CreateMap<User, UserDto>()
+            .ForMember(d => d.PrivilegeLevel, o => o.MapFrom(s => (int)s.Role));
 
         CreateMap<Models.Tour, TourDto>()
             .ForMember(d => d.Packages, o => o.MapFrom(s => s.Packages))
@@ -63,13 +64,15 @@ public class MappingProfile : Profile
             .ForMember(d => d.IsActive, o => o.MapFrom(s => s.User.IsActive))
             .ForMember(d => d.CreatedAt, o => o.MapFrom(s => s.User.CreatedAt))
             .ForMember(d => d.TotalBookings, o => o.MapFrom(s => s.Bookings.Count))
-            .ForMember(d => d.TotalSpent, o => o.MapFrom(s => s.Bookings.Sum(b => b.AmountPaid)));
+            .ForMember(d => d.TotalSpent, o => o.MapFrom(s => s.Bookings.Sum(b => b.AmountPaid)))
+            .ForMember(d => d.AppRoleName, o => o.MapFrom(s => s.AppRole != null ? s.AppRole.Name : null));
 
         CreateMap<Staff, StaffDto>()
             .ForMember(d => d.FullName, o => o.MapFrom(s => s.User.FullName))
             .ForMember(d => d.Email, o => o.MapFrom(s => s.User.Email))
             .ForMember(d => d.Phone, o => o.MapFrom(s => s.User.Phone))
-            .ForMember(d => d.IsActive, o => o.MapFrom(s => s.User.IsActive));
+            .ForMember(d => d.IsActive, o => o.MapFrom(s => s.User.IsActive))
+            .ForMember(d => d.AppRoleName, o => o.MapFrom(s => s.AppRole != null ? s.AppRole.Name : null));
 
         CreateMap<Driver, DriverDto>();
         CreateMap<DriverCreateRequest, Driver>();

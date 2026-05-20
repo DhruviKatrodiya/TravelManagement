@@ -35,6 +35,9 @@ public class Customer
     [MaxLength(50)]
     public string? IdProofNumber { get; set; }
 
+    public int? AppRoleId { get; set; }
+    public AppRole? AppRole { get; set; }
+
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

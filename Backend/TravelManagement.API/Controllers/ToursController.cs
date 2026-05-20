@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
@@ -51,13 +51,13 @@ public class ToursController : ControllerBase
         => Ok(ApiResponse<IEnumerable<ReviewDto>>.Ok(await _reviews.ListByTourAsync(id)));
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.ToursCreate)]
     public async Task<ActionResult<ApiResponse<TourDto>>> Create(TourCreateRequest req)
         => Ok(ApiResponse<TourDto>.Ok(await _tours.CreateAsync(req), "Tour created"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.ToursEdit)]
     public async Task<ActionResult<ApiResponse<TourDto>>> Update(int id, TourUpdateRequest req)
     {
@@ -66,7 +66,7 @@ public class ToursController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.ToursDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _tours.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Tour deleted")) : NotFound(ApiResponse<object>.Fail("Tour not found"));

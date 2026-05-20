@@ -28,12 +28,12 @@ public class DesignationsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<DesignationDto>>> Create(DesignationRequest req)
         => Ok(ApiResponse<DesignationDto>.Ok(await _svc.CreateAsync(req), "Designation added"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<DesignationDto>>> Update(int id, DesignationRequest req)
     {
         var d = await _svc.UpdateAsync(id, req);
@@ -41,7 +41,7 @@ public class DesignationsController : ControllerBase
     }
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

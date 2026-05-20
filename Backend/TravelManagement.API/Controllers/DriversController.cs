@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.Helpers;
@@ -8,7 +8,7 @@ namespace TravelManagement.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Staff")]
+[Authorize(Policy = "StaffOrAbove")]
 public class DriversController : ControllerBase
 {
     private readonly IDriverService _svc;
@@ -38,13 +38,13 @@ public class DriversController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.DriversDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deactivated")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.DriversEdit)]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)

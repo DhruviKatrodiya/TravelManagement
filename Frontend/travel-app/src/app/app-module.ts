@@ -1,7 +1,8 @@
-import { NgModule, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { APP_INITIALIZER, NgModule, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { SystemRolesService } from './core/services/system-roles.service';
 
 import { AppRoutingModule } from './app-routing-module';
 import { App } from './app';
@@ -51,6 +52,8 @@ import { AdminStatesComponent } from './pages/admin/admin-states.component';
 import { AdminCitiesComponent } from './pages/admin/admin-cities.component';
 import { AdminDepartmentsComponent } from './pages/admin/admin-departments.component';
 import { AdminDesignationsComponent } from './pages/admin/admin-designations.component';
+import { AdminRolesComponent } from './pages/admin/admin-roles.component';
+import { AdminPeopleComponent } from './pages/admin/admin-people.component';
 import { SelectFieldComponent } from './shared/select-field.component';
 
 @NgModule({
@@ -96,6 +99,8 @@ import { SelectFieldComponent } from './shared/select-field.component';
     AdminCitiesComponent,
     AdminDepartmentsComponent,
     AdminDesignationsComponent,
+    AdminRolesComponent,
+    AdminPeopleComponent,
     SelectFieldComponent
   ],
   exports: [
@@ -109,7 +114,13 @@ import { SelectFieldComponent } from './shared/select-field.component';
   ],
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withInterceptors([authInterceptor]))
+    provideHttpClient(withInterceptors([authInterceptor])),
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (svc: SystemRolesService) => () => svc.load(),
+      deps: [SystemRolesService],
+      multi: true
+    }
   ],
   bootstrap: [App]
 })

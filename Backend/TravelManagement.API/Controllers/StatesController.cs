@@ -28,12 +28,12 @@ public class StatesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<StateDto>>> Create(StateRequest req)
         => Ok(ApiResponse<StateDto>.Ok(await _svc.CreateAsync(req), "State added"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<StateDto>>> Update(int id, StateRequest req)
     {
         var s = await _svc.UpdateAsync(id, req);
@@ -41,7 +41,7 @@ public class StatesController : ControllerBase
     }
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

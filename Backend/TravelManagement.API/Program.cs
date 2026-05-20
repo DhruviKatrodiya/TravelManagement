@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -82,16 +83,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationHandler, MinimumLevelHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    var staffMin = builder.Configuration.GetValue<int>("SystemThresholds:StaffMinLevel",      1);
+    var adminMin = builder.Configuration.GetValue<int>("SystemThresholds:AdminMinLevel",      2);
+    var superMin = builder.Configuration.GetValue<int>("SystemThresholds:SuperAdminMinLevel", 3);
+    options.AddPolicy(RolePolicies.StaffOrAbove,   p => p.AddRequirements(new MinimumLevelRequirement(staffMin)));
+    options.AddPolicy(RolePolicies.AdminOrAbove,   p => p.AddRequirements(new MinimumLevelRequirement(adminMin)));
+    options.AddPolicy(RolePolicies.SuperAdminOnly, p => p.AddRequirements(new MinimumLevelRequirement(superMin)));
+});
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-builder.Services.AddCors(o => o.AddPolicy("AngularApp", p =>
-    p.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                  ?? new[] { "http://localhost:4200", "https://localhost:4200" })
-     .AllowAnyHeader()
-     .AllowAnyMethod()
-     .AllowCredentials()));
+//builder.Services.AddCors(o => o.AddPolicy("AngularApp", p =>
+//    p.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+//                  ?? new[] { "http://localhost:4200", "https://localhost:4200" })
+//     .AllowAnyHeader()
+//     .AllowAnyMethod()
+//     .AllowCredentials()));
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -120,6 +141,7 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IDesignationService, DesignationService>();
 builder.Services.AddScoped<IPaymentGateway, PaytmGateway>();
 builder.Services.AddScoped<IPaymentGateway, GooglePayGateway>();
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 var app = builder.Build();
 
@@ -317,6 +339,47 @@ END");
     try
     {
         await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('AppRoles', 'U') IS NULL
+BEGIN
+    CREATE TABLE AppRoles (
+        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        Description NVARCHAR(500) NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+IF OBJECT_ID('AppRolePermissions', 'U') IS NULL
+BEGIN
+    CREATE TABLE AppRolePermissions (
+        AppRoleId INT NOT NULL,
+        Permission NVARCHAR(80) NOT NULL,
+        CONSTRAINT PK_AppRolePermissions PRIMARY KEY (AppRoleId, Permission),
+        CONSTRAINT FK_AppRolePermissions_AppRoles
+            FOREIGN KEY (AppRoleId) REFERENCES AppRoles(Id) ON DELETE CASCADE
+    );
+END
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'AppRoleId' AND Object_ID = Object_ID(N'StaffMembers'))
+BEGIN
+    ALTER TABLE StaffMembers ADD AppRoleId INT NULL;
+    ALTER TABLE StaffMembers ADD CONSTRAINT FK_StaffMembers_AppRoles
+        FOREIGN KEY (AppRoleId) REFERENCES AppRoles(Id) ON DELETE SET NULL;
+END
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'AppRoleId' AND Object_ID = Object_ID(N'Customers'))
+BEGIN
+    ALTER TABLE Customers ADD AppRoleId INT NULL;
+    ALTER TABLE Customers ADD CONSTRAINT FK_Customers_AppRoles
+        FOREIGN KEY (AppRoleId) REFERENCES AppRoles(Id) ON DELETE SET NULL;
+END");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to ensure AppRoles tables on startup");
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
 IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'SessionToken' AND Object_ID = Object_ID(N'Users'))
 BEGIN
     ALTER TABLE Users ADD SessionToken NVARCHAR(64) NULL;
@@ -340,13 +403,34 @@ END");
         app.Logger.LogError(ex, "Failed to seed geo/org data on startup");
     }
 
+    try
+    {
+        await DataSeeder.SeedRolesAsync(db);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to seed default roles on startup");
+    }
+
+    try
+    {
+        await DataSeeder.SeedSuperAdminAsync(db, app.Configuration);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to seed super admin on startup");
+    }
+
+}
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
-
 app.UseMiddleware<ErrorHandlingMiddleware>();
-app.UseCors("AngularApp");
+//app.UseCors("AngularApp");
+app.UseCors("AllowAngular");
 
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
 Directory.CreateDirectory(uploadsPath);

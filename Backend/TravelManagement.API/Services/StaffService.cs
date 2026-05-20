@@ -25,7 +25,7 @@ public class StaffService : IStaffService
 
     public async Task<IEnumerable<StaffDto>> ListAsync()
     {
-        var items = await _db.StaffMembers.Include(s => s.User).OrderBy(s => s.User.FullName).ToListAsync();
+        var items = await _db.StaffMembers.Include(s => s.User).Include(s => s.AppRole).OrderBy(s => s.User.FullName).ToListAsync();
         return _mapper.Map<List<StaffDto>>(items);
     }
 
@@ -39,6 +39,7 @@ public class StaffService : IStaffService
             Designation = req.Designation,
             Department = req.Department,
             Salary = req.Salary,
+            AppRoleId = req.AppRoleId,
             JoinedAt = DateTime.UtcNow,
             User = new User
             {
@@ -55,7 +56,7 @@ public class StaffService : IStaffService
         _db.StaffMembers.Add(staff);
         await _db.SaveChangesAsync();
 
-        var fresh = await _db.StaffMembers.Include(s => s.User).FirstAsync(s => s.Id == staff.Id);
+        var fresh = await _db.StaffMembers.Include(s => s.User).Include(s => s.AppRole).FirstAsync(s => s.Id == staff.Id);
 
         _ = _email.SendAsync(fresh.User.Email, fresh.User.FullName,
             "Welcome to the Travel Management team",
@@ -72,7 +73,7 @@ public class StaffService : IStaffService
 
     public async Task<StaffDto?> UpdateAsync(int id, StaffUpdateRequest req)
     {
-        var s = await _db.StaffMembers.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id);
+        var s = await _db.StaffMembers.Include(x => x.User).Include(x => x.AppRole).FirstOrDefaultAsync(x => x.Id == id);
         if (s == null) return null;
 
         if (!string.Equals(s.User.Email, req.Email, StringComparison.OrdinalIgnoreCase))
@@ -90,6 +91,7 @@ public class StaffService : IStaffService
         s.Designation = req.Designation;
         s.Department = req.Department;
         s.Salary = req.Salary;
+        s.AppRoleId = req.AppRoleId;
 
         await _db.SaveChangesAsync();
 
@@ -163,8 +165,12 @@ public class StaffService : IStaffService
 
     public async Task<List<string>> GetPermissionsByUserIdAsync(int userId)
     {
-        var staff = await _db.StaffMembers.FirstOrDefaultAsync(s => s.UserId == userId);
+        var staff = await _db.StaffMembers
+            .Include(s => s.AppRole).ThenInclude(r => r!.Permissions)
+            .FirstOrDefaultAsync(s => s.UserId == userId);
         if (staff == null) return new List<string>();
+        if (staff.AppRole != null)
+            return staff.AppRole.Permissions.Select(p => p.Permission).ToList();
         return await GetPermissionsAsync(staff.Id);
     }
 

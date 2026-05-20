@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.DTOs.Tour;
@@ -21,13 +21,13 @@ public class SchedulesController : ControllerBase
         => Ok(ApiResponse<IEnumerable<TourScheduleDto>>.Ok(await _svc.ListAsync(from, to)));
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.SchedulesCreate)]
     public async Task<ActionResult<ApiResponse<TourScheduleDto>>> Create(TourScheduleCreateRequest req)
         => Ok(ApiResponse<TourScheduleDto>.Ok(await _svc.CreateAsync(req), "Schedule created"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.SchedulesEdit)]
     public async Task<ActionResult<ApiResponse<TourScheduleDto>>> Update(int id, TourScheduleCreateRequest req)
     {
@@ -36,7 +36,7 @@ public class SchedulesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.SchedulesDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));

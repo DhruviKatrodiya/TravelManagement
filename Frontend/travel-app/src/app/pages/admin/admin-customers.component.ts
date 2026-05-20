@@ -3,7 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { City, Country, Customer, GeoState } from '../../core/models/api.models';
+import { AppRole, City, Country, Customer, GeoState } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
 @Component({
@@ -68,9 +68,13 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
 
                 <div class="col-md-6" *ngIf="editingId === 0">
                   <label class="form-label">Initial password <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" formControlName="password" placeholder="At least 6 characters" [class.is-invalid]="isInvalid(form.get('password'))" />
+                  <div class="input-group" [class.is-invalid]="isInvalid(form.get('password'))">
+                    <input [type]="showPassword ? 'text' : 'password'" class="form-control" formControlName="password" placeholder="At least 6 characters" [class.is-invalid]="isInvalid(form.get('password'))" autocomplete="new-password" />
+                    <button type="button" class="btn btn-outline-secondary" (click)="showPassword = !showPassword" tabindex="-1">
+                      <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+                    </button>
+                  </div>
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('password'))">At least 6 characters.</div>
-                  <small class="text-muted">Share this with the customer; they can change it after sign-in.</small>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Phone <span class="text-danger">*</span></label>
@@ -78,11 +82,11 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('phone'))">Phone is required.</div>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label">Date of birth</label>
                   <input type="date" class="form-control" formControlName="dateOfBirth" />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label">Gender</label>
                   <select class="form-select" formControlName="gender">
                     <option value="">—</option>
@@ -91,36 +95,37 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                     <option value="Other">Other</option>
                   </select>
                 </div>
-                <div class="col-md-4">
-                  <label class="form-label">Country</label>
-                  <select class="form-select" formControlName="country" (change)="onFormCountryChange()">
-                    <option value="">— Select country —</option>
-                    <option *ngFor="let c of countries" [value]="c.name">{{ c.name }}</option>
-                  </select>
-                </div>
 
                 <div class="col-12">
                   <label class="form-label">Address <span class="text-danger">*</span></label>
                   <input class="form-control" formControlName="address" [class.is-invalid]="isInvalid(form.get('address'))" />
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('address'))">Address is required.</div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label">City <span class="text-danger">*</span></label>
-                  <select class="form-select" formControlName="city" [class.is-invalid]="isInvalid(form.get('city'))">
+                  <select class="form-select" formControlName="city" [class.is-invalid]="isInvalid(form.get('city'))" (change)="onFormCityChange()">
                     <option value="">— Select city —</option>
-                    <option *ngFor="let c of formCities" [value]="c.name">{{ c.name }}</option>
+                    <option *ngFor="let c of allCities" [value]="c.name">{{ c.name }}</option>
                   </select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('city'))">City is required.</div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label">State <span class="text-danger">*</span></label>
-                  <select class="form-select" formControlName="state" [class.is-invalid]="isInvalid(form.get('state'))" (change)="onFormStateChange()">
+                  <select class="form-select" formControlName="state" [class.is-invalid]="isInvalid(form.get('state'))">
                     <option value="">— Select state —</option>
-                    <option *ngFor="let s of formStates" [value]="s.name">{{ s.name }}</option>
+                    <option *ngFor="let s of allStates" [value]="s.name">{{ s.name }}</option>
                   </select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('state'))">State is required.</div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
+                  <label class="form-label">Country <span class="text-danger">*</span></label>
+                  <select class="form-select" formControlName="country" [class.is-invalid]="isInvalid(form.get('country'))">
+                    <option value="">— Select country —</option>
+                    <option *ngFor="let c of countries" [value]="c.name">{{ c.name }}</option>
+                  </select>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('country'))">Country is required.</div>
+                </div>
+                <div class="col-md-6">
                   <label class="form-label">Postal code <span class="text-danger">*</span></label>
                   <input class="form-control" formControlName="postalCode" [class.is-invalid]="isInvalid(form.get('postalCode'))" />
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('postalCode'))">Postal code is required.</div>
@@ -130,6 +135,14 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   <div class="col-md-6"><label class="form-label">ID proof type</label><input class="form-control" formControlName="idProofType" /></div>
                   <div class="col-md-6"><label class="form-label">ID proof number</label><input class="form-control" formControlName="idProofNumber" /></div>
                 </ng-container>
+                <div class="col-md-6">
+                  <label class="form-label">Role <span class="text-danger">*</span></label>
+                  <select class="form-select" formControlName="appRoleId" [class.is-invalid]="isInvalid(form.get('appRoleId'))">
+                    <option [ngValue]="null">— Select role —</option>
+                    <option *ngFor="let r of roles" [ngValue]="r.id">{{ r.name }}</option>
+                  </select>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('appRoleId'))">Role is required.</div>
+                </div>
               </div>
             </div>
             <div class="modal-footer">
@@ -264,11 +277,11 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   countries: Country[] = [];
   allStates: GeoState[] = [];
   allCities: City[] = [];
-  formStates: GeoState[] = [];
-  formCities: City[] = [];
+  roles: AppRole[] = [];
   editingId: number | null = null;
   viewMode = false;
   formError = '';
+  showPassword = false;
 
   deleteTarget: Customer | null = null;
   deleting = false;
@@ -296,11 +309,12 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     city: ['', [Validators.required]],
     state: ['', [Validators.required]],
     postalCode: ['', [Validators.required]],
-    country: ['India'],
+    country: ['', [Validators.required]],
     dateOfBirth: [''],
     gender: [''],
     idProofType: [''],
-    idProofNumber: ['']
+    idProofNumber: [''],
+    appRoleId: [null as number | null, [Validators.required]]
   });
 
   ngOnInit(): void {
@@ -308,6 +322,7 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     this.api.listCountries(true).subscribe({ next: cs => this.countries = cs });
     this.api.listStates(undefined, true).subscribe({ next: ss => this.allStates = ss });
     this.api.listCities(undefined, undefined, true).subscribe({ next: cs => this.allCities = cs });
+    this.api.listRoles(true).subscribe({ next: rs => this.roles = rs });
   }
   ngOnDestroy(): void { this.unlockBody(); }
 
@@ -344,26 +359,14 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);
   }
 
-  onFormCountryChange(): void {
-    const name = this.form.controls.country.value || '';
-    const country = this.countries.find(c => c.name === name);
-    this.formStates = country ? this.allStates.filter(s => s.countryId === country.id) : [];
-    this.formCities = [];
-    this.form.patchValue({ state: '', city: '' }, { emitEvent: false });
-  }
-
-  onFormStateChange(): void {
-    const name = this.form.controls.state.value || '';
-    const state = this.allStates.find(s => s.name === name);
-    this.formCities = state ? this.allCities.filter(c => c.stateId === state.id) : [];
-    this.form.patchValue({ city: '' }, { emitEvent: false });
-  }
-
-  private syncFormCascade(countryName: string, stateName: string): void {
-    const country = this.countries.find(c => c.name === countryName);
-    this.formStates = country ? this.allStates.filter(s => s.countryId === country.id) : [];
-    const state = this.allStates.find(s => s.name === stateName);
-    this.formCities = state ? this.allCities.filter(c => c.stateId === state.id) : [];
+  onFormCityChange(): void {
+    const cityName = this.form.controls.city.value || '';
+    const city = this.allCities.find(c => c.name === cityName);
+    if (!city) return;
+    this.form.patchValue(
+      { state: city.stateName, country: city.countryName },
+      { emitEvent: false }
+    );
   }
 
   filteredCustomers(): Customer[] {
@@ -458,12 +461,11 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.viewMode = false;
-    this.formStates = [];
-    this.formCities = [];
+    this.showPassword = false;
     this.form.reset({
       fullName: '', email: '', password: '', phone: '',
       address: '', city: '', state: '', postalCode: '', country: '',
-      dateOfBirth: '', gender: '', idProofType: '', idProofNumber: ''
+      dateOfBirth: '', gender: '', idProofType: '', idProofNumber: '', appRoleId: null
     });
     this.form.controls.password.setValidators([Validators.required, Validators.minLength(6)]);
     this.form.controls.password.updateValueAndValidity();
@@ -473,7 +475,6 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   }
 
   private patchFromCustomer(c: Customer): void {
-    this.syncFormCascade(c.country || '', c.state || '');
     this.form.reset({
       fullName: c.fullName,
       email: c.email,
@@ -487,7 +488,8 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
       dateOfBirth: c.dateOfBirth ? c.dateOfBirth.substring(0, 10) : '',
       gender: c.gender || '',
       idProofType: c.idProofType || '',
-      idProofNumber: c.idProofNumber || ''
+      idProofNumber: c.idProofNumber || '',
+      appRoleId: c.appRoleId ?? null
     });
     this.form.controls.password.clearValidators();
     this.form.controls.password.updateValueAndValidity();
@@ -513,6 +515,7 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   cancel(): void {
     this.editingId = null;
     this.viewMode = false;
+    this.showPassword = false;
     this.formError = '';
     this.form.enable({ emitEvent: false });
     this.unlockBody();

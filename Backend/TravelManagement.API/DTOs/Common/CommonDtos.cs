@@ -21,6 +21,32 @@ public class PagedResult<T>
     public int PageSize { get; set; }
 }
 
+public class AppRoleDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsActive { get; set; }
+    public List<string> Permissions { get; set; } = new();
+    public DateTime CreatedAt { get; set; }
+}
+
+public class AppRoleCreateRequest
+{
+    [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
+    [MaxLength(500)] public string? Description { get; set; }
+    public List<string> Permissions { get; set; } = new();
+    public bool IsActive { get; set; } = true;
+}
+
+public class AppRoleUpdateRequest
+{
+    [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
+    [MaxLength(500)] public string? Description { get; set; }
+    public List<string> Permissions { get; set; } = new();
+    public bool IsActive { get; set; }
+}
+
 public class CustomerDto
 {
     public int Id { get; set; }
@@ -41,6 +67,8 @@ public class CustomerDto
     public decimal TotalSpent { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public int? AppRoleId { get; set; }
+    public string? AppRoleName { get; set; }
 }
 
 public class CustomerUpdateRequest
@@ -57,6 +85,7 @@ public class CustomerUpdateRequest
     public string? Gender { get; set; }
     public string? IdProofType { get; set; }
     public string? IdProofNumber { get; set; }
+    public int? AppRoleId { get; set; }
 }
 
 public class CustomerCreateRequest
@@ -72,6 +101,7 @@ public class CustomerCreateRequest
     public string? Country { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public string? Gender { get; set; }
+    public int? AppRoleId { get; set; }
 }
 
 public class StaffDto
@@ -86,6 +116,8 @@ public class StaffDto
     public DateTime JoinedAt { get; set; }
     public decimal? Salary { get; set; }
     public bool IsActive { get; set; }
+    public int? AppRoleId { get; set; }
+    public string? AppRoleName { get; set; }
 }
 
 public class StaffCreateRequest
@@ -97,6 +129,7 @@ public class StaffCreateRequest
     public string? Designation { get; set; }
     public string? Department { get; set; }
     public decimal? Salary { get; set; }
+    public int? AppRoleId { get; set; }
 }
 
 public class StaffPermissionsUpdateRequest
@@ -113,6 +146,7 @@ public class StaffUpdateRequest
     public string? Department { get; set; }
     public decimal? Salary { get; set; }
     public bool IsActive { get; set; }
+    public int? AppRoleId { get; set; }
 }
 
 public class DriverDto

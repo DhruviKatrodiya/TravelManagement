@@ -1,41 +1,43 @@
 import { CanActivateFn, Router, RouterStateSnapshot } from '@angular/router';
 import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
-import { UserRole } from '../models/api.models';
+import { SystemRolesService } from '../services/system-roles.service';
 
 export const authGuard: CanActivateFn = (route, state: RouterStateSnapshot) => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
+  const auth        = inject(AuthService);
+  const systemRoles = inject(SystemRolesService);
+  const router      = inject(Router);
 
   if (!auth.isAuthenticated()) {
     router.navigate(['/auth/login'], { queryParams: { returnUrl: state.url } });
     return false;
   }
 
-  const role = auth.role();
+  const userLevel      = auth.privilegeLevel();
+  const userPrefix     = systemRoles.routePrefixFor(userLevel);
+  const urlSegments    = state.url.split('/').filter(s => s);
+  const urlPrefix      = urlSegments[0] ?? '';
+  const prefixConfig   = systemRoles.getByRoutePrefix(urlPrefix);
 
-  // Cross-role redirect: staff hitting /admin/* → /staff/*, admin hitting /staff/* → /admin/*
-  if (role === 'Staff' && state.url.startsWith('/admin')) {
-    router.navigateByUrl(state.url.replace('/admin', '/staff'));
+  // Management panels (Staff and above) are exclusive to their own level.
+  // Visiting the wrong panel redirects you to the correct one.
+  if (prefixConfig && prefixConfig.level >= systemRoles.staffMinLevel() && prefixConfig.level !== userLevel) {
+    const newUrl = '/' + [userPrefix, ...urlSegments.slice(1)].join('/');
+    router.navigateByUrl(newUrl);
     return false;
   }
-  if (role === 'Admin' && state.url.startsWith('/staff')) {
-    router.navigateByUrl(state.url.replace('/staff', '/admin'));
+
+  // Optional minimum level gate on non-panel routes (e.g. data: { minimumLevel: 2 })
+  const minimumLevel = route.data?.['minimumLevel'] as number | undefined;
+  if (minimumLevel !== undefined && userLevel < minimumLevel) {
+    router.navigateByUrl(systemRoles.defaultRouteFor(userLevel) || '/');
     return false;
   }
 
-  const required = route.data?.['roles'] as UserRole[] | undefined;
-  if (required && required.length > 0) {
-    if (!role || !required.includes(role)) {
-      router.navigate(['/']);
-      return false;
-    }
-  }
-
-  const basePath = role === 'Staff' ? '/staff' : '/admin';
+  // Permission check
   const requiredPermission = route.data?.['permission'] as string | undefined;
   if (requiredPermission && !auth.hasPermission(requiredPermission)) {
-    router.navigate([basePath]);
+    router.navigateByUrl('/' + userPrefix || '/');
     return false;
   }
 

@@ -65,6 +65,28 @@ public static class Permissions
 
     public const string ReportsView = "reports.view";
 
+    // Search permissions
+    public const string ToursSearch       = "tours.search";
+    public const string DestinationsSearch = "destinations.search";
+    public const string PackagesSearch    = "packages.search";
+    public const string FacilitiesSearch  = "facilities.search";
+    public const string SchedulesSearch   = "schedules.search";
+    public const string CustomersSearch   = "customers.search";
+    public const string BookingsSearch    = "bookings.search";
+    public const string PaymentsSearch    = "payments.search";
+    public const string RefundsSearch     = "refunds.search";
+    public const string ExpensesSearch    = "expenses.search";
+    public const string VehiclesSearch    = "vehicles.search";
+    public const string DriversSearch     = "drivers.search";
+    public const string AllocationsSearch = "allocations.search";
+    public const string ReviewsSearch     = "reviews.search";
+
+    // Field-level update permissions
+    public const string CustomersUpdatePhone = "customers.update_phone";
+    public const string CustomersUpdateEmail = "customers.update_email";
+    public const string StaffUpdatePhone     = "staff.update_phone";
+    public const string StaffUpdateEmail     = "staff.update_email";
+
     public const string CountriesView   = "countries.view";
     public const string CountriesCreate = "countries.create";
     public const string CountriesEdit   = "countries.edit";
@@ -90,6 +112,12 @@ public static class Permissions
     public const string DesignationsEdit   = "designations.edit";
     public const string DesignationsToggle = "designations.toggle";
 
+    // Role management — restricted: Admin-tier users need explicit SuperAdmin assignment
+    public const string RolesView   = "roles.view";
+    public const string RolesEdit   = "roles.edit";
+    public const string RolesCreate = "roles.create";
+    public const string RolesDelete = "roles.delete";
+
     public static readonly IReadOnlyList<string> All = new[]
     {
         ToursView, ToursCreate, ToursEdit, ToursDelete,
@@ -107,10 +135,15 @@ public static class Permissions
         RefundsView, RefundsEdit,
         ExpensesView, ExpensesCreate, ExpensesEdit, ExpensesDelete,
         ReportsView,
+        ToursSearch, DestinationsSearch, PackagesSearch, FacilitiesSearch, SchedulesSearch,
+        CustomersSearch, BookingsSearch, PaymentsSearch, RefundsSearch, ExpensesSearch,
+        VehiclesSearch, DriversSearch, AllocationsSearch, ReviewsSearch,
+        CustomersUpdatePhone, CustomersUpdateEmail, StaffUpdatePhone, StaffUpdateEmail,
         CountriesView, CountriesCreate, CountriesEdit, CountriesToggle,
         StatesView, StatesCreate, StatesEdit, StatesToggle,
         CitiesView, CitiesCreate, CitiesEdit, CitiesToggle,
         DepartmentsView, DepartmentsCreate, DepartmentsEdit, DepartmentsToggle,
-        DesignationsView, DesignationsCreate, DesignationsEdit, DesignationsToggle
+        DesignationsView, DesignationsCreate, DesignationsEdit, DesignationsToggle,
+        RolesView, RolesEdit, RolesCreate, RolesDelete
     };
 }

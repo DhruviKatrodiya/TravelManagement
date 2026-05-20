@@ -46,6 +46,7 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public UserRole Role { get; set; }
+    public int PrivilegeLevel { get; set; }
     public bool IsActive { get; set; }
     public List<string> Permissions { get; set; } = new();
 }

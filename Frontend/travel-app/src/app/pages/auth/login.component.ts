@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ToastService } from '../../core/services/toast.service';
 
 @Component({
@@ -69,21 +70,22 @@ import { ToastService } from '../../core/services/toast.service';
   `
 })
 export class LoginComponent {
-  private fb = inject(FormBuilder);
-  private auth = inject(AuthService);
-  private router = inject(Router);
-  private route = inject(ActivatedRoute);
-  private toast = inject(ToastService);
+  private fb          = inject(FormBuilder);
+  private auth        = inject(AuthService);
+  private router      = inject(Router);
+  private route       = inject(ActivatedRoute);
+  private toast       = inject(ToastService);
+  private systemRoles = inject(SystemRolesService);
 
   loading = false;
   errorMessage = '';
   showPassword = false;
   form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
+    email:    ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]]
   });
 
-  get emailCtl() { return this.form.controls.email; }
+  get emailCtl()    { return this.form.controls.email; }
   get passwordCtl() { return this.form.controls.password; }
 
   submit(): void {
@@ -96,10 +98,9 @@ export class LoginComponent {
         this.loading = false;
         if (r.success) {
           const user = r.data?.user;
-          const role = user?.role;
           this.toast.show(`Welcome back, ${user?.fullName ?? 'there'}!`, 'success', 4000, { title: 'Signed in', persist: false });
           const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-          this.router.navigateByUrl(returnUrl || this.defaultLanding(role));
+          this.router.navigateByUrl(returnUrl || this.defaultLanding());
         }
       },
       error: (err: any) => {
@@ -110,10 +111,10 @@ export class LoginComponent {
     });
   }
 
-  private defaultLanding(role?: string): string {
-    if (role === 'Admin') return '/admin';
-    if (role === 'Staff') return '/staff';
-    if (role === 'Customer') return '/customer';
-    return '/';
+  private defaultLanding(): string {
+    const user = this.auth.currentUser();
+    return user != null
+      ? this.systemRoles.defaultRouteFor(user.privilegeLevel)
+      : '/';
   }
 }

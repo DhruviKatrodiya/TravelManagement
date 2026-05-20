@@ -5,9 +5,10 @@ import { filter } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, AuthResponse, LoginRequest, RegisterRequest, User, UserRole } from '../models/api.models';
+import { SystemRolesService } from './system-roles.service';
 
 const TOKEN_KEY = 'travel.token';
-const USER_KEY = 'travel.user';
+const USER_KEY  = 'travel.user';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -18,23 +19,31 @@ export class AuthService {
   private readonly SESSION_POLL_MS = 30_000;
   private readonly logoutChannel = new BroadcastChannel('travel_session');
 
-  readonly currentUser = this.userSignal.asReadonly();
-  readonly isAuthenticated = computed(() => !!this.userSignal());
-  readonly role = computed<UserRole | null>(() => this.userSignal()?.role ?? null);
-  readonly isAdmin = computed(() => this.role() === 'Admin');
-  readonly isStaff = computed(() => this.role() === 'Staff' || this.role() === 'Admin');
-  readonly isCustomer = computed(() => this.role() === 'Customer');
+  readonly currentUser      = this.userSignal.asReadonly();
+  readonly isAuthenticated  = computed(() => !!this.userSignal());
+  readonly role             = computed<UserRole | null>(() => this.userSignal()?.role ?? null);
+  readonly privilegeLevel   = computed(() => this.userSignal()?.privilegeLevel ?? -1);
 
-  /** Admin has every permission; staff are gated by the explicit permission list; customers get none. */
+  readonly isSuperAdmin = computed(() => this.privilegeLevel() >= this.systemRoles.superAdminMinLevel());
+  readonly isAdmin      = computed(() => this.privilegeLevel() >= this.systemRoles.adminMinLevel());
+  readonly isStaff      = computed(() => this.privilegeLevel() >= this.systemRoles.staffMinLevel());
+  readonly isCustomer   = computed(() => this.privilegeLevel() === 0);
+
+  /**
+   * SuperAdmin bypasses everything. Admin bypasses all except AdminRestrictedPermissions
+   * (e.g. roles.view — only shown when SuperAdmin explicitly grants it). Staff need explicit assignment.
+   */
   hasPermission(key: string): boolean {
     const u = this.userSignal();
     if (!u) return false;
-    if (u.role === 'Admin') return true;
-    if (u.role !== 'Staff') return false;
+    if (u.privilegeLevel >= this.systemRoles.superAdminMinLevel()) return true;
+    if (this.systemRoles.canBypassPermissions(u.privilegeLevel) &&
+        !this.systemRoles.isAdminRestricted(key)) return true;
+    if (!this.isStaff()) return false;
     return Array.isArray(u.permissions) && u.permissions.includes(key);
   }
 
-  constructor(private http: HttpClient, private router: Router) {
+  constructor(private http: HttpClient, private router: Router, private systemRoles: SystemRolesService) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     // Other tabs broadcast logout — force-logout this tab immediately
@@ -48,8 +57,6 @@ export class AuthService {
     this.sessionPoll$ = interval(this.SESSION_POLL_MS).pipe(
       filter(() => !!this.getToken())
     ).subscribe(() => {
-      // /auth/me is no longer excluded from 401 handling in the interceptor,
-      // so a stale session returns 401 → interceptor calls logout() automatically.
       this.http.get<ApiResponse<User>>(`${this.base}/me`).subscribe({ error: () => {} });
     });
   }

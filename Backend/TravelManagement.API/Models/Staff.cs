@@ -22,4 +22,7 @@ public class Staff
 
     [MaxLength(500)]
     public string? Notes { get; set; }
+
+    public int? AppRoleId { get; set; }
+    public AppRole? AppRole { get; set; }
 }

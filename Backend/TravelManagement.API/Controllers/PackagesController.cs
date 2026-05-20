@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
@@ -43,13 +43,13 @@ public class PackagesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.PackagesCreate)]
     public async Task<ActionResult<ApiResponse<TourPackageDto>>> Create(TourPackageCreateRequest req)
         => Ok(ApiResponse<TourPackageDto>.Ok(await _svc.CreateAsync(req), "Package created"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.PackagesEdit)]
     public async Task<ActionResult<ApiResponse<TourPackageDto>>> Update(int id, TourPackageUpdateRequest req)
     {
@@ -58,7 +58,7 @@ public class PackagesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.PackagesDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Package deleted")) : NotFound(ApiResponse<object>.Fail("Package not found"));
@@ -69,13 +69,13 @@ public class PackagesController : ControllerBase
         => Ok(ApiResponse<IEnumerable<ItineraryDto>>.Ok(await _svc.ListItinerariesAsync(id)));
 
     [HttpPost("itineraries")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.PackagesEdit)]
     public async Task<ActionResult<ApiResponse<ItineraryDto>>> AddItinerary(ItineraryCreateRequest req)
         => Ok(ApiResponse<ItineraryDto>.Ok(await _svc.AddItineraryAsync(req), "Itinerary added"));
 
     [HttpDelete("itineraries/{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.PackagesEdit)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteItinerary(int id)
         => await _svc.DeleteItineraryAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Removed")) : NotFound(ApiResponse<object>.Fail("Itinerary not found"));

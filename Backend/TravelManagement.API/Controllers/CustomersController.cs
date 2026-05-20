@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
@@ -19,7 +19,7 @@ public class CustomersController : ControllerBase
     private string CurrentRole => User.FindFirstValue(ClaimTypes.Role)!;
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     public async Task<ActionResult<ApiResponse<IEnumerable<CustomerDto>>>> List()
         => Ok(ApiResponse<IEnumerable<CustomerDto>>.Ok(await _svc.ListAsync()));
 
@@ -31,7 +31,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Get(int id)
     {
         var c = await _svc.GetAsync(id);
@@ -48,7 +48,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.CustomersEdit)]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Update(int id, CustomerUpdateRequest req)
     {
@@ -57,19 +57,19 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.CustomersCreate)]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Create(CustomerCreateRequest req)
         => Ok(ApiResponse<CustomerDto>.Ok(await _svc.CreateAsync(req), "Customer created"));
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.CustomersDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deactivated")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpPost("{id}/active")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.CustomersEdit)]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)

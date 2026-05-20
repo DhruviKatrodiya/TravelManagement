@@ -1,6 +1,7 @@
 import { Component, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
 import { BrandService } from '../../core/services/brand.service';
+import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { NotificationStore, StoredNotification } from '../../core/services/notification-store.service';
 import { Router } from '@angular/router';
@@ -121,6 +122,7 @@ const LANG_KEY = 'travel.lang';
     <div class="admin-shell" [class.sidebar-hidden]="!sidebarOpen()">
       <aside class="sidebar">
         <a [routerLink]="basePath()" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}"><i class="bi bi-graph-up"></i> Dashboard</a>
+        <a *ngIf="auth.hasPermission('roles.view')" [routerLink]="basePath() + '/roles'" routerLinkActive="active"><i class="bi bi-shield-check"></i> Role Management</a>
         <a *ngIf="auth.hasPermission('tours.view')" [routerLink]="basePath() + '/tours'" routerLinkActive="active"><i class="bi bi-globe2"></i> Tours</a>
         <a *ngIf="auth.hasPermission('destinations.view')" [routerLink]="basePath() + '/destinations'" routerLinkActive="active"><i class="bi bi-geo-alt"></i> Destinations</a>
         <a *ngIf="auth.hasPermission('packages.view')" [routerLink]="basePath() + '/packages'" routerLinkActive="active"><i class="bi bi-box-seam"></i> Packages</a>
@@ -130,12 +132,11 @@ const LANG_KEY = 'travel.lang';
         <a *ngIf="auth.hasPermission('payments.view')" [routerLink]="basePath() + '/payments'" routerLinkActive="active"><i class="bi bi-credit-card-2-front"></i> Payments</a>
         <a *ngIf="auth.hasPermission('refunds.view')" [routerLink]="basePath() + '/refunds'" routerLinkActive="active"><i class="bi bi-arrow-counterclockwise"></i> Refunds</a>
         <a *ngIf="auth.hasPermission('expenses.view')" [routerLink]="basePath() + '/expenses'" routerLinkActive="active"><i class="bi bi-cash-coin"></i> Expenses</a>
-        <a *ngIf="auth.hasPermission('customers.view')" [routerLink]="basePath() + '/customers'" routerLinkActive="active"><i class="bi bi-people"></i> Customers</a>
+        <a *ngIf="auth.isAdmin() || auth.hasPermission('customers.view')" [routerLink]="basePath() + '/people'" routerLinkActive="active"><i class="bi bi-people-fill"></i> People</a>
         <a *ngIf="auth.hasPermission('reviews.view')" [routerLink]="basePath() + '/reviews'" routerLinkActive="active"><i class="bi bi-chat-quote"></i> Reviews</a>
         <a *ngIf="auth.hasPermission('vehicles.view')" [routerLink]="basePath() + '/vehicles'" routerLinkActive="active"><i class="bi bi-truck"></i> Vehicles</a>
         <a *ngIf="auth.hasPermission('allocations.view')" [routerLink]="basePath() + '/allocations'" routerLinkActive="active"><i class="bi bi-pin-map"></i> Allocations</a>
         <a *ngIf="auth.hasPermission('drivers.view')" [routerLink]="basePath() + '/drivers'" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
-        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/staff'" routerLinkActive="active"><i class="bi bi-shield-lock"></i> Staff</a>
         <a *ngIf="auth.hasPermission('reports.view')" [routerLink]="basePath() + '/reports'" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
         <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/countries'" routerLinkActive="active"><i class="bi bi-globe-americas"></i> Countries</a>
         <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/states'" routerLinkActive="active"><i class="bi bi-map"></i> States</a>
@@ -151,13 +152,17 @@ const LANG_KEY = 'travel.lang';
   `
 })
 export class AdminLayoutComponent implements OnInit, OnDestroy {
-  auth = inject(AuthService);
-  brand = inject(BrandService);
-  theme = inject(ThemeService);
-  private store = inject(NotificationStore);
+  auth        = inject(AuthService);
+  brand       = inject(BrandService);
+  systemRoles = inject(SystemRolesService);
+  theme       = inject(ThemeService);
+  private store  = inject(NotificationStore);
   private router = inject(Router);
 
-  readonly basePath = computed(() => this.auth.role() === 'Staff' ? '/staff' : '/admin');
+  readonly basePath = computed(() => {
+    const prefix = this.systemRoles.routePrefixFor(this.auth.privilegeLevel());
+    return prefix ? `/${prefix}` : '/admin';
+  });
   readonly sidebarOpen = signal<boolean>(this.readStored());
 
   readonly languages: Lang[] = [
@@ -202,8 +207,11 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   }
 
   displayBrandName(): string {
-    if (this.auth.isAdmin()) return this.brand.settings().brandName || 'Administrator';
-    return 'Staff';
+    const level = this.auth.privilegeLevel();
+    const adminMin = this.systemRoles.adminMinLevel();
+    // Admin tier shows the configured brand name; all other levels show their system role display name
+    if (level === adminMin) return this.brand.settings().brandName || this.systemRoles.displayNameFor(level);
+    return this.systemRoles.displayNameFor(level) || 'Portal';
   }
 
   setLang(l: Lang): void {

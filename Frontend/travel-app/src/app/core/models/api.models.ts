@@ -19,7 +19,26 @@ export interface HomeDestination {
   isActive: boolean;
 }
 
-export type UserRole = 'Customer' | 'Staff' | 'Admin';
+// Open type — system role names come from /api/system-roles and can be extended via config
+export type UserRole = string;
+
+export interface SystemRoleConfig {
+  level: number;
+  name: string;
+  routePrefix: string;
+  defaultRoute: string;
+  displayName: string;
+  canBypassPermissions: boolean;
+}
+
+export interface SystemRolesResponse {
+  roles: SystemRoleConfig[];
+  staffMinLevel: number;
+  adminMinLevel: number;
+  superAdminMinLevel: number;
+  /** Permissions Admin-level users do NOT auto-bypass — must be explicitly assigned by SuperAdmin. */
+  adminRestrictedPermissions: string[];
+}
 export type Destination = 'India' | 'Bhutan' | 'Nepal';
 export type BookingStatus = 'Pending' | 'Confirmed' | 'Cancelled' | 'Completed' | 'Refunded';
 export type PaymentStatus = 'Pending' | 'Initiated' | 'Success' | 'Failed' | 'Refunded';
@@ -34,6 +53,7 @@ export interface User {
   email: string;
   phone?: string;
   role: UserRole;
+  privilegeLevel: number;
   isActive: boolean;
   permissions?: string[];
 }
@@ -262,6 +282,17 @@ export interface Customer {
   totalSpent: number;
   isActive: boolean;
   createdAt: string;
+  appRoleId?: number;
+  appRoleName?: string;
+}
+
+export interface AppRole {
+  id: number;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  permissions: string[];
+  createdAt: string;
 }
 
 export interface Staff {
@@ -275,6 +306,8 @@ export interface Staff {
   joinedAt: string;
   salary?: number;
   isActive: boolean;
+  appRoleId?: number;
+  appRoleName?: string;
 }
 
 export interface Expense {

@@ -37,6 +37,8 @@ public class TravelDbContext : DbContext
     public DbSet<City> Cities => Set<City>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Designation> Designations => Set<Designation>();
+    public DbSet<AppRole> AppRoles => Set<AppRole>();
+    public DbSet<AppRolePermission> AppRolePermissions => Set<AppRolePermission>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -147,6 +149,22 @@ public class TravelDbContext : DbContext
         builder.Entity<Designation>(e =>
         {
             e.HasOne(x => x.Department).WithMany(d => d.Designations).HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<AppRolePermission>(e =>
+        {
+            e.HasKey(x => new { x.AppRoleId, x.Permission });
+            e.HasOne(x => x.AppRole).WithMany(r => r.Permissions).HasForeignKey(x => x.AppRoleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Staff>(e =>
+        {
+            e.HasOne(x => x.AppRole).WithMany().HasForeignKey(x => x.AppRoleId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<Customer>(e =>
+        {
+            e.HasOne(x => x.AppRole).WithMany().HasForeignKey(x => x.AppRoleId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<HomeDestinationTour>(e =>

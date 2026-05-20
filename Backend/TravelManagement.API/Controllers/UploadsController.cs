@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
 
@@ -6,7 +6,7 @@ namespace TravelManagement.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Staff")]
+[Authorize(Policy = "StaffOrAbove")]
 public class UploadsController : ControllerBase
 {
     private static readonly HashSet<string> AllowedExtensions =

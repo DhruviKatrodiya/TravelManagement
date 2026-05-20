@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
@@ -17,7 +17,7 @@ public class ReviewsController : ControllerBase
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     public async Task<ActionResult<ApiResponse<IEnumerable<ReviewDto>>>> All()
         => Ok(ApiResponse<IEnumerable<ReviewDto>>.Ok(await _svc.ListAllAsync()));
 
@@ -37,13 +37,13 @@ public class ReviewsController : ControllerBase
         => Ok(ApiResponse<ReviewDto>.Ok(await _svc.CreateAsync(CurrentUserId, req), "Review posted"));
 
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.ReviewsEdit)]
     public async Task<ActionResult<ApiResponse<object>>> Approve(int id, [FromQuery] bool approved = true)
         => await _svc.ApproveAsync(id, approved) ? Ok(ApiResponse<object>.Ok(new { }, approved ? "Approved" : "Hidden")) : NotFound(ApiResponse<object>.Fail("Not found"));
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.ReviewsDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));

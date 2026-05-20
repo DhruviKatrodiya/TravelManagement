@@ -24,6 +24,7 @@ public class CustomerService : ICustomerService
         var items = await _db.Customers
             .Include(c => c.User)
             .Include(c => c.Bookings)
+            .Include(c => c.AppRole)
             .OrderByDescending(c => c.User.CreatedAt)
             .ToListAsync();
         return _mapper.Map<List<CustomerDto>>(items);
@@ -34,6 +35,7 @@ public class CustomerService : ICustomerService
         var c = await _db.Customers
             .Include(c => c.User)
             .Include(c => c.Bookings)
+            .Include(c => c.AppRole)
             .FirstOrDefaultAsync(x => x.Id == id);
         return c == null ? null : _mapper.Map<CustomerDto>(c);
     }
@@ -43,6 +45,7 @@ public class CustomerService : ICustomerService
         var c = await _db.Customers
             .Include(c => c.User)
             .Include(c => c.Bookings)
+            .Include(c => c.AppRole)
             .FirstOrDefaultAsync(x => x.UserId == userId);
         return c == null ? null : _mapper.Map<CustomerDto>(c);
     }
@@ -70,6 +73,7 @@ public class CustomerService : ICustomerService
         c.Gender = req.Gender;
         c.IdProofType = req.IdProofType;
         c.IdProofNumber = req.IdProofNumber;
+        c.AppRoleId = req.AppRoleId;
 
         await _db.SaveChangesAsync();
 
@@ -97,6 +101,7 @@ public class CustomerService : ICustomerService
             Country = req.Country,
             DateOfBirth = req.DateOfBirth,
             Gender = req.Gender,
+            AppRoleId = req.AppRoleId,
             User = new Models.User
             {
                 FullName = req.FullName,

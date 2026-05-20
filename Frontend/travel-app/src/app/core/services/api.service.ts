@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiResponse, Booking, BookingCreateRequest, City, Country, Customer, DashboardStats,
+  ApiResponse, AppRole, Booking, BookingCreateRequest, City, Country, Customer, DashboardStats,
   Department, Designation, Driver, Expense, Facility, GeoState, HomeDestination, Notification,
   Payment, PaymentInitiateResponse, Refund, Review, Staff, Tour, TourPackage, TourSchedule,
   TripProfit, Vehicle, VehicleAllocation
@@ -220,6 +220,15 @@ export class ApiService {
   createDesignation(req: any): Observable<Designation> { return this.unwrap(this.http.post<ApiResponse<Designation>>(`${this.base}/designations`, req)); }
   updateDesignation(id: number, req: any): Observable<Designation> { return this.unwrap(this.http.put<ApiResponse<Designation>>(`${this.base}/designations/${id}`, req)); }
   setDesignationActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/designations/${id}/active?active=${active}`, {})); }
+
+  listRoles(activeOnly?: boolean): Observable<AppRole[]> {
+    return this.unwrap(this.http.get<ApiResponse<AppRole[]>>(`${this.base}/roles`, { params: this.toParams({ activeOnly }) }));
+  }
+  getRole(id: number): Observable<AppRole> { return this.unwrap(this.http.get<ApiResponse<AppRole>>(`${this.base}/roles/${id}`)); }
+  createRole(req: any): Observable<AppRole> { return this.unwrap(this.http.post<ApiResponse<AppRole>>(`${this.base}/roles`, req)); }
+  updateRole(id: number, req: any): Observable<AppRole> { return this.unwrap(this.http.put<ApiResponse<AppRole>>(`${this.base}/roles/${id}`, req)); }
+  deleteRole(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/roles/${id}`)); }
+  setRoleActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/roles/${id}/active?active=${active}`, {})); }
 
   listHomeDestinations(activeOnly: boolean = true, assignedToMe?: boolean): Observable<HomeDestination[]> {
     return this.unwrap(this.http.get<ApiResponse<HomeDestination[]>>(`${this.base}/home-destinations`, { params: this.toParams({ activeOnly, assignedToMe }) }));

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
@@ -18,7 +18,7 @@ public class RefundsController : ControllerBase
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<IEnumerable<RefundDto>>>> List()
         => Ok(ApiResponse<IEnumerable<RefundDto>>.Ok(await _svc.ListAsync()));
 
@@ -27,7 +27,7 @@ public class RefundsController : ControllerBase
         => Ok(ApiResponse<RefundDto>.Ok(await _svc.RequestAsync(CurrentUserId, req), "Refund requested"));
 
     [HttpPost("{id}/process")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.RefundsEdit)]
     public async Task<ActionResult<ApiResponse<RefundDto>>> Process(int id, RefundProcessRequest req)
     {

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
@@ -34,13 +34,13 @@ public class HomeDestinationsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.DestinationsCreate)]
     public async Task<ActionResult<ApiResponse<HomeDestinationDto>>> Create(HomeDestinationRequest req)
         => Ok(ApiResponse<HomeDestinationDto>.Ok(await _svc.CreateAsync(req), "Destination created"));
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.DestinationsEdit)]
     public async Task<ActionResult<ApiResponse<HomeDestinationDto>>> Update(int id, HomeDestinationRequest req)
     {
@@ -49,7 +49,7 @@ public class HomeDestinationsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.DestinationsDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
         => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Destination deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));

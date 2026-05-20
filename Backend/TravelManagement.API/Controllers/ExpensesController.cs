@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.Helpers;
@@ -8,7 +8,7 @@ namespace TravelManagement.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Staff")]
+[Authorize(Policy = "StaffOrAbove")]
 public class ExpensesController : ControllerBase
 {
     private readonly IExpenseService _svc;

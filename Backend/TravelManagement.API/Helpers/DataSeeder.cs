@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using TravelManagement.API.Data;
 using TravelManagement.API.Models;
+using TravelManagement.API.Models.Enums;
+using static TravelManagement.API.Helpers.Permissions;
 
 namespace TravelManagement.API.Helpers;
 
@@ -10,6 +13,209 @@ public static class DataSeeder
     {
         await SeedGeoAsync(db);
         await SeedOrgAsync(db);
+    }
+
+    // ── Super Admin ───────────────────────────────────────────────────────────
+
+    public static async Task SeedSuperAdminAsync(TravelDbContext db, IConfiguration config)
+    {
+        var exists = await db.Users.AnyAsync(u => u.Role == UserRole.SuperAdmin);
+        if (exists) return;
+
+        var section = config.GetSection("DefaultSuperAdmin");
+        var fullName = section["FullName"] ?? "Super Administrator";
+        var email    = section["Email"]    ?? "superadmin@travel.local";
+        var password = section["Password"] ?? "SuperAdmin@123";
+
+        var user = new User
+        {
+            FullName     = fullName,
+            Email        = email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+            Role         = UserRole.SuperAdmin,
+            IsActive     = true,
+            CreatedAt    = DateTime.UtcNow
+        };
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+    }
+
+    // ── Roles ─────────────────────────────────────────────────────────────────
+
+    public static async Task SeedRolesAsync(TravelDbContext db)
+    {
+        var existingNames = (await db.AppRoles.Select(r => r.Name).ToListAsync()).ToHashSet();
+
+        var roleData = new (string Name, string Description, string[] Perms)[]
+        {
+            (
+                "Executive",
+                "Full access to all modules and features.",
+                All.ToArray()
+            ),
+            (
+                "Operations Manager",
+                "Manages tours, schedules, packages, vehicles, drivers and allocations.",
+                new[] {
+                    ToursView, ToursCreate, ToursEdit, ToursDelete, ToursSearch,
+                    DestinationsView, DestinationsCreate, DestinationsEdit, DestinationsDelete, DestinationsSearch,
+                    PackagesView, PackagesCreate, PackagesEdit, PackagesDelete, PackagesSearch,
+                    FacilitiesView, FacilitiesCreate, FacilitiesEdit, FacilitiesDelete, FacilitiesSearch,
+                    SchedulesView, SchedulesCreate, SchedulesEdit, SchedulesDelete, SchedulesSearch,
+                    VehiclesView, VehiclesCreate, VehiclesEdit, VehiclesDelete, VehiclesSearch,
+                    DriversView, DriversCreate, DriversEdit, DriversDelete, DriversSearch,
+                    AllocationsView, AllocationsCreate, AllocationsEdit, AllocationsDelete, AllocationsSearch,
+                    BookingsView, BookingsEdit, BookingsSearch,
+                    ReportsView
+                }
+            ),
+            (
+                "Sales Manager",
+                "Manages customers, bookings, and packages with full contact-field access.",
+                new[] {
+                    CustomersView, CustomersCreate, CustomersEdit, CustomersSearch,
+                    CustomersUpdatePhone, CustomersUpdateEmail,
+                    BookingsView, BookingsEdit, BookingsSearch,
+                    PackagesView, PackagesSearch,
+                    ToursView, ToursSearch,
+                    ReviewsView, ReviewsSearch,
+                    ReportsView
+                }
+            ),
+            (
+                "Tour Coordinator",
+                "Plans and coordinates tour schedules and allocations.",
+                new[] {
+                    ToursView, ToursEdit, ToursSearch,
+                    DestinationsView, DestinationsSearch,
+                    FacilitiesView, FacilitiesSearch,
+                    SchedulesView, SchedulesCreate, SchedulesEdit, SchedulesSearch,
+                    AllocationsView, AllocationsCreate, AllocationsEdit, AllocationsSearch,
+                    BookingsView, BookingsSearch,
+                    CustomersView, CustomersSearch
+                }
+            ),
+            (
+                "Tour Guide",
+                "View-only access to tours, schedules, and assigned customer info.",
+                new[] {
+                    ToursView, ToursSearch,
+                    DestinationsView, DestinationsSearch,
+                    SchedulesView, SchedulesSearch,
+                    AllocationsView, AllocationsSearch,
+                    BookingsView, BookingsSearch,
+                    CustomersView, CustomersSearch
+                }
+            ),
+            (
+                "Driver Manager",
+                "Full control over drivers, vehicles, and allocations.",
+                new[] {
+                    DriversView, DriversCreate, DriversEdit, DriversDelete, DriversSearch,
+                    VehiclesView, VehiclesCreate, VehiclesEdit, VehiclesDelete, VehiclesSearch,
+                    AllocationsView, AllocationsCreate, AllocationsEdit, AllocationsDelete, AllocationsSearch
+                }
+            ),
+            (
+                "Customer Support",
+                "Handles customer queries, bookings, reviews, and refund requests.",
+                new[] {
+                    CustomersView, CustomersEdit, CustomersSearch,
+                    CustomersUpdatePhone, CustomersUpdateEmail,
+                    BookingsView, BookingsSearch,
+                    ReviewsView, ReviewsEdit, ReviewsDelete, ReviewsSearch,
+                    RefundsView, RefundsEdit, RefundsSearch
+                }
+            ),
+            (
+                "Finance Officer",
+                "Manages payments, refunds, and expenses with full financial reporting.",
+                new[] {
+                    PaymentsView, PaymentsSearch,
+                    RefundsView, RefundsEdit, RefundsSearch,
+                    ExpensesView, ExpensesCreate, ExpensesEdit, ExpensesDelete, ExpensesSearch,
+                    ReportsView,
+                    BookingsView, BookingsSearch
+                }
+            ),
+            (
+                "Marketing Executive",
+                "View access to tours, destinations, packages, and reviews for marketing campaigns.",
+                new[] {
+                    ToursView, ToursSearch,
+                    DestinationsView, DestinationsSearch,
+                    PackagesView, PackagesSearch,
+                    FacilitiesView, FacilitiesSearch,
+                    ReviewsView, ReviewsSearch,
+                    ReportsView
+                }
+            ),
+            (
+                "Field Agent",
+                "On-ground agent with read access to tours, schedules, and customer bookings.",
+                new[] {
+                    ToursView, ToursSearch,
+                    DestinationsView, DestinationsSearch,
+                    SchedulesView, SchedulesSearch,
+                    BookingsView, BookingsSearch,
+                    CustomersView, CustomersSearch,
+                    AllocationsView, AllocationsSearch
+                }
+            ),
+            (
+                "Admin",
+                "System administrator with full access to all modules and settings.",
+                All.ToArray()
+            ),
+            (
+                "Staff",
+                "General staff access for day-to-day operations — view and manage core modules.",
+                new[] {
+                    ToursView, ToursSearch,
+                    DestinationsView, DestinationsSearch,
+                    PackagesView, PackagesSearch,
+                    FacilitiesView, FacilitiesSearch,
+                    SchedulesView, SchedulesSearch,
+                    CustomersView, CustomersSearch,
+                    BookingsView, BookingsEdit, BookingsSearch,
+                    PaymentsView, PaymentsSearch,
+                    RefundsView, RefundsSearch,
+                    VehiclesView, VehiclesSearch,
+                    DriversView, DriversSearch,
+                    AllocationsView, AllocationsSearch,
+                    ReviewsView, ReviewsSearch,
+                    ReportsView
+                }
+            ),
+            (
+                "Customer",
+                "Customer-facing role with access to personal bookings, packages, and reviews.",
+                new[] {
+                    ToursView, ToursSearch,
+                    DestinationsView, DestinationsSearch,
+                    PackagesView, PackagesSearch,
+                    BookingsView, BookingsSearch,
+                    ReviewsView, ReviewsSearch
+                }
+            )
+        };
+
+        foreach (var (name, description, perms) in roleData)
+        {
+            if (existingNames.Contains(name)) continue;
+
+            var role = new AppRole { Name = name, Description = description, IsActive = true };
+            db.AppRoles.Add(role);
+            await db.SaveChangesAsync();
+
+            var rolePerms = perms
+                .Distinct()
+                .Select(p => new AppRolePermission { AppRoleId = role.Id, Permission = p })
+                .ToList();
+            db.AppRolePermissions.AddRange(rolePerms);
+            await db.SaveChangesAsync();
+        }
     }
 
     // ── Geo ──────────────────────────────────────────────────────────────────
