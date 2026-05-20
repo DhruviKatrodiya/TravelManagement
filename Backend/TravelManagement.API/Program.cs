@@ -113,6 +113,11 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 builder.Services.AddScoped<IHomeDestinationService, HomeDestinationService>();
+builder.Services.AddScoped<ICountryService, CountryService>();
+builder.Services.AddScoped<IStateService, StateService>();
+builder.Services.AddScoped<ICityService, CityService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IDesignationService, DesignationService>();
 builder.Services.AddScoped<IPaymentGateway, PaytmGateway>();
 builder.Services.AddScoped<IPaymentGateway, GooglePayGateway>();
 
@@ -253,6 +258,88 @@ END");
         app.Logger.LogError(ex, "Failed to ensure Expenses.IsActive column on startup");
     }
 
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+IF OBJECT_ID('Countries', 'U') IS NULL
+BEGIN
+    CREATE TABLE Countries (
+        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        Code NVARCHAR(10) NULL,
+        IsActive BIT NOT NULL DEFAULT 1
+    );
+END
+IF OBJECT_ID('States', 'U') IS NULL
+BEGIN
+    CREATE TABLE States (
+        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        CountryId INT NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_States_Countries FOREIGN KEY (CountryId) REFERENCES Countries(Id)
+    );
+END
+IF OBJECT_ID('Cities', 'U') IS NULL
+BEGIN
+    CREATE TABLE Cities (
+        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        StateId INT NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_Cities_States FOREIGN KEY (StateId) REFERENCES States(Id)
+    );
+END
+IF OBJECT_ID('Departments', 'U') IS NULL
+BEGIN
+    CREATE TABLE Departments (
+        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1
+    );
+END
+IF OBJECT_ID('Designations', 'U') IS NULL
+BEGIN
+    CREATE TABLE Designations (
+        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Name NVARCHAR(100) NOT NULL,
+        DepartmentId INT NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CONSTRAINT FK_Designations_Departments FOREIGN KEY (DepartmentId) REFERENCES Departments(Id)
+    );
+END");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to ensure Geo/Org tables on startup");
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'SessionToken' AND Object_ID = Object_ID(N'Users'))
+BEGIN
+    ALTER TABLE Users ADD SessionToken NVARCHAR(64) NULL;
+END
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'ActiveSessionToken' AND Object_ID = Object_ID(N'AppSettings'))
+BEGIN
+    ALTER TABLE AppSettings ADD ActiveSessionToken NVARCHAR(64) NULL;
+END");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to ensure session token columns on startup");
+    }
+
+    try
+    {
+        await DataSeeder.SeedAsync(db);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to seed geo/org data on startup");
+    }
+
 }
 
 app.UseSwagger();
@@ -267,6 +354,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseAuthentication();
+app.UseMiddleware<SessionValidationMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -137,6 +137,11 @@ const LANG_KEY = 'travel.lang';
         <a *ngIf="auth.hasPermission('drivers.view')" [routerLink]="basePath() + '/drivers'" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
         <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/staff'" routerLinkActive="active"><i class="bi bi-shield-lock"></i> Staff</a>
         <a *ngIf="auth.hasPermission('reports.view')" [routerLink]="basePath() + '/reports'" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/countries'" routerLinkActive="active"><i class="bi bi-globe-americas"></i> Countries</a>
+        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/states'" routerLinkActive="active"><i class="bi bi-map"></i> States</a>
+        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/cities'" routerLinkActive="active"><i class="bi bi-building"></i> Cities</a>
+        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/departments'" routerLinkActive="active"><i class="bi bi-diagram-3"></i> Departments</a>
+        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/designations'" routerLinkActive="active"><i class="bi bi-person-badge-fill"></i> Designations</a>
         <a [routerLink]="basePath() + '/settings'" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
       </aside>
       <section class="content">

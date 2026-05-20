@@ -14,4 +14,7 @@ public class AppSetting
 
     [MaxLength(20)]
     public string? ThemeMode { get; set; }
+
+    [MaxLength(64)]
+    public string? ActiveSessionToken { get; set; }
 }

@@ -3,9 +3,10 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiResponse, Booking, BookingCreateRequest, Customer, DashboardStats,
-  Driver, Expense, Facility, HomeDestination, Notification, Payment, PaymentInitiateResponse,
-  Refund, Review, Staff, Tour, TourPackage, TourSchedule, TripProfit, Vehicle, VehicleAllocation
+  ApiResponse, Booking, BookingCreateRequest, City, Country, Customer, DashboardStats,
+  Department, Designation, Driver, Expense, Facility, GeoState, HomeDestination, Notification,
+  Payment, PaymentInitiateResponse, Refund, Review, Staff, Tour, TourPackage, TourSchedule,
+  TripProfit, Vehicle, VehicleAllocation
 } from '../models/api.models';
 
 @Injectable({ providedIn: 'root' })
@@ -184,6 +185,41 @@ export class ApiService {
   sendTestEmail(to?: string): Observable<string> {
     return this.unwrap(this.http.post<ApiResponse<string>>(`${this.base}/settings/test-email`, { to }));
   }
+
+  listCountries(activeOnly?: boolean): Observable<Country[]> {
+    return this.unwrap(this.http.get<ApiResponse<Country[]>>(`${this.base}/countries`, { params: this.toParams({ activeOnly }) }));
+  }
+  createCountry(req: any): Observable<Country> { return this.unwrap(this.http.post<ApiResponse<Country>>(`${this.base}/countries`, req)); }
+  updateCountry(id: number, req: any): Observable<Country> { return this.unwrap(this.http.put<ApiResponse<Country>>(`${this.base}/countries/${id}`, req)); }
+  setCountryActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/countries/${id}/active?active=${active}`, {})); }
+
+  listStates(countryId?: number, activeOnly?: boolean): Observable<GeoState[]> {
+    return this.unwrap(this.http.get<ApiResponse<GeoState[]>>(`${this.base}/states`, { params: this.toParams({ countryId, activeOnly }) }));
+  }
+  createState(req: any): Observable<GeoState> { return this.unwrap(this.http.post<ApiResponse<GeoState>>(`${this.base}/states`, req)); }
+  updateState(id: number, req: any): Observable<GeoState> { return this.unwrap(this.http.put<ApiResponse<GeoState>>(`${this.base}/states/${id}`, req)); }
+  setStateActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/states/${id}/active?active=${active}`, {})); }
+
+  listCities(stateId?: number, countryId?: number, activeOnly?: boolean): Observable<City[]> {
+    return this.unwrap(this.http.get<ApiResponse<City[]>>(`${this.base}/cities`, { params: this.toParams({ stateId, countryId, activeOnly }) }));
+  }
+  createCity(req: any): Observable<City> { return this.unwrap(this.http.post<ApiResponse<City>>(`${this.base}/cities`, req)); }
+  updateCity(id: number, req: any): Observable<City> { return this.unwrap(this.http.put<ApiResponse<City>>(`${this.base}/cities/${id}`, req)); }
+  setCityActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/cities/${id}/active?active=${active}`, {})); }
+
+  listDepartments(activeOnly?: boolean): Observable<Department[]> {
+    return this.unwrap(this.http.get<ApiResponse<Department[]>>(`${this.base}/departments`, { params: this.toParams({ activeOnly }) }));
+  }
+  createDepartment(req: any): Observable<Department> { return this.unwrap(this.http.post<ApiResponse<Department>>(`${this.base}/departments`, req)); }
+  updateDepartment(id: number, req: any): Observable<Department> { return this.unwrap(this.http.put<ApiResponse<Department>>(`${this.base}/departments/${id}`, req)); }
+  setDepartmentActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/departments/${id}/active?active=${active}`, {})); }
+
+  listDesignations(departmentId?: number, activeOnly?: boolean): Observable<Designation[]> {
+    return this.unwrap(this.http.get<ApiResponse<Designation[]>>(`${this.base}/designations`, { params: this.toParams({ departmentId, activeOnly }) }));
+  }
+  createDesignation(req: any): Observable<Designation> { return this.unwrap(this.http.post<ApiResponse<Designation>>(`${this.base}/designations`, req)); }
+  updateDesignation(id: number, req: any): Observable<Designation> { return this.unwrap(this.http.put<ApiResponse<Designation>>(`${this.base}/designations/${id}`, req)); }
+  setDesignationActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/designations/${id}/active?active=${active}`, {})); }
 
   listHomeDestinations(activeOnly: boolean = true, assignedToMe?: boolean): Observable<HomeDestination[]> {
     return this.unwrap(this.http.get<ApiResponse<HomeDestination[]>>(`${this.base}/home-destinations`, { params: this.toParams({ activeOnly, assignedToMe }) }));

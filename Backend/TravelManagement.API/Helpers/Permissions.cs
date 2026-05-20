@@ -65,6 +65,31 @@ public static class Permissions
 
     public const string ReportsView = "reports.view";
 
+    public const string CountriesView   = "countries.view";
+    public const string CountriesCreate = "countries.create";
+    public const string CountriesEdit   = "countries.edit";
+    public const string CountriesToggle = "countries.toggle";
+
+    public const string StatesView   = "states.view";
+    public const string StatesCreate = "states.create";
+    public const string StatesEdit   = "states.edit";
+    public const string StatesToggle = "states.toggle";
+
+    public const string CitiesView   = "cities.view";
+    public const string CitiesCreate = "cities.create";
+    public const string CitiesEdit   = "cities.edit";
+    public const string CitiesToggle = "cities.toggle";
+
+    public const string DepartmentsView   = "departments.view";
+    public const string DepartmentsCreate = "departments.create";
+    public const string DepartmentsEdit   = "departments.edit";
+    public const string DepartmentsToggle = "departments.toggle";
+
+    public const string DesignationsView   = "designations.view";
+    public const string DesignationsCreate = "designations.create";
+    public const string DesignationsEdit   = "designations.edit";
+    public const string DesignationsToggle = "designations.toggle";
+
     public static readonly IReadOnlyList<string> All = new[]
     {
         ToursView, ToursCreate, ToursEdit, ToursDelete,
@@ -81,6 +106,11 @@ public static class Permissions
         PaymentsView,
         RefundsView, RefundsEdit,
         ExpensesView, ExpensesCreate, ExpensesEdit, ExpensesDelete,
-        ReportsView
+        ReportsView,
+        CountriesView, CountriesCreate, CountriesEdit, CountriesToggle,
+        StatesView, StatesCreate, StatesEdit, StatesToggle,
+        CitiesView, CitiesCreate, CitiesEdit, CitiesToggle,
+        DepartmentsView, DepartmentsCreate, DepartmentsEdit, DepartmentsToggle,
+        DesignationsView, DesignationsCreate, DesignationsEdit, DesignationsToggle
     };
 }

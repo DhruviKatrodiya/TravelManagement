@@ -1,9 +1,9 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+﻿import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { Staff } from '../../core/models/api.models';
+import { Department, Designation, Staff } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
 @Component({
@@ -96,7 +96,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
 
     <!-- Deactivate confirmation -->
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onDeleteBackdrop($event)">
+    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
@@ -120,7 +120,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
 
     <!-- Add/Edit modal -->
     <div *ngIf="editingId !== null" class="modal-backdrop fade show"></div>
-    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onBackdropClick($event)">
+    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
@@ -146,7 +146,12 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 </div>
                 <div class="col-md-6" *ngIf="editingId === 0">
                   <label class="form-label">Initial password <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" formControlName="password" placeholder="At least 6 characters" [class.is-invalid]="isInvalid(form.get('password'))" />
+                  <div class="input-group" [class.is-invalid]="isInvalid(form.get('password'))">
+                    <input [type]="showPassword ? 'text' : 'password'" class="form-control" formControlName="password" placeholder="At least 6 characters" [class.is-invalid]="isInvalid(form.get('password'))" autocomplete="new-password" />
+                    <button type="button" class="btn btn-outline-secondary" (click)="showPassword = !showPassword" tabindex="-1">
+                      <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+                    </button>
+                  </div>
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('password'))">At least 6 characters.</div>
                 </div>
                 <div class="col-md-6">
@@ -155,14 +160,36 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   <div class="invalid-feedback" *ngIf="isInvalid(form.get('phone'))">Phone is required.</div>
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label">Designation <span class="text-danger">*</span></label>
-                  <input class="form-control" formControlName="designation" [class.is-invalid]="isInvalid(form.get('designation'))" />
-                  <div class="invalid-feedback" *ngIf="isInvalid(form.get('designation'))">Designation is required.</div>
+                  <label class="form-label">Department <span class="text-danger">*</span></label>
+                  <select *ngIf="!deptIsOther" class="form-select" formControlName="department" [class.is-invalid]="isInvalid(form.get('department'))" (change)="onFormDepartmentChange()">
+                    <option value="">— Select department —</option>
+                    <option *ngFor="let d of departments" [value]="d.name">{{ d.name }}</option>
+                    <option value="__other__">Other…</option>
+                  </select>
+                  <div *ngIf="deptIsOther" class="input-group">
+                    <input type="text" class="form-control" placeholder="Type department name…"
+                           [value]="form.get('department')?.value"
+                           (input)="onCustomDeptInput($event)"
+                           [class.is-invalid]="isInvalid(form.get('department'))" />
+                    <button type="button" class="btn btn-outline-secondary" (click)="clearDeptOther()" title="Back to list"><i class="bi bi-x-lg"></i></button>
+                  </div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('department'))">Department is required.</div>
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label">Department <span class="text-danger">*</span></label>
-                  <input class="form-control" formControlName="department" [class.is-invalid]="isInvalid(form.get('department'))" />
-                  <div class="invalid-feedback" *ngIf="isInvalid(form.get('department'))">Department is required.</div>
+                  <label class="form-label">Designation <span class="text-danger">*</span></label>
+                  <select *ngIf="!desigIsOther" class="form-select" formControlName="designation" [class.is-invalid]="isInvalid(form.get('designation'))" (change)="onFormDesignationChange()">
+                    <option value="">— Select designation —</option>
+                    <option *ngFor="let d of formDesignations" [value]="d.name">{{ d.name }}</option>
+                    <option value="__other__">Other…</option>
+                  </select>
+                  <div *ngIf="desigIsOther" class="input-group">
+                    <input type="text" class="form-control" placeholder="Type designation name…"
+                           [value]="form.get('designation')?.value"
+                           (input)="onCustomDesigInput($event)"
+                           [class.is-invalid]="isInvalid(form.get('designation'))" />
+                    <button type="button" class="btn btn-outline-secondary" (click)="clearDesigOther()" title="Back to list"><i class="bi bi-x-lg"></i></button>
+                  </div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('designation'))">Designation is required.</div>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Salary (₹) <span class="text-danger">*</span></label>
@@ -202,7 +229,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           <label class="form-label small text-muted mb-1">Department</label>
           <select class="form-select form-select-sm" [(ngModel)]="filterDepartment" (ngModelChange)="onFilterChange()">
             <option value="">All departments</option>
-            <option *ngFor="let d of departmentOptions()" [value]="d">{{ d }}</option>
+            <option *ngFor="let d of departments" [value]="d.name">{{ d.name }}</option>
           </select>
         </div>
         <div class="col-md-3">
@@ -295,9 +322,15 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
 
   items: Staff[] = [];
+  departments: Department[] = [];
+  allDesignations: Designation[] = [];
+  formDesignations: Designation[] = [];
   viewTarget: Staff | null = null;
   editingId: number | null = null;
   formError = '';
+  showPassword = false;
+  deptIsOther = false;
+  desigIsOther = false;
 
   deleteTarget: Staff | null = null;
   deleting = false;
@@ -334,6 +367,8 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
+    this.api.listDepartments(true).subscribe({ next: ds => this.departments = ds });
+    this.api.listDesignations(undefined, true).subscribe({ next: ds => this.allDesignations = ds });
     this.api.listPermissionCatalog().subscribe({
       next: list => {
         this.permsCatalog = list || [];
@@ -475,10 +510,60 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);
   }
 
-  departmentOptions(): string[] {
-    const set = new Set<string>();
-    for (const s of this.items) if (s.department) set.add(s.department);
-    return Array.from(set).sort();
+  onFormDepartmentChange(): void {
+    const name = this.form.controls['department'].value || '';
+    if (name === '__other__') {
+      this.deptIsOther = true;
+      this.desigIsOther = false;
+      this.formDesignations = [];
+      this.form.patchValue({ department: '', designation: '' }, { emitEvent: false });
+      return;
+    }
+    this.deptIsOther = false;
+    this.desigIsOther = false;
+    const dept = this.departments.find(d => d.name === name);
+    this.formDesignations = dept ? this.allDesignations.filter(d => d.departmentId === dept.id) : [];
+    this.form.patchValue({ designation: '' }, { emitEvent: false });
+  }
+
+  onCustomDeptInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.form.patchValue({ department: val, designation: '' }, { emitEvent: false });
+    const dept = this.departments.find(d => d.name.toLowerCase() === val.toLowerCase());
+    this.formDesignations = dept ? this.allDesignations.filter(d => d.departmentId === dept.id) : [];
+    this.desigIsOther = false;
+  }
+
+  clearDeptOther(): void {
+    this.deptIsOther = false;
+    this.desigIsOther = false;
+    this.formDesignations = [];
+    this.form.patchValue({ department: '', designation: '' }, { emitEvent: false });
+  }
+
+  onFormDesignationChange(): void {
+    const val = this.form.controls['designation'].value || '';
+    if (val === '__other__') {
+      this.desigIsOther = true;
+      this.form.patchValue({ designation: '' }, { emitEvent: false });
+    } else {
+      this.desigIsOther = false;
+    }
+  }
+
+  onCustomDesigInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.form.patchValue({ designation: val }, { emitEvent: false });
+  }
+
+  clearDesigOther(): void {
+    this.desigIsOther = false;
+    this.form.patchValue({ designation: '' }, { emitEvent: false });
+  }
+
+  private syncFormDesignations(deptName: string): void {
+    const dept = this.departments.find(d => d.name === deptName);
+    this.formDesignations = dept ? this.allDesignations.filter(d => d.departmentId === dept.id) : [];
   }
 
   filteredStaff(): Staff[] {
@@ -571,6 +656,10 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.formError = '';
+    this.showPassword = false;
+    this.deptIsOther = false;
+    this.desigIsOther = false;
+    this.formDesignations = [];
     this.form.reset({ fullName: '', email: '', password: '', phone: '', designation: '', department: '', salary: null, isActive: true });
     this.form.controls['password'].setValidators([Validators.required, Validators.minLength(6)]);
     this.form.controls['password'].updateValueAndValidity();
@@ -580,6 +669,12 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
   edit(s: Staff): void {
     this.editingId = s.id;
     this.formError = '';
+    this.showPassword = false;
+    this.syncFormDesignations(s.department || '');
+    const deptKnown = this.departments.some(d => d.name === s.department);
+    const desigKnown = this.formDesignations.some(d => d.name === s.designation);
+    this.deptIsOther = !!s.department && !deptKnown;
+    this.desigIsOther = !!s.designation && !desigKnown;
     this.form.controls['password'].clearValidators();
     this.form.controls['password'].updateValueAndValidity();
     this.form.reset({
@@ -595,7 +690,7 @@ export class AdminStaffComponent implements OnInit, OnDestroy {
     this.lockBody();
   }
 
-  cancel(): void { this.editingId = null; this.formError = ''; this.unlockBody(); }
+  cancel(): void { this.editingId = null; this.formError = ''; this.showPassword = false; this.deptIsOther = false; this.desigIsOther = false; this.unlockBody(); }
 
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }

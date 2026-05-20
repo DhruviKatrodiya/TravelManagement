@@ -1,9 +1,9 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+﻿import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { Customer } from '../../core/models/api.models';
+import { City, Country, Customer, GeoState } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
 @Component({
@@ -17,7 +17,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
 
     <!-- Deactivate confirmation -->
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onDeleteBackdrop($event)">
+    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
@@ -41,7 +41,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
 
     <!-- Add/Edit modal -->
     <div *ngIf="editingId !== null" class="modal-backdrop fade show"></div>
-    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onBackdropClick($event)">
+    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
@@ -93,7 +93,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Country</label>
-                  <input class="form-control" formControlName="country" />
+                  <select class="form-select" formControlName="country" (change)="onFormCountryChange()">
+                    <option value="">— Select country —</option>
+                    <option *ngFor="let c of countries" [value]="c.name">{{ c.name }}</option>
+                  </select>
                 </div>
 
                 <div class="col-12">
@@ -103,13 +106,19 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">City <span class="text-danger">*</span></label>
-                  <input class="form-control" formControlName="city" [class.is-invalid]="isInvalid(form.get('city'))" />
-                  <div class="invalid-feedback" *ngIf="isInvalid(form.get('city'))">City is required.</div>
+                  <select class="form-select" formControlName="city" [class.is-invalid]="isInvalid(form.get('city'))">
+                    <option value="">— Select city —</option>
+                    <option *ngFor="let c of formCities" [value]="c.name">{{ c.name }}</option>
+                  </select>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('city'))">City is required.</div>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">State <span class="text-danger">*</span></label>
-                  <input class="form-control" formControlName="state" [class.is-invalid]="isInvalid(form.get('state'))" />
-                  <div class="invalid-feedback" *ngIf="isInvalid(form.get('state'))">State is required.</div>
+                  <select class="form-select" formControlName="state" [class.is-invalid]="isInvalid(form.get('state'))" (change)="onFormStateChange()">
+                    <option value="">— Select state —</option>
+                    <option *ngFor="let s of formStates" [value]="s.name">{{ s.name }}</option>
+                  </select>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('state'))">State is required.</div>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Postal code <span class="text-danger">*</span></label>
@@ -150,7 +159,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           <label class="form-label small text-muted mb-1">Country</label>
           <select class="form-select form-select-sm" [(ngModel)]="filterCountry" (ngModelChange)="onFilterChange()">
             <option value="">All countries</option>
-            <option *ngFor="let c of countryOptions()" [value]="c">{{ c }}</option>
+            <option *ngFor="let c of countries" [value]="c.name">{{ c.name }}</option>
           </select>
         </div>
         <div class="col-md-2">
@@ -252,6 +261,11 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
 
   items: Customer[] = [];
+  countries: Country[] = [];
+  allStates: GeoState[] = [];
+  allCities: City[] = [];
+  formStates: GeoState[] = [];
+  formCities: City[] = [];
   editingId: number | null = null;
   viewMode = false;
   formError = '';
@@ -289,7 +303,12 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     idProofNumber: ['']
   });
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.api.listCountries(true).subscribe({ next: cs => this.countries = cs });
+    this.api.listStates(undefined, true).subscribe({ next: ss => this.allStates = ss });
+    this.api.listCities(undefined, undefined, true).subscribe({ next: cs => this.allCities = cs });
+  }
   ngOnDestroy(): void { this.unlockBody(); }
 
   @HostListener('document:keydown.escape')
@@ -325,9 +344,27 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     return !!ctrl && ctrl.invalid && (ctrl.touched || ctrl.dirty);
   }
 
-  readonly supportedCountries: string[] = ['India', 'Bhutan', 'Nepal'];
+  onFormCountryChange(): void {
+    const name = this.form.controls.country.value || '';
+    const country = this.countries.find(c => c.name === name);
+    this.formStates = country ? this.allStates.filter(s => s.countryId === country.id) : [];
+    this.formCities = [];
+    this.form.patchValue({ state: '', city: '' }, { emitEvent: false });
+  }
 
-  countryOptions(): string[] { return this.supportedCountries; }
+  onFormStateChange(): void {
+    const name = this.form.controls.state.value || '';
+    const state = this.allStates.find(s => s.name === name);
+    this.formCities = state ? this.allCities.filter(c => c.stateId === state.id) : [];
+    this.form.patchValue({ city: '' }, { emitEvent: false });
+  }
+
+  private syncFormCascade(countryName: string, stateName: string): void {
+    const country = this.countries.find(c => c.name === countryName);
+    this.formStates = country ? this.allStates.filter(s => s.countryId === country.id) : [];
+    const state = this.allStates.find(s => s.name === stateName);
+    this.formCities = state ? this.allCities.filter(c => c.stateId === state.id) : [];
+  }
 
   filteredCustomers(): Customer[] {
     const q = this.filterName.trim().toLowerCase();
@@ -421,9 +458,11 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   startCreate(): void {
     this.editingId = 0;
     this.viewMode = false;
+    this.formStates = [];
+    this.formCities = [];
     this.form.reset({
       fullName: '', email: '', password: '', phone: '',
-      address: '', city: '', state: '', postalCode: '', country: 'India',
+      address: '', city: '', state: '', postalCode: '', country: '',
       dateOfBirth: '', gender: '', idProofType: '', idProofNumber: ''
     });
     this.form.controls.password.setValidators([Validators.required, Validators.minLength(6)]);
@@ -434,6 +473,7 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   }
 
   private patchFromCustomer(c: Customer): void {
+    this.syncFormCascade(c.country || '', c.state || '');
     this.form.reset({
       fullName: c.fullName,
       email: c.email,
@@ -443,7 +483,7 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
       city: c.city || '',
       state: c.state || '',
       postalCode: c.postalCode || '',
-      country: c.country || 'India',
+      country: c.country || '',
       dateOfBirth: c.dateOfBirth ? c.dateOfBirth.substring(0, 10) : '',
       gender: c.gender || '',
       idProofType: c.idProofType || '',

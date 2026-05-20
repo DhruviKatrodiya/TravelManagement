@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+﻿import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
@@ -17,7 +17,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     </div>
 
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onDeleteBackdrop($event)">
+    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
@@ -40,7 +40,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     </div>
 
     <div *ngIf="editingId !== null" class="modal-backdrop fade show"></div>
-    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onBackdropClick($event)">
+    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">

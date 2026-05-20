@@ -31,6 +31,14 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<AuthResponse>.Ok(res, "Login successful"));
     }
 
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> Logout()
+    {
+        await _auth.LogoutAsync();
+        return Ok(ApiResponse<object>.Ok(new { }, "Logged out"));
+    }
+
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<ApiResponse<UserDto>>> Me()

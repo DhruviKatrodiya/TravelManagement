@@ -359,3 +359,42 @@ export interface TripProfit {
   expenses: number;
   profit: number;
 }
+
+export interface Country {
+  id: number;
+  name: string;
+  code?: string;
+  isActive: boolean;
+}
+
+export interface GeoState {
+  id: number;
+  name: string;
+  countryId: number;
+  countryName: string;
+  isActive: boolean;
+}
+
+export interface City {
+  id: number;
+  name: string;
+  stateId: number;
+  stateName: string;
+  countryId: number;
+  countryName: string;
+  isActive: boolean;
+}
+
+export interface Department {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
+export interface Designation {
+  id: number;
+  name: string;
+  departmentId: number;
+  departmentName: string;
+  isActive: boolean;
+}

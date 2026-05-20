@@ -46,6 +46,11 @@ import { AdminAllocationsComponent } from './pages/admin/admin-allocations.compo
 import { AdminReportsComponent } from './pages/admin/admin-reports.component';
 import { AdminSettingsComponent } from './pages/admin/admin-settings.component';
 import { AdminDestinationsComponent } from './pages/admin/admin-destinations.component';
+import { AdminCountriesComponent } from './pages/admin/admin-countries.component';
+import { AdminStatesComponent } from './pages/admin/admin-states.component';
+import { AdminCitiesComponent } from './pages/admin/admin-cities.component';
+import { AdminDepartmentsComponent } from './pages/admin/admin-departments.component';
+import { AdminDesignationsComponent } from './pages/admin/admin-designations.component';
 import { SelectFieldComponent } from './shared/select-field.component';
 
 @NgModule({
@@ -86,6 +91,11 @@ import { SelectFieldComponent } from './shared/select-field.component';
     AdminReportsComponent,
     AdminSettingsComponent,
     AdminDestinationsComponent,
+    AdminCountriesComponent,
+    AdminStatesComponent,
+    AdminCitiesComponent,
+    AdminDepartmentsComponent,
+    AdminDesignationsComponent,
     SelectFieldComponent
   ],
   exports: [

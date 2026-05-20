@@ -29,6 +29,8 @@ public class User
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
 
+    public string? SessionToken { get; set; }
+
     public Customer? Customer { get; set; }
     public Staff? Staff { get; set; }
 }

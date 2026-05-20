@@ -61,9 +61,10 @@ public class AuthService : IAuthService
         };
 
         _db.Customers.Add(customer);
+        var globalToken = await RotateGlobalSessionAsync();
         await _db.SaveChangesAsync();
 
-        var (token, expiresAt) = _tokens.GenerateToken(user);
+        var (token, expiresAt) = _tokens.GenerateToken(user, globalToken);
         return new AuthResponse
         {
             Token = token,
@@ -85,10 +86,11 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Your account has been deactivated. Please contact support to regain access.");
 
         user.LastLoginAt = DateTime.UtcNow;
+        var globalToken = await RotateGlobalSessionAsync();
         await _db.SaveChangesAsync();
 
         var perms = user.Role == UserRole.Staff ? await _staff.GetPermissionsByUserIdAsync(user.Id) : null;
-        var (token, expiresAt) = _tokens.GenerateToken(user, perms);
+        var (token, expiresAt) = _tokens.GenerateToken(user, globalToken, perms);
 
         if (user.Role == UserRole.Customer)
         {
@@ -274,6 +276,31 @@ public class AuthService : IAuthService
                  above and update your password from your <strong>Profile → Change Password</strong> settings.
                </p>
                <p style=""color:#888;font-size:0.9em;"">If you did not request this, please contact support immediately.</p>");
+    }
+
+    public async Task LogoutAsync()
+    {
+        var settings = await _db.AppSettings.FindAsync(1);
+        if (settings != null)
+        {
+            settings.ActiveSessionToken = null;
+            await _db.SaveChangesAsync();
+        }
+    }
+
+    private async Task<string> RotateGlobalSessionAsync()
+    {
+        var newToken = Guid.NewGuid().ToString("N");
+        var settings = await _db.AppSettings.FindAsync(1);
+        if (settings != null)
+        {
+            settings.ActiveSessionToken = newToken;
+        }
+        else
+        {
+            _db.AppSettings.Add(new AppSetting { Id = 1, ActiveSessionToken = newToken });
+        }
+        return newToken;
     }
 
     public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request)

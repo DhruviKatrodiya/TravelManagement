@@ -40,6 +40,11 @@ import { AdminAllocationsComponent } from './pages/admin/admin-allocations.compo
 import { AdminReportsComponent } from './pages/admin/admin-reports.component';
 import { AdminSettingsComponent } from './pages/admin/admin-settings.component';
 import { AdminDestinationsComponent } from './pages/admin/admin-destinations.component';
+import { AdminCountriesComponent } from './pages/admin/admin-countries.component';
+import { AdminStatesComponent } from './pages/admin/admin-states.component';
+import { AdminCitiesComponent } from './pages/admin/admin-cities.component';
+import { AdminDepartmentsComponent } from './pages/admin/admin-departments.component';
+import { AdminDesignationsComponent } from './pages/admin/admin-designations.component';
 
 const routes: Routes = [
   {
@@ -98,6 +103,11 @@ const routes: Routes = [
       { path: 'allocations', component: AdminAllocationsComponent, canActivate: [authGuard], data: { permission: 'allocations.view' } },
       { path: 'reports', component: AdminReportsComponent, canActivate: [authGuard], data: { permission: 'reports.view' } },
       { path: 'destinations', component: AdminDestinationsComponent, canActivate: [authGuard], data: { permission: 'destinations.view' } },
+      { path: 'countries', component: AdminCountriesComponent },
+      { path: 'states', component: AdminStatesComponent },
+      { path: 'cities', component: AdminCitiesComponent },
+      { path: 'departments', component: AdminDepartmentsComponent },
+      { path: 'designations', component: AdminDesignationsComponent },
       { path: 'settings', component: AdminSettingsComponent }
     ]
   },

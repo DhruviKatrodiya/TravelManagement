@@ -32,6 +32,11 @@ public class TravelDbContext : DbContext
     public DbSet<VehicleAllocationStaff> VehicleAllocationStaff => Set<VehicleAllocationStaff>();
     public DbSet<StaffPermission> StaffPermissions => Set<StaffPermission>();
     public DbSet<OtpRecord> OtpRecords => Set<OtpRecord>();
+    public DbSet<Country> Countries => Set<Country>();
+    public DbSet<State> States => Set<State>();
+    public DbSet<City> Cities => Set<City>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Designation> Designations => Set<Designation>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -127,6 +132,21 @@ public class TravelDbContext : DbContext
         builder.Entity<Notification>(e =>
         {
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<State>(e =>
+        {
+            e.HasOne(x => x.Country).WithMany(c => c.States).HasForeignKey(x => x.CountryId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<City>(e =>
+        {
+            e.HasOne(x => x.State).WithMany(s => s.Cities).HasForeignKey(x => x.StateId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Designation>(e =>
+        {
+            e.HasOne(x => x.Department).WithMany(d => d.Designations).HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<HomeDestinationTour>(e =>

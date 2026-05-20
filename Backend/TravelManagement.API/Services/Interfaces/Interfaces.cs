@@ -1,6 +1,7 @@
 using TravelManagement.API.DTOs.Auth;
 using TravelManagement.API.DTOs.Booking;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.DTOs.Geo;
 using TravelManagement.API.DTOs.Payment;
 using TravelManagement.API.DTOs.Tour;
 using TravelManagement.API.Models;
@@ -18,6 +19,7 @@ public interface IAuthService
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request);
     Task ForgotPasswordAsync(ForgotPasswordRequest request);
     Task VerifyForgotPasswordOtpAsync(VerifyForgotPasswordOtpRequest request);
+    Task LogoutAsync();
 }
 
 public interface IAppSettingsService
@@ -36,7 +38,7 @@ public interface IHomeDestinationService
 
 public interface ITokenService
 {
-    (string token, DateTime expiresAt) GenerateToken(User user, IEnumerable<string>? permissions = null);
+    (string token, DateTime expiresAt) GenerateToken(User user, string globalSessionToken, IEnumerable<string>? permissions = null);
 }
 
 public interface IEmailService
@@ -197,4 +199,49 @@ public interface IReportService
 {
     Task<DashboardStatsDto> GetDashboardAsync();
     Task<IEnumerable<TripProfitDto>> GetTripProfitsAsync(ReportFilter filter);
+}
+
+public interface ICountryService
+{
+    Task<IEnumerable<CountryDto>> ListAsync(bool? activeOnly = null);
+    Task<CountryDto?> GetAsync(int id);
+    Task<CountryDto> CreateAsync(CountryRequest req);
+    Task<CountryDto?> UpdateAsync(int id, CountryRequest req);
+    Task<bool> SetActiveAsync(int id, bool active);
+}
+
+public interface IStateService
+{
+    Task<IEnumerable<StateDto>> ListAsync(int? countryId = null, bool? activeOnly = null);
+    Task<StateDto?> GetAsync(int id);
+    Task<StateDto> CreateAsync(StateRequest req);
+    Task<StateDto?> UpdateAsync(int id, StateRequest req);
+    Task<bool> SetActiveAsync(int id, bool active);
+}
+
+public interface ICityService
+{
+    Task<IEnumerable<CityDto>> ListAsync(int? stateId = null, int? countryId = null, bool? activeOnly = null);
+    Task<CityDto?> GetAsync(int id);
+    Task<CityDto> CreateAsync(CityRequest req);
+    Task<CityDto?> UpdateAsync(int id, CityRequest req);
+    Task<bool> SetActiveAsync(int id, bool active);
+}
+
+public interface IDepartmentService
+{
+    Task<IEnumerable<DepartmentDto>> ListAsync(bool? activeOnly = null);
+    Task<DepartmentDto?> GetAsync(int id);
+    Task<DepartmentDto> CreateAsync(DepartmentRequest req);
+    Task<DepartmentDto?> UpdateAsync(int id, DepartmentRequest req);
+    Task<bool> SetActiveAsync(int id, bool active);
+}
+
+public interface IDesignationService
+{
+    Task<IEnumerable<DesignationDto>> ListAsync(int? departmentId = null, bool? activeOnly = null);
+    Task<DesignationDto?> GetAsync(int id);
+    Task<DesignationDto> CreateAsync(DesignationRequest req);
+    Task<DesignationDto?> UpdateAsync(int id, DesignationRequest req);
+    Task<bool> SetActiveAsync(int id, bool active);
 }

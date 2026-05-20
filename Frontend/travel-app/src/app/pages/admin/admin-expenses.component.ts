@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+﻿import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -36,7 +36,7 @@ import { Booking, Expense } from '../../core/models/api.models';
 
     <!-- Deactivate confirmation -->
     <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onDeleteBackdrop($event)">
+    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
@@ -60,7 +60,7 @@ import { Booking, Expense } from '../../core/models/api.models';
 
     <!-- Add/Edit modal -->
     <div *ngIf="editingId !== null" class="modal-backdrop fade show"></div>
-    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onBackdropClick($event)">
+    <div *ngIf="editingId !== null" class="modal fade show d-block" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-lg modal-dialog-centered" (click)="$event.stopPropagation()">
         <div class="modal-content">
           <div class="modal-header">
