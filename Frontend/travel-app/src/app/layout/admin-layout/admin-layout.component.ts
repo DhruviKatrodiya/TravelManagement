@@ -132,17 +132,17 @@ const LANG_KEY = 'travel.lang';
         <a *ngIf="auth.hasPermission('payments.view')" [routerLink]="basePath() + '/payments'" routerLinkActive="active"><i class="bi bi-credit-card-2-front"></i> Payments</a>
         <a *ngIf="auth.hasPermission('refunds.view')" [routerLink]="basePath() + '/refunds'" routerLinkActive="active"><i class="bi bi-arrow-counterclockwise"></i> Refunds</a>
         <a *ngIf="auth.hasPermission('expenses.view')" [routerLink]="basePath() + '/expenses'" routerLinkActive="active"><i class="bi bi-cash-coin"></i> Expenses</a>
-        <a *ngIf="auth.isAdmin() || auth.hasPermission('customers.view')" [routerLink]="basePath() + '/people'" routerLinkActive="active"><i class="bi bi-people-fill"></i> People</a>
+        <a *ngIf="auth.hasPermission('customers.view')" [routerLink]="basePath() + '/people'" routerLinkActive="active"><i class="bi bi-people-fill"></i> People</a>
         <a *ngIf="auth.hasPermission('reviews.view')" [routerLink]="basePath() + '/reviews'" routerLinkActive="active"><i class="bi bi-chat-quote"></i> Reviews</a>
         <a *ngIf="auth.hasPermission('vehicles.view')" [routerLink]="basePath() + '/vehicles'" routerLinkActive="active"><i class="bi bi-truck"></i> Vehicles</a>
         <a *ngIf="auth.hasPermission('allocations.view')" [routerLink]="basePath() + '/allocations'" routerLinkActive="active"><i class="bi bi-pin-map"></i> Allocations</a>
         <a *ngIf="auth.hasPermission('drivers.view')" [routerLink]="basePath() + '/drivers'" routerLinkActive="active"><i class="bi bi-person-badge"></i> Drivers</a>
         <a *ngIf="auth.hasPermission('reports.view')" [routerLink]="basePath() + '/reports'" routerLinkActive="active"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
-        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/countries'" routerLinkActive="active"><i class="bi bi-globe-americas"></i> Countries</a>
-        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/states'" routerLinkActive="active"><i class="bi bi-map"></i> States</a>
-        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/cities'" routerLinkActive="active"><i class="bi bi-building"></i> Cities</a>
-        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/departments'" routerLinkActive="active"><i class="bi bi-diagram-3"></i> Departments</a>
-        <a *ngIf="auth.isAdmin()" [routerLink]="basePath() + '/designations'" routerLinkActive="active"><i class="bi bi-person-badge-fill"></i> Designations</a>
+        <a *ngIf="auth.hasPermission('countries.view')" [routerLink]="basePath() + '/countries'" routerLinkActive="active"><i class="bi bi-globe-americas"></i> Countries</a>
+        <a *ngIf="auth.hasPermission('states.view')" [routerLink]="basePath() + '/states'" routerLinkActive="active"><i class="bi bi-map"></i> States</a>
+        <a *ngIf="auth.hasPermission('cities.view')" [routerLink]="basePath() + '/cities'" routerLinkActive="active"><i class="bi bi-building"></i> Cities</a>
+        <a *ngIf="auth.hasPermission('departments.view')" [routerLink]="basePath() + '/departments'" routerLinkActive="active"><i class="bi bi-diagram-3"></i> Departments</a>
+        <a *ngIf="auth.hasPermission('designations.view')" [routerLink]="basePath() + '/designations'" routerLinkActive="active"><i class="bi bi-person-badge-fill"></i> Designations</a>
         <a [routerLink]="basePath() + '/settings'" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
       </aside>
       <section class="content">

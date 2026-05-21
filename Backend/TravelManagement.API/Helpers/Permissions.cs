@@ -27,10 +27,12 @@ public static class Permissions
     public const string SchedulesEdit = "schedules.edit";
     public const string SchedulesDelete = "schedules.delete";
 
-    public const string CustomersView = "customers.view";
-    public const string CustomersCreate = "customers.create";
-    public const string CustomersEdit = "customers.edit";
-    public const string CustomersDelete = "customers.delete";
+    public const string CustomersView         = "customers.view";
+    public const string CustomersCreate       = "customers.create";
+    public const string CustomersEdit         = "customers.edit";
+    public const string CustomersDelete       = "customers.delete";
+    public const string CustomersUpdateMobile = "customers.update_mobile";
+    public const string CustomersUpdateEmail  = "customers.update_email";
 
     public const string ReviewsView = "reviews.view";
     public const string ReviewsEdit = "reviews.edit";
@@ -81,12 +83,6 @@ public static class Permissions
     public const string AllocationsSearch = "allocations.search";
     public const string ReviewsSearch     = "reviews.search";
 
-    // Field-level update permissions
-    public const string CustomersUpdatePhone = "customers.update_phone";
-    public const string CustomersUpdateEmail = "customers.update_email";
-    public const string StaffUpdatePhone     = "staff.update_phone";
-    public const string StaffUpdateEmail     = "staff.update_email";
-
     public const string CountriesView   = "countries.view";
     public const string CountriesCreate = "countries.create";
     public const string CountriesEdit   = "countries.edit";
@@ -125,7 +121,7 @@ public static class Permissions
         PackagesView, PackagesCreate, PackagesEdit, PackagesDelete,
         FacilitiesView, FacilitiesCreate, FacilitiesEdit, FacilitiesDelete,
         SchedulesView, SchedulesCreate, SchedulesEdit, SchedulesDelete,
-        CustomersView, CustomersCreate, CustomersEdit, CustomersDelete,
+        CustomersView, CustomersCreate, CustomersEdit, CustomersDelete, CustomersUpdateMobile, CustomersUpdateEmail,
         ReviewsView, ReviewsEdit, ReviewsDelete,
         VehiclesView, VehiclesCreate, VehiclesEdit, VehiclesDelete,
         DriversView, DriversCreate, DriversEdit, DriversDelete,
@@ -138,7 +134,6 @@ public static class Permissions
         ToursSearch, DestinationsSearch, PackagesSearch, FacilitiesSearch, SchedulesSearch,
         CustomersSearch, BookingsSearch, PaymentsSearch, RefundsSearch, ExpensesSearch,
         VehiclesSearch, DriversSearch, AllocationsSearch, ReviewsSearch,
-        CustomersUpdatePhone, CustomersUpdateEmail, StaffUpdatePhone, StaffUpdateEmail,
         CountriesView, CountriesCreate, CountriesEdit, CountriesToggle,
         StatesView, StatesCreate, StatesEdit, StatesToggle,
         CitiesView, CitiesCreate, CitiesEdit, CitiesToggle,

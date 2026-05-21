@@ -47,7 +47,10 @@ public class StaffService : IStaffService
                 Email = req.Email,
                 Phone = req.Phone,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-                Role = UserRole.Staff,
+                Role = (!string.IsNullOrWhiteSpace(req.SystemRole) &&
+                        Enum.TryParse<UserRole>(req.SystemRole, out var r) &&
+                        r is UserRole.Staff or UserRole.Admin)
+                       ? r : UserRole.Staff,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             }
@@ -92,6 +95,14 @@ public class StaffService : IStaffService
         s.Department = req.Department;
         s.Salary = req.Salary;
         s.AppRoleId = req.AppRoleId;
+
+        // System-level promotion/demotion (only Staff ↔ Admin allowed)
+        if (!string.IsNullOrWhiteSpace(req.SystemRole) &&
+            Enum.TryParse<UserRole>(req.SystemRole, out var newSystemRole) &&
+            newSystemRole is UserRole.Staff or UserRole.Admin)
+        {
+            s.User.Role = newSystemRole;
+        }
 
         await _db.SaveChangesAsync();
 
@@ -165,12 +176,8 @@ public class StaffService : IStaffService
 
     public async Task<List<string>> GetPermissionsByUserIdAsync(int userId)
     {
-        var staff = await _db.StaffMembers
-            .Include(s => s.AppRole).ThenInclude(r => r!.Permissions)
-            .FirstOrDefaultAsync(s => s.UserId == userId);
+        var staff = await _db.StaffMembers.FirstOrDefaultAsync(s => s.UserId == userId);
         if (staff == null) return new List<string>();
-        if (staff.AppRole != null)
-            return staff.AppRole.Permissions.Select(p => p.Permission).ToList();
         return await GetPermissionsAsync(staff.Id);
     }
 

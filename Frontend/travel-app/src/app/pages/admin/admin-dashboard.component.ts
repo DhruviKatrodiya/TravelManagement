@@ -11,41 +11,39 @@ Chart.register(...registerables);
   standalone: false,
   template: `
     <h2 class="fw-bold mb-1">{{ auth.isAdmin() ? 'Business Overview' : 'Operations Overview' }}</h2>
-    <p class="text-muted mb-4" *ngIf="!auth.isAdmin()">Day-to-day snapshot — bookings, customers, fleet and catalogue.</p>
 
     <div *ngIf="!stats" class="text-center py-5"><div class="spinner-border text-primary"></div></div>
 
     <ng-container *ngIf="stats">
-      <ng-container *ngIf="auth.isAdmin(); else staffKpis">
-        <div class="row g-3 mb-4">
-          <div class="col-md-3"><div class="kpi"><div class="label">Total revenue</div><div class="value text-success">₹ {{ stats.totalRevenue | number:'1.0-0' }}</div><div class="sub">Lifetime</div></div></div>
-          <div class="col-md-3"><div class="kpi"><div class="label">Total expenses</div><div class="value text-danger">₹ {{ stats.totalExpenses | number:'1.0-0' }}</div><div class="sub">Lifetime</div></div></div>
-          <div class="col-md-3"><div class="kpi"><div class="label">Profit</div><div class="value" [class.text-success]="stats.profit >= 0" [class.text-danger]="stats.profit < 0">₹ {{ stats.profit | number:'1.0-0' }}</div><div class="sub">Revenue − expenses</div></div></div>
-          <div class="col-md-3"><div class="kpi"><div class="label">Customers</div><div class="value">{{ stats.totalCustomers }}</div><div class="sub">Registered</div></div></div>
+      <!-- KPI cards -->
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Total revenue</div><div class="value text-success">₹ {{ stats.totalRevenue | number:'1.0-0' }}</div><div class="sub">Lifetime</div></div>
         </div>
-        <div class="row g-3 mb-4">
-          <div class="col-md-3"><div class="kpi"><div class="label">Bookings</div><div class="value">{{ stats.totalBookings }}</div><div class="sub">{{ stats.confirmedBookings }} confirmed</div></div></div>
-          <div class="col-md-3"><div class="kpi"><div class="label">Pending</div><div class="value text-warning">{{ stats.pendingBookings }}</div><div class="sub">Awaiting payment</div></div></div>
-          <div class="col-md-3"><div class="kpi"><div class="label">Tours / Packages</div><div class="value">{{ stats.activeTours }} / {{ stats.activePackages }}</div><div class="sub">Currently active</div></div></div>
-          <div class="col-md-3"><div class="kpi"><div class="label">Fleet</div><div class="value">{{ stats.vehiclesAvailable }} / {{ stats.driversAvailable }}</div><div class="sub">Vehicles / Drivers</div></div></div>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Total expenses</div><div class="value text-danger">₹ {{ stats.totalExpenses | number:'1.0-0' }}</div><div class="sub">Lifetime</div></div>
         </div>
-      </ng-container>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Profit</div><div class="value" [class.text-success]="stats.profit >= 0" [class.text-danger]="stats.profit < 0">₹ {{ stats.profit | number:'1.0-0' }}</div><div class="sub">Revenue − expenses</div></div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Customers</div><div class="value">{{ stats.totalCustomers }}</div><div class="sub">Registered</div></div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Bookings</div><div class="value">{{ stats.totalBookings }}</div><div class="sub">{{ stats.confirmedBookings }} confirmed</div></div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Pending</div><div class="value text-warning">{{ stats.pendingBookings }}</div><div class="sub">Awaiting payment</div></div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Tours / Packages</div><div class="value">{{ stats.activeTours }} / {{ stats.activePackages }}</div><div class="sub">Currently active</div></div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <div class="kpi"><div class="label">Fleet</div><div class="value">{{ stats.vehiclesAvailable }} / {{ stats.driversAvailable }}</div><div class="sub">Vehicles / Drivers</div></div>
+        </div>
+      </div>
 
-      <ng-template #staffKpis>
-        <div class="row g-3 mb-4">
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Bookings</div><div class="value">{{ stats.totalBookings }}</div><div class="sub">{{ stats.confirmedBookings }} confirmed</div></div></div>
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Pending</div><div class="value text-warning">{{ stats.pendingBookings }}</div><div class="sub">Awaiting payment</div></div></div>
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Confirmed</div><div class="value text-success">{{ stats.confirmedBookings }}</div><div class="sub">Ready to depart</div></div></div>
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Cancelled</div><div class="value text-danger">{{ stats.cancelledBookings }}</div><div class="sub">Lifetime</div></div></div>
-        </div>
-        <div class="row g-3 mb-4">
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Customers</div><div class="value">{{ stats.totalCustomers }}</div><div class="sub">Registered</div></div></div>
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Active tours</div><div class="value">{{ stats.activeTours }}</div><div class="sub">Currently published</div></div></div>
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Active packages</div><div class="value">{{ stats.activePackages }}</div><div class="sub">Bookable now</div></div></div>
-          <div class="col-sm-6 col-md-3"><div class="kpi"><div class="label">Fleet</div><div class="value">{{ stats.vehiclesAvailable }} / {{ stats.driversAvailable }}</div><div class="sub">Vehicles / Drivers</div></div></div>
-        </div>
-      </ng-template>
-
+      <!-- Charts -->
       <div class="row g-3 mb-4">
         <div class="col-lg-6">
           <div class="table-card h-100">

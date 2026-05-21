@@ -16,6 +16,7 @@ interface Person {
   phone?: string;
   appRoleId?: number | null;
   appRoleName?: string;
+  systemRole?: string;
   isActive: boolean;
   joinedAt?: string;
   department?: string;
@@ -40,7 +41,7 @@ interface Person {
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">People Management</h2>
-      <button class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add person</button>
+      <button *ngIf="auth.hasPermission('customers.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add person</button>
     </div>
 
     <!-- View modal -->
@@ -154,6 +155,18 @@ interface Person {
                     <option *ngFor="let r of roles" [ngValue]="r.id">{{ r.name }}</option>
                   </select>
                   <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('appRoleId'))">Role is required.</div>
+                </div>
+                <!-- Access level — SuperAdmin only, staff type only -->
+                <div class="col-md-6" *ngIf="auth.isSuperAdmin() && formType === 'staff'">
+                  <label class="form-label">Access level</label>
+                  <select class="form-select" formControlName="systemRole">
+                    <option value="Staff">Staff Member</option>
+                    <option value="Admin">Administrator</option>
+                  </select>
+                  <div class="text-muted small mt-1" *ngIf="editingId">
+                    <i class="bi bi-info-circle me-1"></i>
+                    User must log out and back in for this change to take effect.
+                  </div>
                 </div>
               </div>
 
@@ -307,7 +320,7 @@ interface Person {
             <option *ngFor="let r of roles" [value]="r.id">{{ r.name }}</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label small text-muted mb-1">Status</label>
           <select class="form-select form-select-sm" [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
             <option value="all">All</option>
@@ -315,9 +328,9 @@ interface Person {
             <option value="inactive">Disabled</option>
           </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-1">
           <button class="btn btn-outline-secondary btn-sm w-100" (click)="clearFilters()" [disabled]="!filtersApplied()">
-            <i class="bi bi-x-lg me-1"></i>Clear
+            <i class="bi bi-x-lg"></i>
           </button>
         </div>
       </div>
@@ -344,7 +357,10 @@ interface Person {
               <td class="text-muted small">{{ p.email }}</td>
               <td class="text-muted small">{{ p.phone || '—' }}</td>
               <td>
-                <span *ngIf="p.appRoleName" class="badge bg-primary">{{ p.appRoleName }}</span>
+                <span *ngIf="p.appRoleName"
+                      class="badge"
+                      [style.background]="roleColor(p.appRoleName)"
+                      style="color:#fff;">{{ p.appRoleName }}</span>
                 <span *ngIf="!p.appRoleName" class="text-muted small">—</span>
               </td>
               <td class="text-muted small">{{ p.joinedAt | date:'mediumDate' }}</td>
@@ -352,11 +368,11 @@ interface Person {
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(p)"><i class="bi bi-eye me-1"></i>View</button>
-                  <button class="btn btn-sm btn-outline-secondary" (click)="edit(p)">Edit</button>
-                  <button *ngIf="p.isActive" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id">
+                  <button *ngIf="auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(p)">Edit</button>
+                  <button *ngIf="p.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
-                  <button *ngIf="!p.isActive" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id">
+                  <button *ngIf="!p.isActive && auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id">
                     <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>
@@ -425,6 +441,7 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     password:      [''],
     phone:         ['', Validators.required],
     appRoleId:     [null as number | null, Validators.required],
+    systemRole:    ['Staff'],
     department:    [''],
     designation:   [''],
     salary:        [null as number | null],
@@ -528,7 +545,7 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     this.deptIsOther = false;
     this.desigIsOther = false;
     this.formDesignations = [];
-    this.form.reset({ fullName: '', email: '', password: '', phone: '', appRoleId: null, department: '', designation: '', salary: null, dateOfBirth: '', gender: '', address: '', city: '', state: '', country: '', postalCode: '', idProofType: '', idProofNumber: '', isActive: true });
+    this.form.reset({ fullName: '', email: '', password: '', phone: '', appRoleId: null, systemRole: 'Staff', department: '', designation: '', salary: null, dateOfBirth: '', gender: '', address: '', city: '', state: '', country: '', postalCode: '', idProofType: '', idProofNumber: '', isActive: true });
     this.clearFieldValidators();
     this.form.controls.password.setValidators([Validators.required, Validators.minLength(6)]);
     this.form.controls.password.updateValueAndValidity();
@@ -545,7 +562,8 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     this.desigIsOther = !!p.designation && !this.formDesignations.some(d => d.name === p.designation);
     this.form.reset({
       fullName: p.fullName, email: p.email, password: '', phone: p.phone || '',
-      appRoleId: p.appRoleId ?? null, department: p.department || '', designation: p.designation || '',
+      appRoleId: p.appRoleId ?? null, systemRole: p.systemRole || 'Staff',
+      department: p.department || '', designation: p.designation || '',
       salary: p.salary ?? null,
       dateOfBirth: p.dateOfBirth ? (p.dateOfBirth as string).substring(0, 10) : '',
       gender: p.gender || '', address: p.address || '', city: p.city || '', state: p.state || '',
@@ -601,7 +619,7 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     const isNew = this.editingId === 0;
     let op$: Observable<any>;
     if (type === 'staff') {
-      const payload: any = { fullName: v.fullName, email: v.email, phone: v.phone, department: v.department, designation: v.designation, salary: v.salary, appRoleId: v.appRoleId, isActive: v.isActive };
+      const payload: any = { fullName: v.fullName, email: v.email, phone: v.phone, department: v.department, designation: v.designation, salary: v.salary, appRoleId: v.appRoleId, isActive: v.isActive, systemRole: v.systemRole };
       if (isNew) payload.password = v.password;
       op$ = isNew ? this.api.createStaff(payload) : this.api.updateStaff(this.editingId!, payload);
     } else {
@@ -682,9 +700,12 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
 
   private sortVal(p: Person): string | number | null {
     switch (this.sortKey) {
-      case 'name': return p.fullName; case 'email': return p.email; case 'role': return p.appRoleName || '';
-      case 'joined': return p.joinedAt ? new Date(p.joinedAt).getTime() : 0; case 'status': return p.isActive ? 1 : 0;
-      default: return null;
+      case 'name':   return p.fullName;
+      case 'email':  return p.email;
+      case 'role':   return p.appRoleName || '';
+      case 'joined': return p.joinedAt ? new Date(p.joinedAt).getTime() : 0;
+      case 'status': return p.isActive ? 1 : 0;
+      default:       return null;
     }
   }
 
@@ -701,4 +722,16 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
   pageEnd(): number { return Math.min(this.page * this.pageSize, this.filtered().length); }
   pageNumbers(): number[] { return Array.from({ length: this.totalPages() }, (_, i) => i + 1); }
   setPage(p: number): void { if (p < 1 || p > this.totalPages()) return; this.page = p; scrollAdminContentTop(); }
+
+  private readonly ROLE_COLORS = [
+    '#4f6ef7', '#2da44e', '#e36209', '#8250df',
+    '#cf222e', '#0969da', '#1a7f37', '#9a6700',
+    '#6639ba', '#c0392b'
+  ];
+
+  roleColor(name: string): string {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return this.ROLE_COLORS[Math.abs(hash) % this.ROLE_COLORS.length];
+  }
 }

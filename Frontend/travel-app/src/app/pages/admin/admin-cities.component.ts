@@ -11,7 +11,7 @@ import { City, Country, GeoState } from '../../core/models/api.models';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Cities</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add city</button>
+      <button *ngIf="auth.hasPermission('cities.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add city</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -144,11 +144,11 @@ import { City, Country, GeoState } from '../../core/models/api.models';
               <td><span class="badge" [class.bg-success]="c.isActive" [class.bg-secondary]="!c.isActive">{{ c.isActive ? 'Active' : 'Inactive' }}</span></td>
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
-                  <button *ngIf="auth.isAdmin()" class="btn btn-sm btn-outline-secondary" (click)="edit(c)"><i class="bi bi-pencil me-1"></i>Edit</button>
-                  <button *ngIf="c.isActive && auth.isAdmin()" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id">
+                  <button *ngIf="auth.hasPermission('cities.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(c)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                  <button *ngIf="c.isActive && auth.hasPermission('cities.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
-                  <button *ngIf="!c.isActive && auth.isAdmin()" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id">
+                  <button *ngIf="!c.isActive && auth.hasPermission('cities.toggle')" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id">
                     <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>

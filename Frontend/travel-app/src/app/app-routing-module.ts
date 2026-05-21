@@ -56,7 +56,7 @@ const managementChildren = [
   { path: 'drivers',     component: AdminDriversComponent,     canActivate: [authGuard], data: { permission: 'drivers.view' } },
   { path: 'staff',       redirectTo: 'people', pathMatch: 'full' as const },
   { path: 'customers',   redirectTo: 'people', pathMatch: 'full' as const },
-  { path: 'people',      component: AdminPeopleComponent },
+  { path: 'people',      component: AdminPeopleComponent,      canActivate: [authGuard], data: { permission: 'customers.view' } },
   { path: 'bookings',    component: AdminBookingsComponent,    canActivate: [authGuard], data: { permission: 'bookings.view' } },
   { path: 'payments',    component: AdminPaymentsComponent,    canActivate: [authGuard], data: { permission: 'payments.view' } },
   { path: 'expenses',    component: AdminExpensesComponent,    canActivate: [authGuard], data: { permission: 'expenses.view' } },
@@ -67,11 +67,11 @@ const managementChildren = [
   { path: 'reports',     component: AdminReportsComponent,     canActivate: [authGuard], data: { permission: 'reports.view' } },
   { path: 'destinations',component: AdminDestinationsComponent,canActivate: [authGuard], data: { permission: 'destinations.view' } },
   { path: 'roles',       component: AdminRolesComponent,       canActivate: [authGuard], data: { permission: 'roles.view' } },
-  { path: 'countries',   component: AdminCountriesComponent },
-  { path: 'states',      component: AdminStatesComponent },
-  { path: 'cities',      component: AdminCitiesComponent },
-  { path: 'departments', component: AdminDepartmentsComponent },
-  { path: 'designations',component: AdminDesignationsComponent },
+  { path: 'countries',   component: AdminCountriesComponent,   canActivate: [authGuard], data: { permission: 'countries.view' } },
+  { path: 'states',      component: AdminStatesComponent,      canActivate: [authGuard], data: { permission: 'states.view' } },
+  { path: 'cities',      component: AdminCitiesComponent,      canActivate: [authGuard], data: { permission: 'cities.view' } },
+  { path: 'departments', component: AdminDepartmentsComponent, canActivate: [authGuard], data: { permission: 'departments.view' } },
+  { path: 'designations',component: AdminDesignationsComponent,canActivate: [authGuard], data: { permission: 'designations.view' } },
   { path: 'settings',    component: AdminSettingsComponent }
 ];
 

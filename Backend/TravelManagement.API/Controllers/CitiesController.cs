@@ -28,12 +28,14 @@ public class CitiesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "AdminOrAbove")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.CitiesCreate)]
     public async Task<ActionResult<ApiResponse<CityDto>>> Create(CityRequest req)
         => Ok(ApiResponse<CityDto>.Ok(await _svc.CreateAsync(req), "City added"));
 
     [HttpPut("{id}")]
-    [Authorize(Policy = "AdminOrAbove")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.CitiesEdit)]
     public async Task<ActionResult<ApiResponse<CityDto>>> Update(int id, CityRequest req)
     {
         var c = await _svc.UpdateAsync(id, req);
@@ -41,7 +43,8 @@ public class CitiesController : ControllerBase
     }
 
     [HttpPost("{id}/active")]
-    [Authorize(Policy = "AdminOrAbove")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.CitiesToggle)]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

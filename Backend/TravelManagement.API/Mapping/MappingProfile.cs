@@ -72,7 +72,8 @@ public class MappingProfile : Profile
             .ForMember(d => d.Email, o => o.MapFrom(s => s.User.Email))
             .ForMember(d => d.Phone, o => o.MapFrom(s => s.User.Phone))
             .ForMember(d => d.IsActive, o => o.MapFrom(s => s.User.IsActive))
-            .ForMember(d => d.AppRoleName, o => o.MapFrom(s => s.AppRole != null ? s.AppRole.Name : null));
+            .ForMember(d => d.AppRoleName, o => o.MapFrom(s => s.AppRole != null ? s.AppRole.Name : null))
+            .ForMember(d => d.SystemRole, o => o.MapFrom(s => s.User.Role.ToString()));
 
         CreateMap<Driver, DriverDto>();
         CreateMap<DriverCreateRequest, Driver>();

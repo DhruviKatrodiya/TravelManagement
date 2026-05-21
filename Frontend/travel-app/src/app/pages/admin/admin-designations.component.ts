@@ -11,7 +11,7 @@ import { Department, Designation } from '../../core/models/api.models';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Designations</h2>
-      <button *ngIf="auth.isAdmin()" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add designation</button>
+      <button *ngIf="auth.hasPermission('designations.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add designation</button>
     </div>
 
     <!-- Deactivate confirmation -->
@@ -127,11 +127,11 @@ import { Department, Designation } from '../../core/models/api.models';
               <td><span class="badge" [class.bg-success]="d.isActive" [class.bg-secondary]="!d.isActive">{{ d.isActive ? 'Active' : 'Inactive' }}</span></td>
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
-                  <button *ngIf="auth.isAdmin()" class="btn btn-sm btn-outline-secondary" (click)="edit(d)"><i class="bi bi-pencil me-1"></i>Edit</button>
-                  <button *ngIf="d.isActive && auth.isAdmin()" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id">
+                  <button *ngIf="auth.hasPermission('designations.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(d)"><i class="bi bi-pencil me-1"></i>Edit</button>
+                  <button *ngIf="d.isActive && auth.hasPermission('designations.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
-                  <button *ngIf="!d.isActive && auth.isAdmin()" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id">
+                  <button *ngIf="!d.isActive && auth.hasPermission('designations.toggle')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id">
                     <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
                   </button>

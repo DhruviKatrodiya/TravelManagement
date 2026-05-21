@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
@@ -13,7 +14,15 @@ namespace TravelManagement.API.Controllers;
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _svc;
-    public CustomersController(ICustomerService svc) => _svc = svc;
+    private readonly IStaffService _staffSvc;
+    private readonly IConfiguration _config;
+
+    public CustomersController(ICustomerService svc, IStaffService staffSvc, IConfiguration config)
+    {
+        _svc      = svc;
+        _staffSvc = staffSvc;
+        _config   = config;
+    }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     private string CurrentRole => User.FindFirstValue(ClaimTypes.Role)!;
@@ -52,8 +61,19 @@ public class CustomersController : ControllerBase
     [RequirePermission(Permissions.CustomersEdit)]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Update(int id, CustomerUpdateRequest req)
     {
+        var existing = await _svc.GetAsync(id);
+        if (existing == null) return NotFound(ApiResponse<CustomerDto>.Fail("Not found"));
+
+        if (existing.Phone != req.Phone &&
+            !await PermissionHelper.HasPermissionAsync(User, _config, _staffSvc, Permissions.CustomersUpdateMobile))
+            return StatusCode(403, ApiResponse<object>.Fail("You do not have permission to update the mobile number."));
+
+        if (existing.Email != req.Email &&
+            !await PermissionHelper.HasPermissionAsync(User, _config, _staffSvc, Permissions.CustomersUpdateEmail))
+            return StatusCode(403, ApiResponse<object>.Fail("You do not have permission to update the email address."));
+
         var updated = await _svc.UpdateAsync(id, req);
-        return updated == null ? NotFound(ApiResponse<CustomerDto>.Fail("Not found")) : Ok(ApiResponse<CustomerDto>.Ok(updated, "Updated"));
+        return Ok(ApiResponse<CustomerDto>.Ok(updated!, "Updated"));
     }
 
     [HttpPost]

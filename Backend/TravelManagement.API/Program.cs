@@ -421,6 +421,15 @@ END");
         app.Logger.LogError(ex, "Failed to seed super admin on startup");
     }
 
+    try
+    {
+        await DataSeeder.SeedAdminStaffMembersAsync(db);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to create StaffMember records for Admin users");
+    }
+
 }
 if (app.Environment.IsDevelopment())
 {

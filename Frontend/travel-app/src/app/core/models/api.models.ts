@@ -286,6 +286,13 @@ export interface Customer {
   appRoleName?: string;
 }
 
+export interface AppRoleMember {
+  staffId: number;
+  userId: number;
+  name: string;
+  permissions: string[];
+}
+
 export interface AppRole {
   id: number;
   name: string;
@@ -293,6 +300,7 @@ export interface AppRole {
   isActive: boolean;
   permissions: string[];
   createdAt: string;
+  members: AppRoleMember[];
 }
 
 export interface Staff {
@@ -308,6 +316,7 @@ export interface Staff {
   isActive: boolean;
   appRoleId?: number;
   appRoleName?: string;
+  systemRole?: string;
 }
 
 export interface Expense {

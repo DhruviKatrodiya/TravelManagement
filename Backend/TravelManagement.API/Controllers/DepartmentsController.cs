@@ -28,12 +28,14 @@ public class DepartmentsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "AdminOrAbove")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.DepartmentsCreate)]
     public async Task<ActionResult<ApiResponse<DepartmentDto>>> Create(DepartmentRequest req)
         => Ok(ApiResponse<DepartmentDto>.Ok(await _svc.CreateAsync(req), "Department added"));
 
     [HttpPut("{id}")]
-    [Authorize(Policy = "AdminOrAbove")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.DepartmentsEdit)]
     public async Task<ActionResult<ApiResponse<DepartmentDto>>> Update(int id, DepartmentRequest req)
     {
         var d = await _svc.UpdateAsync(id, req);
@@ -41,7 +43,8 @@ public class DepartmentsController : ControllerBase
     }
 
     [HttpPost("{id}/active")]
-    [Authorize(Policy = "AdminOrAbove")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.DepartmentsToggle)]
     public async Task<ActionResult<ApiResponse<object>>> SetActive(int id, [FromQuery] bool active = true)
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))

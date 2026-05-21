@@ -19,26 +19,102 @@ public static class DataSeeder
 
     public static async Task SeedSuperAdminAsync(TravelDbContext db, IConfiguration config)
     {
-        var exists = await db.Users.AnyAsync(u => u.Role == UserRole.SuperAdmin);
-        if (exists) return;
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.SuperAdmin);
 
-        var section = config.GetSection("DefaultSuperAdmin");
-        var fullName = section["FullName"] ?? "Super Administrator";
-        var email    = section["Email"]    ?? "superadmin@travel.local";
-        var password = section["Password"] ?? "SuperAdmin@123";
-
-        var user = new User
+        if (user == null)
         {
-            FullName     = fullName,
-            Email        = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
-            Role         = UserRole.SuperAdmin,
-            IsActive     = true,
-            CreatedAt    = DateTime.UtcNow
-        };
+            var section  = config.GetSection("DefaultSuperAdmin");
+            user = new User
+            {
+                FullName     = section["FullName"] ?? "Super Administrator",
+                Email        = section["Email"]    ?? "superadmin@travel.local",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(section["Password"] ?? "SuperAdmin@123"),
+                Role         = UserRole.SuperAdmin,
+                IsActive     = true,
+                CreatedAt    = DateTime.UtcNow
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
 
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
+        // Ensure the Executive role always has ALL permissions (covers the case where new permissions
+        // were added to Permissions.All after the role was first seeded — SeedRolesAsync skips existing roles).
+        var executiveRole = await db.AppRoles
+            .Include(r => r.Permissions)
+            .FirstOrDefaultAsync(r => r.Name == "Executive");
+
+        if (executiveRole != null)
+        {
+            var existing = executiveRole.Permissions.Select(p => p.Permission).ToHashSet();
+            var missing  = All.Where(p => !existing.Contains(p)).ToList();
+            if (missing.Count > 0)
+            {
+                db.AppRolePermissions.AddRange(
+                    missing.Select(p => new AppRolePermission { AppRoleId = executiveRole.Id, Permission = p }));
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // Ensure SuperAdmin has a StaffMember so individual StaffPermissions can be stored.
+        var existingStaff = await db.StaffMembers.FirstOrDefaultAsync(s => s.UserId == user.Id);
+        Staff staff;
+        if (existingStaff == null)
+        {
+            staff = new Staff { UserId = user.Id, AppRoleId = executiveRole?.Id, JoinedAt = DateTime.UtcNow };
+            db.StaffMembers.Add(staff);
+            await db.SaveChangesAsync();
+        }
+        else
+        {
+            staff = existingStaff;
+            if (staff.AppRoleId == null && executiveRole != null)
+            {
+                staff.AppRoleId = executiveRole.Id;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // Ensure SuperAdmin's individual StaffPermissions contain ALL permissions.
+        var existingPermsList = await db.StaffPermissions
+            .Where(p => p.StaffId == staff.Id)
+            .Select(p => p.Permission)
+            .ToListAsync();
+        var existingPerms = existingPermsList.ToHashSet();
+        var missingPerms = All.Where(p => !existingPerms.Contains(p)).ToList();
+        if (missingPerms.Count > 0)
+        {
+            db.StaffPermissions.AddRange(
+                missingPerms.Select(p => new StaffPermission { StaffId = staff.Id, Permission = p }));
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // ── Admin StaffMember bootstrap ───────────────────────────────────────────
+    // Admin users created outside the People page (e.g. directly in the DB) won't have a
+    // StaffMember record. Without one, GetPermissionsByUserIdAsync always returns [].
+    // This method ensures every UserRole.Admin user has a StaffMember linked to the "Admin" AppRole.
+    public static async Task SeedAdminStaffMembersAsync(TravelDbContext db)
+    {
+        var adminRole = await db.AppRoles.FirstOrDefaultAsync(r => r.Name == "Admin");
+
+        // Only ensure StaffMember records exist — permissions are granted individually by SuperAdmin.
+        var adminsWithoutStaff = await db.Users
+            .Where(u => u.Role == UserRole.Admin && !db.StaffMembers.Any(s => s.UserId == u.Id))
+            .ToListAsync();
+
+        if (adminsWithoutStaff.Count > 0)
+        {
+            foreach (var admin in adminsWithoutStaff)
+            {
+                db.StaffMembers.Add(new Staff
+                {
+                    UserId    = admin.Id,
+                    AppRoleId = adminRole?.Id,
+                    JoinedAt  = DateTime.UtcNow
+                });
+            }
+            await db.SaveChangesAsync();
+        }
     }
 
     // ── Roles ─────────────────────────────────────────────────────────────────
@@ -75,7 +151,6 @@ public static class DataSeeder
                 "Manages customers, bookings, and packages with full contact-field access.",
                 new[] {
                     CustomersView, CustomersCreate, CustomersEdit, CustomersSearch,
-                    CustomersUpdatePhone, CustomersUpdateEmail,
                     BookingsView, BookingsEdit, BookingsSearch,
                     PackagesView, PackagesSearch,
                     ToursView, ToursSearch,
@@ -122,7 +197,6 @@ public static class DataSeeder
                 "Handles customer queries, bookings, reviews, and refund requests.",
                 new[] {
                     CustomersView, CustomersEdit, CustomersSearch,
-                    CustomersUpdatePhone, CustomersUpdateEmail,
                     BookingsView, BookingsSearch,
                     ReviewsView, ReviewsEdit, ReviewsDelete, ReviewsSearch,
                     RefundsView, RefundsEdit, RefundsSearch

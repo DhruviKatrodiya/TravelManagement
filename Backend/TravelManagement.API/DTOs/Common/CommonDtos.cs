@@ -29,6 +29,15 @@ public class AppRoleDto
     public bool IsActive { get; set; }
     public List<string> Permissions { get; set; } = new();
     public DateTime CreatedAt { get; set; }
+    public List<MemberInfo> Members { get; set; } = new();
+}
+
+public class MemberInfo
+{
+    public int StaffId { get; set; }
+    public int UserId  { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public List<string> Permissions { get; set; } = new();
 }
 
 public class AppRoleCreateRequest
@@ -118,6 +127,7 @@ public class StaffDto
     public bool IsActive { get; set; }
     public int? AppRoleId { get; set; }
     public string? AppRoleName { get; set; }
+    public string SystemRole { get; set; } = "Staff";
 }
 
 public class StaffCreateRequest
@@ -130,6 +140,8 @@ public class StaffCreateRequest
     public string? Department { get; set; }
     public decimal? Salary { get; set; }
     public int? AppRoleId { get; set; }
+    /// <summary>Accepted values: "Staff" (default), "Admin". SuperAdmin-only.</summary>
+    public string? SystemRole { get; set; }
 }
 
 public class StaffPermissionsUpdateRequest
@@ -147,6 +159,8 @@ public class StaffUpdateRequest
     public decimal? Salary { get; set; }
     public bool IsActive { get; set; }
     public int? AppRoleId { get; set; }
+    /// <summary>Optional system-level promotion/demotion. Accepted values: "Staff", "Admin". SuperAdmin-only.</summary>
+    public string? SystemRole { get; set; }
 }
 
 public class DriverDto

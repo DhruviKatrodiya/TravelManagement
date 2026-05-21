@@ -29,17 +29,12 @@ export class AuthService {
   readonly isStaff      = computed(() => this.privilegeLevel() >= this.systemRoles.staffMinLevel());
   readonly isCustomer   = computed(() => this.privilegeLevel() === 0);
 
-  /**
-   * SuperAdmin bypasses everything. Admin bypasses all except AdminRestrictedPermissions
-   * (e.g. roles.view — only shown when SuperAdmin explicitly grants it). Staff need explicit assignment.
-   */
   hasPermission(key: string): boolean {
     const u = this.userSignal();
     if (!u) return false;
-    if (u.privilegeLevel >= this.systemRoles.superAdminMinLevel()) return true;
-    if (this.systemRoles.canBypassPermissions(u.privilegeLevel) &&
-        !this.systemRoles.isAdminRestricted(key)) return true;
-    if (!this.isStaff()) return false;
+    // SuperAdmin bypasses all permission checks
+    if (this.systemRoles.canBypassPermissions(this.privilegeLevel())) return true;
+    // All others (Admin, Staff): check individually assigned permissions only
     return Array.isArray(u.permissions) && u.permissions.includes(key);
   }
 
@@ -57,7 +52,10 @@ export class AuthService {
     this.sessionPoll$ = interval(this.SESSION_POLL_MS).pipe(
       filter(() => !!this.getToken())
     ).subscribe(() => {
-      this.http.get<ApiResponse<User>>(`${this.base}/me`).subscribe({ error: () => {} });
+      this.http.get<ApiResponse<User>>(`${this.base}/me`).subscribe({
+        next: r => { if (r.success && r.data) this.updateCachedUser(r.data); },
+        error: () => {}
+      });
     });
   }
 

@@ -18,7 +18,34 @@ public class RoleService : IRoleService
         var q = _db.AppRoles.Include(r => r.Permissions).AsQueryable();
         if (activeOnly == true) q = q.Where(r => r.IsActive);
         var roles = await q.OrderBy(r => r.Name).ToListAsync();
-        return roles.Select(ToDto);
+
+        var roleIds = roles.Select(r => r.Id).ToList();
+        var memberRows = await _db.StaffMembers
+            .Where(s => s.AppRoleId != null && roleIds.Contains(s.AppRoleId!.Value))
+            .Join(_db.Users, s => s.UserId, u => u.Id,
+                  (s, u) => new { StaffId = s.Id, s.UserId, u.FullName, s.AppRoleId })
+            .OrderBy(x => x.FullName)
+            .ToListAsync();
+
+        var staffIds = memberRows.Select(m => m.StaffId).ToList();
+        var permRows = await _db.StaffPermissions
+            .Where(p => staffIds.Contains(p.StaffId))
+            .ToListAsync();
+        var permsByStaff = permRows
+            .GroupBy(p => p.StaffId)
+            .ToDictionary(g => g.Key, g => g.Select(p => p.Permission).ToList());
+
+        var membersByRole = memberRows
+            .GroupBy(x => x.AppRoleId!.Value)
+            .ToDictionary(g => g.Key, g => g.Select(x => new MemberInfo
+            {
+                StaffId     = x.StaffId,
+                UserId      = x.UserId,
+                Name        = x.FullName,
+                Permissions = permsByStaff.GetValueOrDefault(x.StaffId) ?? new()
+            }).ToList());
+
+        return roles.Select(r => ToDto(r, membersByRole.GetValueOrDefault(r.Id) ?? new()));
     }
 
     public async Task<AppRoleDto?> GetAsync(int id)
@@ -106,13 +133,14 @@ public class RoleService : IRoleService
         return true;
     }
 
-    private static AppRoleDto ToDto(AppRole r) => new()
+    private static AppRoleDto ToDto(AppRole r, List<MemberInfo>? members = null) => new()
     {
         Id = r.Id,
         Name = r.Name,
         Description = r.Description,
         IsActive = r.IsActive,
         CreatedAt = r.CreatedAt,
-        Permissions = r.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList()
+        Permissions = r.Permissions.Select(p => p.Permission).OrderBy(p => p).ToList(),
+        Members = members ?? new()
     };
 }

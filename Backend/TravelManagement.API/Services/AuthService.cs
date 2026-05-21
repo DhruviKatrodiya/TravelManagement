@@ -29,7 +29,7 @@ public class AuthService : IAuthService
     private async Task<UserDto> MapWithPermissionsAsync(User user)
     {
         var dto = _mapper.Map<UserDto>(user);
-        if (user.Role == UserRole.Staff)
+        if (user.Role is UserRole.Staff or UserRole.Admin or UserRole.SuperAdmin)
             dto.Permissions = await _staff.GetPermissionsByUserIdAsync(user.Id);
         return dto;
     }
@@ -89,7 +89,7 @@ public class AuthService : IAuthService
         var globalToken = await RotateGlobalSessionAsync();
         await _db.SaveChangesAsync();
 
-        var perms = user.Role == UserRole.Staff ? await _staff.GetPermissionsByUserIdAsync(user.Id) : null;
+        var perms = user.Role is UserRole.Staff or UserRole.Admin or UserRole.SuperAdmin ? await _staff.GetPermissionsByUserIdAsync(user.Id) : null;
         var (token, expiresAt) = _tokens.GenerateToken(user, globalToken, perms);
 
         if (user.Role == UserRole.Customer)
