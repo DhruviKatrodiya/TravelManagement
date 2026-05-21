@@ -85,34 +85,72 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <div class="flex-grow-1">{{ permError }}</div>
               <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="permError = ''"></button>
             </div>
-            <div class="d-flex justify-content-end gap-2 mb-3">
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="selectAllPerms(true)">
-                <i class="bi bi-check2-all me-1"></i>Select all
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="selectAllPerms(false)">
-                <i class="bi bi-x-circle me-1"></i>Clear all
-              </button>
+
+            <!-- Toolbar -->
+            <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleAllModules()">
+                  <i class="bi me-1" [class.bi-arrows-expand]="!areAllExpanded()" [class.bi-arrows-collapse]="areAllExpanded()"></i>
+                  {{ areAllExpanded() ? 'Collapse all' : 'Expand all' }}
+                </button>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="selectAllPerms(true)">
+                  <i class="bi bi-check2-all me-1"></i>Select all
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="selectAllPerms(false)">
+                  <i class="bi bi-x-circle me-1"></i>Clear all
+                </button>
+              </div>
             </div>
-            <div *ngFor="let group of permsGrouped; trackBy: trackByModule" class="mb-4">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="fw-semibold mb-0">
-                  <i class="bi bi-grid-3x3-gap-fill me-1 text-primary opacity-75"></i>{{ moduleLabel(group.module) }}
-                </h6>
-                <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-link p-0 text-primary" (click)="selectAllInGroup(group.module, true)">All</button>
-                  <button type="button" class="btn btn-sm btn-link p-0 text-muted" (click)="selectAllInGroup(group.module, false)">None</button>
+
+            <!-- Accordion modules -->
+            <div *ngFor="let group of permsGrouped; trackBy: trackByModule"
+                 class="border rounded mb-2 overflow-hidden">
+
+              <!-- Accordion header -->
+              <div class="d-flex align-items-center justify-content-between px-3 py-2"
+                   style="cursor:pointer; background: var(--tm-surface, #f8f9f4);"
+                   (click)="toggleModule(group.module)">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi text-muted"
+                     style="transition: transform .2s; display:inline-block;"
+                     [style.transform]="expandedModules.has(group.module) ? 'rotate(90deg)' : 'rotate(0deg)'"
+                     [class.bi-chevron-right]="!expandedModules.has(group.module)"
+                     [class.bi-chevron-down]="expandedModules.has(group.module)"></i>
+                  <span class="fw-semibold small">{{ moduleLabel(group.module) }}</span>
+                  <span class="badge rounded-pill ms-1"
+                        [class.bg-primary]="groupSelectedCount(group) > 0"
+                        [class.bg-light]="groupSelectedCount(group) === 0"
+                        [class.text-muted]="groupSelectedCount(group) === 0"
+                        style="font-size:.7rem">
+                    {{ groupSelectedCount(group) }} / {{ group.keys.length }}
+                  </span>
+                </div>
+                <div class="d-flex gap-2" (click)="$event.stopPropagation()">
+                  <button type="button" class="btn btn-sm btn-link p-0 text-primary" style="font-size:.8rem"
+                          (click)="selectAllInGroup(group.module, true)">All</button>
+                  <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size:.8rem"
+                          (click)="selectAllInGroup(group.module, false)">None</button>
                 </div>
               </div>
-              <div class="d-flex flex-wrap gap-3 ps-1">
-                <div class="form-check" *ngFor="let key of group.keys; trackBy: trackByKey">
-                  <input class="form-check-input" type="checkbox"
-                         [id]="'perm-' + key"
-                         [checked]="selectedPerms.has(key)"
-                         (change)="togglePerm(key)" />
-                  <label class="form-check-label small" [attr.for]="'perm-' + key">{{ permLabel(key) }}</label>
+
+              <!-- Accordion body -->
+              <div *ngIf="expandedModules.has(group.module)" class="px-3 py-3 border-top bg-white">
+                <div class="row g-2">
+                  <div class="col-sm-6 col-md-4" *ngFor="let key of group.keys; trackBy: trackByKey">
+                    <div class="form-check mb-0">
+                      <input class="form-check-input" type="checkbox"
+                             [id]="'perm-' + key"
+                             [checked]="selectedPerms.has(key)"
+                             (change)="togglePerm(key)" />
+                      <label class="form-check-label small" [attr.for]="'perm-' + key">
+                        {{ permLabel(key) }}
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <hr class="mt-3 mb-0" />
             </div>
           </div>
           <div class="modal-footer">
@@ -318,7 +356,8 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   // ── Permissions catalog ──
   permsCatalog: string[] = [];
   permsGrouped: { module: string; keys: string[] }[] = [];
-  selectedPerms = new Set<string>();
+  selectedPerms  = new Set<string>();
+  expandedModules = new Set<string>();
   togglingId: number | null = null;
 
   @ViewChild('permModalBody') permModalBodyRef?: ElementRef<HTMLElement>;
@@ -411,13 +450,14 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   // ── Permissions modal ──────────────────────────────────────────────────────
 
   openPerms(r: AppRole): void {
-    this.permRoleId    = r.id;
-    this.permStaffId   = null;
-    this.permRoleName  = r.name;
+    this.permRoleId     = r.id;
+    this.permStaffId    = null;
+    this.permRoleName   = r.name;
     this.permTargetName = r.name;
-    this.permError     = '';
-    this.savingPerms   = false;
-    this.selectedPerms = new Set(r.permissions);
+    this.permError      = '';
+    this.savingPerms    = false;
+    this.selectedPerms  = new Set(r.permissions);
+    this.expandedModules.clear();
     this.lockBody();
   }
 
@@ -429,15 +469,17 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
     this.permError      = '';
     this.savingPerms    = false;
     this.selectedPerms  = new Set(member.permissions);
+    this.expandedModules.clear();
     this.lockBody();
   }
 
   cancelPerms(): void {
-    this.permRoleId    = null;
-    this.permStaffId   = null;
+    this.permRoleId     = null;
+    this.permStaffId    = null;
     this.permTargetName = '';
-    this.permError     = '';
+    this.permError      = '';
     this.selectedPerms.clear();
+    this.expandedModules.clear();
     this.unlockBody();
   }
 
@@ -515,6 +557,24 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
       if (on) this.selectedPerms.add(key);
       else    this.selectedPerms.delete(key);
     }
+  }
+
+  toggleModule(module: string): void {
+    if (this.expandedModules.has(module)) this.expandedModules.delete(module);
+    else this.expandedModules.add(module);
+  }
+
+  areAllExpanded(): boolean {
+    return this.permsGrouped.length > 0 && this.permsGrouped.every(g => this.expandedModules.has(g.module));
+  }
+
+  toggleAllModules(): void {
+    if (this.areAllExpanded()) this.expandedModules.clear();
+    else this.permsGrouped.forEach(g => this.expandedModules.add(g.module));
+  }
+
+  groupSelectedCount(group: { module: string; keys: string[] }): number {
+    return group.keys.filter(k => this.selectedPerms.has(k)).length;
   }
 
   permLabel(key: string): string {
