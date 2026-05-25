@@ -157,3 +157,9 @@ Output: `dist/travel-app/`.
 - **CORS errors** — `Cors:AllowedOrigins` in `appsettings.json` must include the Angular origin (`http://localhost:4200`).
 - **LocalDB missing** — Install via SSMS or the SQL Server Express installer, then verify with `sqllocaldb info`.
 - **EF Core CLI errors** — Use the project-local tool: `dotnet tool run dotnet-ef …` (a `.config/dotnet-tools.json` pins it to v6.0.36).
+
+# npx ng serve --host 0.0.0.0
+
+# "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=TravelManagementDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True;"
+
+# builder.Services.AddDbContext<TravelDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sqlOptions => { sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30),errorNumbersToAdd: null); }));

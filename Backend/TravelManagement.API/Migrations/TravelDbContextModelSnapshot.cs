@@ -2,35 +2,95 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TravelManagement.API.Data;
 
 #nullable disable
 
-namespace TravelManagement.API.Data.Migrations
+namespace TravelManagement.API.Migrations
 {
     [DbContext(typeof(TravelDbContext))]
-    [Migration("20260511125739_InitialCreate")]
-    partial class InitialCreate
+    partial class TravelDbContextModelSnapshot : ModelSnapshot
     {
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "6.0.36")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+            modelBuilder.Entity("TravelManagement.API.Models.AppRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppRoles");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.AppRolePermission", b =>
+                {
+                    b.Property<int>("AppRoleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Permission")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.HasKey("AppRoleId", "Permission");
+
+                    b.ToTable("AppRolePermissions");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.AppSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("ActiveSessionToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("BrandName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("ThemeMode")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppSettings");
+                });
 
             modelBuilder.Entity("TravelManagement.API.Models.Booking", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<int>("Adults")
                         .HasColumnType("int");
@@ -39,22 +99,22 @@ namespace TravelManagement.API.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("BookedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("BookingReference")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("varchar(40)");
 
                     b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Children")
                         .HasColumnType("int");
 
                     b.Property<string>("CustomItinerary")
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
@@ -64,7 +124,7 @@ namespace TravelManagement.API.Data.Migrations
 
                     b.Property<string>("SpecialRequests")
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -85,10 +145,10 @@ namespace TravelManagement.API.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("TripEndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("TripStartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -104,70 +164,151 @@ namespace TravelManagement.API.Data.Migrations
                     b.ToTable("Bookings");
                 });
 
+            modelBuilder.Entity("TravelManagement.API.Models.City", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("StateId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StateId");
+
+                    b.ToTable("Cities");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.Country", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Countries");
+                });
+
             modelBuilder.Entity("TravelManagement.API.Models.Customer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<string>("Address")
                         .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
+                        .HasColumnType("varchar(250)");
+
+                    b.Property<int?>("AppRoleId")
+                        .HasColumnType("int");
 
                     b.Property<string>("City")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<string>("Country")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<DateTime?>("DateOfBirth")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Gender")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("IdProofNumber")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("IdProofType")
                         .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasColumnType("varchar(30)");
 
                     b.Property<string>("PostalCode")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("State")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AppRoleId");
+
                     b.HasIndex("UserId")
                         .IsUnique();
 
                     b.ToTable("Customers");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Address = "12 MG Road",
-                            City = "Bengaluru",
-                            Country = "India",
-                            PostalCode = "560001",
-                            State = "Karnataka",
-                            UserId = 3
-                        });
+            modelBuilder.Entity("TravelManagement.API.Models.Department", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Departments");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.Designation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.ToTable("Designations");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Driver", b =>
@@ -176,18 +317,16 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<string>("Address")
                         .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
+                        .HasColumnType("varchar(250)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<int>("ExperienceYears")
                         .HasColumnType("int");
@@ -195,23 +334,26 @@ namespace TravelManagement.API.Data.Migrations
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsAvailable")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("LicenseExpiry")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("LicenseNumber")
                         .IsRequired()
                         .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
+                        .HasColumnType("varchar(40)");
 
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
 
@@ -219,30 +361,6 @@ namespace TravelManagement.API.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Drivers");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ExperienceYears = 8,
-                            FullName = "Ravi Kumar",
-                            IsAvailable = true,
-                            LicenseExpiry = new DateTime(2028, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            LicenseNumber = "KA0120240001",
-                            Phone = "+919000000001"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            ExperienceYears = 12,
-                            FullName = "Suresh Patel",
-                            IsAvailable = true,
-                            LicenseExpiry = new DateTime(2027, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            LicenseNumber = "KA0120240002",
-                            Phone = "+919000000002"
-                        });
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Expense", b =>
@@ -250,8 +368,6 @@ namespace TravelManagement.API.Data.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
@@ -262,33 +378,36 @@ namespace TravelManagement.API.Data.Migrations
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
+                        .HasColumnType("varchar(120)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
+                        .HasColumnType("varchar(250)");
 
                     b.Property<DateTime>("ExpenseDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("PaidBy")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<int?>("TourPackageId")
                         .HasColumnType("int");
 
                     b.Property<string>("Vendor")
                         .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
+                        .HasColumnType("varchar(120)");
 
                     b.HasKey("Id");
 
@@ -305,22 +424,20 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<decimal>("Cost")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
+                        .HasColumnType("varchar(120)");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -328,56 +445,70 @@ namespace TravelManagement.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Facilities");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Cost = 300m,
-                            IsActive = true,
-                            Name = "Breakfast",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Cost = 500m,
-                            IsActive = true,
-                            Name = "Lunch",
-                            Type = 1
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Cost = 600m,
-                            IsActive = true,
-                            Name = "Dinner",
-                            Type = 2
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Cost = 2500m,
-                            IsActive = true,
-                            Name = "3-Star Hotel Stay",
-                            Type = 3
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Cost = 1500m,
-                            IsActive = true,
-                            Name = "AC Transportation",
-                            Type = 4
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Cost = 1200m,
-                            IsActive = true,
-                            Name = "Local Guide",
-                            Type = 5
-                        });
+            modelBuilder.Entity("TravelManagement.API.Models.HomeDestination", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Blurb")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Keyword")
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TourId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HomeDestinations");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.HomeDestinationTour", b =>
+                {
+                    b.Property<int>("HomeDestinationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TourId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("HomeDestinationId", "TourId");
+
+                    b.HasIndex("TourId");
+
+                    b.ToTable("HomeDestinationTours");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Itinerary", b =>
@@ -386,35 +517,33 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<string>("Accommodation")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("Activities")
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                        .HasColumnType("varchar(300)");
 
                     b.Property<int>("DayNumber")
                         .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("varchar(2000)");
 
                     b.Property<string>("Location")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("Meals")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<int>("TourPackageId")
                         .HasColumnType("int");
@@ -424,44 +553,6 @@ namespace TravelManagement.API.Data.Migrations
                     b.HasIndex("TourPackageId");
 
                     b.ToTable("Itineraries");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Accommodation = "3* Hotel, Delhi",
-                            Activities = "Red Fort, India Gate, Qutub Minar",
-                            DayNumber = 1,
-                            Description = "Arrival, city tour of Old & New Delhi.",
-                            Location = "Delhi",
-                            Meals = "Breakfast",
-                            Title = "Arrive Delhi",
-                            TourPackageId = 1
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Accommodation = "3* Hotel, Jaipur",
-                            Activities = "Taj Mahal, Agra Fort",
-                            DayNumber = 2,
-                            Description = "Visit Taj Mahal & Agra Fort, drive to Jaipur.",
-                            Location = "Agra/Jaipur",
-                            Meals = "Breakfast",
-                            Title = "Delhi-Agra-Jaipur",
-                            TourPackageId = 1
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Accommodation = "-",
-                            Activities = "Amber Fort, Hawa Mahal",
-                            DayNumber = 3,
-                            Description = "Amber Fort, City Palace, departure.",
-                            Location = "Jaipur",
-                            Meals = "Breakfast",
-                            Title = "Jaipur city tour & departure",
-                            TourPackageId = 1
-                        });
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Notification", b =>
@@ -470,27 +561,25 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsRead")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Link")
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                        .HasColumnType("varchar(300)");
 
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("varchar(200)");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -505,19 +594,43 @@ namespace TravelManagement.API.Data.Migrations
                     b.ToTable("Notifications");
                 });
 
+            modelBuilder.Entity("TravelManagement.API.Models.OtpRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OtpHash")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OtpRecords");
+                });
+
             modelBuilder.Entity("TravelManagement.API.Models.PackageFacility", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<int>("FacilityId")
                         .HasColumnType("int");
 
                     b.Property<bool>("Included")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("TourPackageId")
                         .HasColumnType("int");
@@ -537,8 +650,6 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
@@ -546,25 +657,25 @@ namespace TravelManagement.API.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("GatewayResponse")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("GatewayTransactionId")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("varchar(100)");
 
                     b.Property<DateTime>("InitiatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Method")
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("varchar(200)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -572,7 +683,7 @@ namespace TravelManagement.API.Data.Migrations
                     b.Property<string>("TransactionReference")
                         .IsRequired()
                         .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("varchar(60)");
 
                     b.HasKey("Id");
 
@@ -590,11 +701,9 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<string>("AdminNotes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<decimal?>("ApprovedAmount")
                         .HasColumnType("decimal(18,2)");
@@ -603,18 +712,18 @@ namespace TravelManagement.API.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<decimal>("RequestedAmount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -633,30 +742,28 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<int?>("BookingId")
                         .HasColumnType("int");
 
                     b.Property<string>("Comment")
                         .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("varchar(2000)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsApproved")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("Rating")
                         .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<int>("TourId")
                         .HasColumnType("int");
@@ -664,8 +771,7 @@ namespace TravelManagement.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BookingId")
-                        .IsUnique()
-                        .HasFilter("[BookingId] IS NOT NULL");
+                        .IsUnique();
 
                     b.HasIndex("CustomerId");
 
@@ -680,22 +786,23 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+                    b.Property<int?>("AppRoleId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Department")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<string>("Designation")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<decimal?>("Salary")
                         .HasColumnType("decimal(18,2)");
@@ -705,20 +812,50 @@ namespace TravelManagement.API.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AppRoleId");
+
                     b.HasIndex("UserId")
                         .IsUnique();
 
                     b.ToTable("StaffMembers");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Department = "Operations",
-                            Designation = "Tour Coordinator",
-                            JoinedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            UserId = 2
-                        });
+            modelBuilder.Entity("TravelManagement.API.Models.StaffPermission", b =>
+                {
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Permission")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.HasKey("StaffId", "Permission");
+
+                    b.ToTable("StaffPermissions");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.State", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<int>("CountryId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.ToTable("States");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Tour", b =>
@@ -727,94 +864,42 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("varchar(2000)");
 
                     b.Property<int>("Destination")
                         .HasColumnType("int");
 
                     b.Property<string>("Highlights")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                        .HasColumnType("varchar(300)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("Region")
                         .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
+                        .HasColumnType("varchar(120)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
                     b.ToTable("Tours");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Explore the iconic Golden Triangle covering Delhi, Agra and Jaipur.",
-                            Destination = 0,
-                            Highlights = "Taj Mahal, Amber Fort, Qutub Minar",
-                            ImageUrl = "https://images.unsplash.com/photo-1564507592333-c60657eea523?w=800",
-                            IsActive = true,
-                            Name = "Golden Triangle Discovery",
-                            Region = "Delhi-Agra-Jaipur"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "A serene cruise through Kerala's famous backwaters and lush hills.",
-                            Destination = 0,
-                            Highlights = "Alleppey houseboats, Munnar tea gardens, Kochi",
-                            ImageUrl = "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800",
-                            IsActive = true,
-                            Name = "Kerala Backwaters Bliss",
-                            Region = "Kerala"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Discover the kingdom of happiness with monasteries, dzongs and Himalayan views.",
-                            Destination = 1,
-                            Highlights = "Tiger's Nest, Punakha Dzong, Dochula Pass",
-                            ImageUrl = "https://images.unsplash.com/photo-1580651315530-69c8e0903883?w=800",
-                            IsActive = true,
-                            Name = "Bhutan Cultural Trail",
-                            Region = "Paro-Thimphu-Punakha"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Adventure through temples, lakes and Annapurna foothills.",
-                            Destination = 2,
-                            Highlights = "Pashupatinath, Phewa Lake, Sarangkot sunrise",
-                            ImageUrl = "https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=800",
-                            IsActive = true,
-                            Name = "Nepal Himalayan Escape",
-                            Region = "Kathmandu-Pokhara"
-                        });
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.TourPackage", b =>
@@ -823,17 +908,15 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<decimal?>("ChildPrice")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("varchar(2000)");
 
                     b.Property<int>("DurationDays")
                         .HasColumnType("int");
@@ -843,17 +926,17 @@ namespace TravelManagement.API.Data.Migrations
 
                     b.Property<string>("Exclusions")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("Inclusions")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsCustomizable")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("MaxPersons")
                         .HasColumnType("int");
@@ -864,7 +947,7 @@ namespace TravelManagement.API.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<decimal>("PricePerPerson")
                         .HasColumnType("decimal(18,2)");
@@ -877,98 +960,6 @@ namespace TravelManagement.API.Data.Migrations
                     b.HasIndex("TourId");
 
                     b.ToTable("TourPackages");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            ChildPrice = 9999m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Quick 3-day getaway covering all highlights.",
-                            DurationDays = 3,
-                            DurationNights = 2,
-                            Exclusions = "Flights, personal expenses",
-                            Inclusions = "Hotel, breakfast, transport, guide",
-                            IsActive = true,
-                            IsCustomizable = true,
-                            MaxPersons = 12,
-                            MinPersons = 2,
-                            Name = "Golden Triangle 3D/2N",
-                            PricePerPerson = 14999m,
-                            TourId = 1
-                        },
-                        new
-                        {
-                            Id = 2,
-                            ChildPrice = 16999m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Extended deluxe experience with premium hotels.",
-                            DurationDays = 5,
-                            DurationNights = 4,
-                            Exclusions = "Flights, tips",
-                            Inclusions = "4* hotel, all meals, AC transport, guide",
-                            IsActive = true,
-                            IsCustomizable = true,
-                            MaxPersons = 12,
-                            MinPersons = 2,
-                            Name = "Golden Triangle 5D/4N Deluxe",
-                            PricePerPerson = 24999m,
-                            TourId = 1
-                        },
-                        new
-                        {
-                            Id = 3,
-                            ChildPrice = 14999m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Munnar, Thekkady, Alleppey and Kochi.",
-                            DurationDays = 5,
-                            DurationNights = 4,
-                            Exclusions = "Lunch, personal expenses",
-                            Inclusions = "Houseboat, hotel, breakfast & dinner",
-                            IsActive = true,
-                            IsCustomizable = true,
-                            MaxPersons = 10,
-                            MinPersons = 2,
-                            Name = "Kerala 5D/4N Classic",
-                            PricePerPerson = 22999m,
-                            TourId = 2
-                        },
-                        new
-                        {
-                            Id = 4,
-                            ChildPrice = 24999m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Comprehensive Bhutan cultural circuit.",
-                            DurationDays = 6,
-                            DurationNights = 5,
-                            Exclusions = "Air tickets, personal expenses",
-                            Inclusions = "Hotel, all meals, Bhutan visa, transport",
-                            IsActive = true,
-                            IsCustomizable = false,
-                            MaxPersons = 10,
-                            MinPersons = 2,
-                            Name = "Bhutan 6D/5N Discovery",
-                            PricePerPerson = 39999m,
-                            TourId = 3
-                        },
-                        new
-                        {
-                            Id = 5,
-                            ChildPrice = 11999m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Kathmandu and Pokhara highlights.",
-                            DurationDays = 4,
-                            DurationNights = 3,
-                            Exclusions = "Flights, lunch & dinner",
-                            Inclusions = "Hotel, breakfast, transport, guide",
-                            IsActive = true,
-                            IsCustomizable = true,
-                            MaxPersons = 12,
-                            MinPersons = 2,
-                            Name = "Nepal 4D/3N Highlights",
-                            PricePerPerson = 18999m,
-                            TourId = 4
-                        });
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.TourSchedule", b =>
@@ -977,8 +968,6 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<int>("AvailableSeats")
                         .HasColumnType("int");
 
@@ -986,17 +975,17 @@ namespace TravelManagement.API.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("TourId")
                         .HasColumnType("int");
@@ -1019,37 +1008,44 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("varchar(100)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PasswordResetToken")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("Role")
                         .HasColumnType("int");
+
+                    b.Property<string>("SessionToken")
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -1066,31 +1062,9 @@ namespace TravelManagement.API.Data.Migrations
                             Email = "admin@travel.local",
                             FullName = "Administrator",
                             IsActive = true,
-                            PasswordHash = "$2a$11$/s57prvPkHnOidcAK0ZNN.FFtewl81vKLlBf4tV1GeJK2zLzbYQBi",
+                            PasswordHash = "$2a$11$y6y92am9zsEft4781jDKB.fW.pVMTlaCGTcjv.wXrfIdfPRYWDQMu",
                             Phone = "+910000000001",
                             Role = 2
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "staff@travel.local",
-                            FullName = "Staff One",
-                            IsActive = true,
-                            PasswordHash = "$2a$11$7OWJaNRtLB9aREI1T7saXeeFR7GEhUbPZz6XAW4NDrQBgLXOPYKn6",
-                            Phone = "+910000000002",
-                            Role = 1
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "customer@travel.local",
-                            FullName = "Demo Customer",
-                            IsActive = true,
-                            PasswordHash = "$2a$11$ZyotDVLFjnsuXKduYn2wjeujOZJFLBzGs9CTTXbZNxdu9sGMBOFDm",
-                            Phone = "+910000000003",
-                            Role = 0
                         });
                 });
 
@@ -1100,8 +1074,6 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<int>("Capacity")
                         .HasColumnType("int");
 
@@ -1109,32 +1081,35 @@ namespace TravelManagement.API.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsAvailable")
-                        .HasColumnType("bit");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Make")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<string>("Model")
                         .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasColumnType("varchar(80)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
+                        .HasColumnType("varchar(120)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("RegistrationNumber")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -1148,50 +1123,6 @@ namespace TravelManagement.API.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Vehicles");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Capacity = 6,
-                            CostPerDay = 3500m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsAvailable = true,
-                            Make = "Toyota",
-                            Model = "Innova Crysta",
-                            Name = "Toyota Innova",
-                            RegistrationNumber = "KA01AB1234",
-                            Type = 0,
-                            Year = 2022
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Capacity = 17,
-                            CostPerDay = 6500m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsAvailable = true,
-                            Make = "Force",
-                            Model = "Traveller",
-                            Name = "Force Traveller 17",
-                            RegistrationNumber = "KA01CD5678",
-                            Type = 2,
-                            Year = 2021
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Capacity = 45,
-                            CostPerDay = 12000m,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsAvailable = true,
-                            Make = "Volvo",
-                            Model = "9400",
-                            Name = "Volvo 45-seater",
-                            RegistrationNumber = "KA01EF9012",
-                            Type = 3,
-                            Year = 2020
-                        });
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.VehicleAllocation", b =>
@@ -1200,26 +1131,24 @@ namespace TravelManagement.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
                     b.Property<int?>("BookingId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int?>("DriverId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("varchar(500)");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("VehicleId")
                         .HasColumnType("int");
@@ -1233,6 +1162,32 @@ namespace TravelManagement.API.Data.Migrations
                     b.HasIndex("VehicleId");
 
                     b.ToTable("VehicleAllocations");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.VehicleAllocationStaff", b =>
+                {
+                    b.Property<int>("VehicleAllocationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.HasKey("VehicleAllocationId", "StaffId");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("VehicleAllocationStaff");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.AppRolePermission", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.AppRole", "AppRole")
+                        .WithMany("Permissions")
+                        .HasForeignKey("AppRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AppRole");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Booking", b =>
@@ -1261,15 +1216,44 @@ namespace TravelManagement.API.Data.Migrations
                     b.Navigation("TourSchedule");
                 });
 
+            modelBuilder.Entity("TravelManagement.API.Models.City", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.State", "State")
+                        .WithMany("Cities")
+                        .HasForeignKey("StateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("State");
+                });
+
             modelBuilder.Entity("TravelManagement.API.Models.Customer", b =>
                 {
+                    b.HasOne("TravelManagement.API.Models.AppRole", "AppRole")
+                        .WithMany()
+                        .HasForeignKey("AppRoleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("TravelManagement.API.Models.User", "User")
                         .WithOne("Customer")
                         .HasForeignKey("TravelManagement.API.Models.Customer", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("AppRole");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.Designation", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.Department", "Department")
+                        .WithMany("Designations")
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Department");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Expense", b =>
@@ -1287,6 +1271,25 @@ namespace TravelManagement.API.Data.Migrations
                     b.Navigation("Booking");
 
                     b.Navigation("TourPackage");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.HomeDestinationTour", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.HomeDestination", "HomeDestination")
+                        .WithMany("DestinationTours")
+                        .HasForeignKey("HomeDestinationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TravelManagement.API.Models.Tour", "Tour")
+                        .WithMany()
+                        .HasForeignKey("TourId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("HomeDestination");
+
+                    b.Navigation("Tour");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Itinerary", b =>
@@ -1379,13 +1382,42 @@ namespace TravelManagement.API.Data.Migrations
 
             modelBuilder.Entity("TravelManagement.API.Models.Staff", b =>
                 {
+                    b.HasOne("TravelManagement.API.Models.AppRole", "AppRole")
+                        .WithMany()
+                        .HasForeignKey("AppRoleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("TravelManagement.API.Models.User", "User")
                         .WithOne("Staff")
                         .HasForeignKey("TravelManagement.API.Models.Staff", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("AppRole");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.StaffPermission", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.Staff", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.State", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.Country", "Country")
+                        .WithMany("States")
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Country");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.TourPackage", b =>
@@ -1443,6 +1475,30 @@ namespace TravelManagement.API.Data.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("TravelManagement.API.Models.VehicleAllocationStaff", b =>
+                {
+                    b.HasOne("TravelManagement.API.Models.Staff", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TravelManagement.API.Models.VehicleAllocation", "VehicleAllocation")
+                        .WithMany("StaffAssignments")
+                        .HasForeignKey("VehicleAllocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
+
+                    b.Navigation("VehicleAllocation");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.AppRole", b =>
+                {
+                    b.Navigation("Permissions");
+                });
+
             modelBuilder.Entity("TravelManagement.API.Models.Booking", b =>
                 {
                     b.Navigation("Payments");
@@ -1454,11 +1510,21 @@ namespace TravelManagement.API.Data.Migrations
                     b.Navigation("VehicleAllocations");
                 });
 
+            modelBuilder.Entity("TravelManagement.API.Models.Country", b =>
+                {
+                    b.Navigation("States");
+                });
+
             modelBuilder.Entity("TravelManagement.API.Models.Customer", b =>
                 {
                     b.Navigation("Bookings");
 
                     b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.Department", b =>
+                {
+                    b.Navigation("Designations");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Driver", b =>
@@ -1469,6 +1535,16 @@ namespace TravelManagement.API.Data.Migrations
             modelBuilder.Entity("TravelManagement.API.Models.Facility", b =>
                 {
                     b.Navigation("PackageFacilities");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.HomeDestination", b =>
+                {
+                    b.Navigation("DestinationTours");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.State", b =>
+                {
+                    b.Navigation("Cities");
                 });
 
             modelBuilder.Entity("TravelManagement.API.Models.Tour", b =>
@@ -1506,6 +1582,11 @@ namespace TravelManagement.API.Data.Migrations
             modelBuilder.Entity("TravelManagement.API.Models.Vehicle", b =>
                 {
                     b.Navigation("Allocations");
+                });
+
+            modelBuilder.Entity("TravelManagement.API.Models.VehicleAllocation", b =>
+                {
+                    b.Navigation("StaffAssignments");
                 });
 #pragma warning restore 612, 618
         }
