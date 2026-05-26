@@ -5,6 +5,7 @@ using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.DTOs.Payment;
 using TravelManagement.API.DTOs.Tour;
 using TravelManagement.API.Models;
+using TravelManagement.API.Models.Enums;
 
 namespace TravelManagement.API.Mapping;
 
@@ -13,7 +14,11 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         CreateMap<User, UserDto>()
-            .ForMember(d => d.PrivilegeLevel, o => o.MapFrom(s => (int)s.Role));
+            .ForMember(d => d.PrivilegeLevel, o => o.MapFrom(s =>
+                s.Role == UserRole.Customer   ? 0 :
+                s.Role == UserRole.Staff      ? 1 :
+                s.Role == UserRole.Admin      ? 2 :
+                s.Role == UserRole.SuperAdmin ? 3 : 1));
 
         CreateMap<Models.Tour, TourDto>()
             .ForMember(d => d.Packages, o => o.MapFrom(s => s.Packages))

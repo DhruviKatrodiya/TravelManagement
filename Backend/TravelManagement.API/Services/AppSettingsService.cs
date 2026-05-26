@@ -33,7 +33,7 @@ public class AppSettingsService : IAppSettingsService
         var row = await _db.AppSettings.SingleOrDefaultAsync(s => s.Id == 1);
         if (row != null) return row;
 
-        row = new AppSetting { Id = 1 };
+        row = new AppSetting();
         _db.AppSettings.Add(row);
         await _db.SaveChangesAsync();
         return row;

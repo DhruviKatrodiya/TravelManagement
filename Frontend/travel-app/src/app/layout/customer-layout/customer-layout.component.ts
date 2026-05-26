@@ -33,7 +33,13 @@ import { NotificationStore, StoredNotification } from '../../core/services/notif
             <li class="nav-item"><a class="nav-link" routerLink="/tours">Browse Tours</a></li>
           </ul>
           <ul class="navbar-nav align-items-center gap-2">
-            <li class="nav-item text-light d-flex align-items-center">{{ auth.currentUser()?.fullName }}</li>
+            <li class="nav-item d-flex align-items-center">
+              <a class="nav-link text-white px-2 d-flex align-items-center gap-1"
+                 routerLink="/customer/profile" routerLinkActive="active" style="cursor:pointer">
+                <i class="bi bi-person-circle"></i>
+                <span>{{ auth.currentUser()?.fullName }}</span>
+              </a>
+            </li>
             <!-- Bell icon for desktop (inside collapse) -->
             <li class="nav-item d-none d-lg-flex">
               <button class="btn position-relative text-white border-0"

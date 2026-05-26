@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TravelManagement.API.Data;
 
@@ -11,9 +12,10 @@ using TravelManagement.API.Data;
 namespace TravelManagement.API.Migrations
 {
     [DbContext(typeof(TravelDbContext))]
-    partial class TravelDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260526053025_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,46 +23,6 @@ namespace TravelManagement.API.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
-
-            modelBuilder.Entity("TravelManagement.API.Models.CustomPermission", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsSystem")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Module")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.ToTable("CustomPermissions");
-                });
 
             modelBuilder.Entity("TravelManagement.API.Models.AppRole", b =>
                 {
@@ -1156,9 +1118,9 @@ namespace TravelManagement.API.Migrations
                             Email = "admin@travel.local",
                             FullName = "Administrator",
                             IsActive = true,
-                            PasswordHash = "$2a$11$lXPyDFuiadBvUfd9ALmmCOk152ZLLWDNfGszEseHlOFt/0n8fKeJ.",
+                            PasswordHash = "$2a$11$jJvTjfyDsTUMSsUt9lxqKOnYVvWlaGwe2wa.mIddqRI4gYeb4RuDi",
                             Phone = "+910000000001",
-                            Role = 11
+                            Role = 2
                         });
                 });
 

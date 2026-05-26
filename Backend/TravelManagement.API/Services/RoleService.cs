@@ -59,7 +59,8 @@ public class RoleService : IRoleService
         if (await _db.AppRoles.AnyAsync(r => r.Name == req.Name))
             throw new InvalidOperationException("A role with this name already exists.");
 
-        var allowed = Permissions.All.ToHashSet();
+        var customKeys = await _db.CustomPermissions.Where(p => p.IsActive).Select(p => p.Key).ToListAsync();
+        var allowed = Permissions.All.Concat(customKeys).ToHashSet();
         var role = new AppRole
         {
             Name = req.Name,
@@ -88,7 +89,8 @@ public class RoleService : IRoleService
                 throw new InvalidOperationException("A role with this name already exists.");
         }
 
-        var allowed = Permissions.All.ToHashSet();
+        var customKeys = await _db.CustomPermissions.Where(p => p.IsActive).Select(p => p.Key).ToListAsync();
+        var allowed = Permissions.All.Concat(customKeys).ToHashSet();
         var desired = req.Permissions.Where(p => allowed.Contains(p)).ToHashSet();
 
         role.Name = req.Name;

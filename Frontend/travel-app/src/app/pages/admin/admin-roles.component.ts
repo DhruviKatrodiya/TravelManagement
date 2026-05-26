@@ -1,8 +1,9 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { AppRole, AppRoleMember } from '../../core/models/api.models';
+import { AppRole, AppRoleMember, CustomPermission } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
 @Component({
@@ -11,8 +12,25 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
   template: `
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Role Management</h2>
-      <button class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add role</button>
+      <button *ngIf="activeTab === 'roles'" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add role</button>
+      <button *ngIf="activeTab === 'permissions' && auth.isSuperAdmin()" class="btn btn-primary" (click)="startCreatePerm()">
+        <i class="bi bi-plus-lg me-1"></i>Add permission
+      </button>
     </div>
+
+    <!-- ─── Tabs ─── -->
+    <ul class="nav nav-tabs mb-3">
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'roles'" type="button" (click)="activeTab = 'roles'">
+          <i class="bi bi-shield-check me-1"></i>Roles
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'permissions'" type="button" (click)="activeTab = 'permissions'; loadPerms()">
+          <i class="bi bi-key me-1"></i>Permission Catalog
+        </button>
+      </li>
+    </ul>
 
     <!-- ─── Role add / edit modal ─── -->
     <div *ngIf="editingId !== null" class="modal-backdrop fade show"></div>
@@ -169,154 +187,341 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       </div>
     </div>
 
-    <!-- ─── Filters ─── -->
-    <div class="table-card mb-3">
-      <div class="row g-2 align-items-end">
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Search user</label>
-          <div class="input-group input-group-sm">
-            <span class="input-group-text"><i class="bi bi-person-search"></i></span>
-            <input type="text" class="form-control" placeholder="Filter by user name…"
-                   [(ngModel)]="filterUser" (ngModelChange)="onFilterChange()" />
+    <!-- ─── Permission add / edit modal ─── -->
+    <div *ngIf="editingPerm !== undefined" class="modal-backdrop fade show"></div>
+    <div *ngIf="editingPerm !== undefined" class="modal fade show d-block" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold">
+              <i class="bi bi-key me-2"></i>{{ permFormMode === 'create' ? 'New permission' : 'Edit permission' }}
+            </h5>
           </div>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label small text-muted mb-1">Search role or description</label>
-          <div class="input-group input-group-sm">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input type="text" class="form-control" placeholder="Filter by role…"
-                   [(ngModel)]="filterText" (ngModelChange)="onFilterChange()" />
-          </div>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label small text-muted mb-1">Status</label>
-          <select class="form-select form-select-sm"
-                  [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-        <div class="col-md-1">
-          <button class="btn btn-outline-secondary btn-sm w-100" type="button"
-                  (click)="clearFilters()" [disabled]="!filtersApplied()" title="Clear filters">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── Table ─── -->
-    <div class="table-card">
-      <div class="table-responsive">
-        <table class="table align-middle">
-          <thead>
-            <tr>
-              <th>Users</th>
-              <th class="sortable" (click)="toggleSort('name')">Role name <i class="bi" [ngClass]="sortIcon('name')"></i></th>
-              <th>Description</th>
-              <th class="sortable" (click)="toggleSort('permissions')">Permissions <i class="bi" [ngClass]="sortIcon('permissions')"></i></th>
-              <th class="sortable" (click)="toggleSort('status')">Status <i class="bi" [ngClass]="sortIcon('status')"></i></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let row of pagedFlatRows()">
-              <td>
-                <ng-container *ngIf="!row.member">
-                  <span class="text-muted small fst-italic">No users assigned</span>
-                </ng-container>
-                <ng-container *ngIf="row.member">
-                  <div class="d-flex align-items-center gap-2">
-                    <span class="d-flex align-items-center justify-content-center rounded-circle text-white fw-semibold flex-shrink-0"
-                          [style.background]="avatarColor(row.member.name)"
-                          style="width:30px;height:30px;font-size:0.72rem;">
-                      {{ row.member.name.charAt(0).toUpperCase() }}
-                    </span>
-                    <span class="fw-medium small" [title]="row.member.name">{{ row.member.name }}</span>
-                  </div>
-                </ng-container>
-              </td>
-              <td><strong>{{ row.role.name }}</strong></td>
-              <td class="text-muted small">{{ row.role.description || '—' }}</td>
-              <td>
-                <ng-container *ngIf="row.member; else rolePerms">
-                  <span *ngIf="row.member.permissions.length === 0" class="badge bg-secondary">None</span>
-                  <span *ngIf="row.member.permissions.length > 0" class="badge bg-primary">
-                    {{ row.member.permissions.length }} permission{{ row.member.permissions.length !== 1 ? 's' : '' }}
-                  </span>
-                </ng-container>
-                <ng-template #rolePerms>
-                  <span *ngIf="row.role.permissions.length === 0" class="badge bg-secondary">None</span>
-                  <span *ngIf="row.role.permissions.length > 0" class="badge bg-primary">
-                    {{ row.role.permissions.length }} permission{{ row.role.permissions.length !== 1 ? 's' : '' }}
-                  </span>
-                </ng-template>
-              </td>
-              <td>
-                <span class="badge" [class.bg-success]="row.role.isActive" [class.bg-secondary]="!row.role.isActive">
-                  {{ row.role.isActive ? 'Active' : 'Inactive' }}
-                </span>
-              </td>
-              <td class="text-end">
-                <div class="d-flex gap-1 justify-content-end">
-                  <button class="btn btn-sm btn-outline-secondary"
-                          (click)="row.member ? openUserPerms(row.member) : openPerms(row.role)"
-                          title="Manage permissions">
-                    <i class="bi bi-key me-1"></i>Permissions
-                  </button>
-                  <button class="btn btn-sm btn-outline-primary" (click)="startEdit(row.role)">Edit</button>
-                  <button *ngIf="row.role.isActive" class="btn btn-sm btn-outline-danger"
-                          (click)="toggleActive(row.role)" [disabled]="togglingId === row.role.id">
-                    <span *ngIf="togglingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== row.role.id" class="bi bi-pause-circle me-1"></i>Deactivate
-                  </button>
-                  <button *ngIf="!row.role.isActive" class="btn btn-sm btn-outline-success"
-                          (click)="toggleActive(row.role)" [disabled]="togglingId === row.role.id">
-                    <span *ngIf="togglingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
-                    <i *ngIf="togglingId !== row.role.id" class="bi bi-check2-circle me-1"></i>Activate
-                  </button>
+          <form [formGroup]="permForm" (ngSubmit)="savePerm()">
+            <div class="modal-body">
+              <div class="alert alert-danger d-flex align-items-start mb-3" *ngIf="permFormError">
+                <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                <div class="flex-grow-1">{{ permFormError }}</div>
+                <button type="button" class="btn-close ms-2" aria-label="Dismiss" (click)="permFormError = ''"></button>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Key <span class="text-danger">*</span></label>
+                <input class="form-control" formControlName="key"
+                       placeholder="e.g. reports.export"
+                       [class.is-invalid]="isInvalid(permForm.get('key'))"
+                       [readonly]="permFormMode === 'edit'" />
+                <div class="invalid-feedback">
+                  Key is required and must match the pattern <code>module.action</code> (lowercase, dots and underscores allowed).
                 </div>
-              </td>
-            </tr>
-            <tr *ngIf="flatFiltered().length === 0">
-              <td colspan="6" class="text-center text-muted py-3">
-                {{ items.length === 0 ? 'No roles yet. Click "Add role" to create one.' : 'No roles match the filters.' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div *ngIf="flatFiltered().length > pageSize" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
-        <small class="text-muted">Showing {{ pageStart() }}–{{ pageEnd() }} of {{ flatFiltered().length }}</small>
-        <nav>
-          <ul class="pagination pagination-sm mb-0">
-            <li class="page-item" [class.disabled]="page === 1">
-              <button class="page-link" type="button" (click)="setPage(page - 1)" [disabled]="page === 1" aria-label="Previous">
-                <i class="bi bi-chevron-left"></i>
+                <div class="form-text" *ngIf="permFormMode === 'create'">Format: <code>module.action</code> e.g. <code>reports.export</code></div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Display name <span class="text-danger">*</span></label>
+                <input class="form-control" formControlName="displayName"
+                       placeholder="e.g. Export Reports"
+                       [class.is-invalid]="isInvalid(permForm.get('displayName'))" />
+                <div class="invalid-feedback">Display name is required.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Module <span class="text-danger">*</span></label>
+                <input class="form-control" formControlName="module"
+                       placeholder="e.g. reports"
+                       [class.is-invalid]="isInvalid(permForm.get('module'))" />
+                <div class="invalid-feedback">Module is required.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Description</label>
+                <input class="form-control" formControlName="description"
+                       placeholder="Optional description…" />
+              </div>
+              <div class="form-check" *ngIf="permFormMode === 'edit'">
+                <input class="form-check-input" type="checkbox" formControlName="isActive" id="permActive" />
+                <label class="form-check-label" for="permActive">Active</label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline-secondary" type="button" (click)="cancelPermEdit()">
+                <i class="bi bi-x-lg me-1"></i>Cancel
               </button>
-            </li>
-            <li class="page-item" *ngFor="let p of pageNumbers()" [class.active]="p === page">
-              <button class="page-link" type="button" (click)="setPage(p)">{{ p }}</button>
-            </li>
-            <li class="page-item" [class.disabled]="page === totalPages()">
-              <button class="page-link" type="button" (click)="setPage(page + 1)" [disabled]="page === totalPages()" aria-label="Next">
-                <i class="bi bi-chevron-right"></i>
+              <button class="btn btn-primary" [disabled]="permForm.invalid || savingPerm">
+                <span *ngIf="savingPerm" class="spinner-border spinner-border-sm me-1"></span>
+                <i *ngIf="!savingPerm" class="bi bi-check2-circle me-1"></i>
+                {{ permFormMode === 'create' ? 'Create permission' : 'Save changes' }}
               </button>
-            </li>
-          </ul>
-        </nav>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
+
+    <!-- ════════════════════ ROLES TAB ════════════════════ -->
+    <ng-container *ngIf="activeTab === 'roles'">
+
+      <!-- ─── Filters ─── -->
+      <div class="table-card mb-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label small text-muted mb-1">Search user</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+              <input type="text" class="form-control" placeholder="Filter by user name…"
+                     [(ngModel)]="filterUser" (ngModelChange)="onFilterChange()" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small text-muted mb-1">Search role or description</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control" placeholder="Filter by role…"
+                     [(ngModel)]="filterText" (ngModelChange)="onFilterChange()" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">Status</label>
+            <select class="form-select form-select-sm"
+                    [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button class="btn btn-outline-secondary btn-sm w-100" type="button"
+                    (click)="clearFilters()" [disabled]="!filtersApplied()" title="Clear filters">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Table ─── -->
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Users</th>
+                <th class="sortable" (click)="toggleSort('name')">Role name <i class="bi" [ngClass]="sortIcon('name')"></i></th>
+                <th>Description</th>
+                <th class="sortable" (click)="toggleSort('permissions')">Permissions <i class="bi" [ngClass]="sortIcon('permissions')"></i></th>
+                <th class="sortable" (click)="toggleSort('status')">Status <i class="bi" [ngClass]="sortIcon('status')"></i></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of pagedFlatRows()">
+                <td>
+                  <ng-container *ngIf="!row.member">
+                    <span class="text-muted small fst-italic">No users assigned</span>
+                  </ng-container>
+                  <ng-container *ngIf="row.member">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="d-flex align-items-center justify-content-center rounded-circle text-white fw-semibold flex-shrink-0"
+                            [style.background]="avatarColor(row.member.name)"
+                            style="width:30px;height:30px;font-size:0.72rem;">
+                        {{ row.member.name.charAt(0).toUpperCase() }}
+                      </span>
+                      <span class="fw-medium small" [title]="row.member.name">{{ row.member.name }}</span>
+                    </div>
+                  </ng-container>
+                </td>
+                <td><strong>{{ row.role.name }}</strong></td>
+                <td class="text-muted small">{{ row.role.description || '—' }}</td>
+                <td>
+                  <ng-container *ngIf="row.member; else rolePerms">
+                    <span *ngIf="row.member.permissions.length === 0" class="badge bg-secondary">None</span>
+                    <span *ngIf="row.member.permissions.length > 0" class="badge bg-primary">
+                      {{ row.member.permissions.length }} permission{{ row.member.permissions.length !== 1 ? 's' : '' }}
+                    </span>
+                  </ng-container>
+                  <ng-template #rolePerms>
+                    <span class="badge bg-secondary">None</span>
+                  </ng-template>
+                </td>
+                <td>
+                  <span class="badge" [class.bg-success]="row.role.isActive" [class.bg-secondary]="!row.role.isActive">
+                    {{ row.role.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex gap-1 justify-content-end">
+                    <button class="btn btn-sm btn-outline-secondary"
+                            (click)="row.member ? openUserPerms(row.member) : openPerms(row.role)"
+                            title="Manage permissions">
+                      <i class="bi bi-key me-1"></i>Permissions
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" (click)="startEdit(row.role)">Edit</button>
+                    <button *ngIf="row.role.isActive" class="btn btn-sm btn-outline-danger"
+                            (click)="toggleActive(row.role)" [disabled]="togglingId === row.role.id">
+                      <span *ngIf="togglingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="togglingId !== row.role.id" class="bi bi-pause-circle me-1"></i>Deactivate
+                    </button>
+                    <button *ngIf="!row.role.isActive" class="btn btn-sm btn-outline-success"
+                            (click)="toggleActive(row.role)" [disabled]="togglingId === row.role.id">
+                      <span *ngIf="togglingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="togglingId !== row.role.id" class="bi bi-check2-circle me-1"></i>Activate
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="flatFiltered().length === 0">
+                <td colspan="6" class="text-center text-muted py-3">
+                  {{ items.length === 0 ? 'No roles yet. Click "Add role" to create one.' : 'No roles match the filters.' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="flatFiltered().length > pageSize" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+          <small class="text-muted">Showing {{ pageStart() }}–{{ pageEnd() }} of {{ flatFiltered().length }}</small>
+          <nav>
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item" [class.disabled]="page === 1">
+                <button class="page-link" type="button" (click)="setPage(page - 1)" [disabled]="page === 1" aria-label="Previous">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+              </li>
+              <li class="page-item" *ngFor="let p of pageNumbers()" [class.active]="p === page">
+                <button class="page-link" type="button" (click)="setPage(p)">{{ p }}</button>
+              </li>
+              <li class="page-item" [class.disabled]="page === totalPages()">
+                <button class="page-link" type="button" (click)="setPage(page + 1)" [disabled]="page === totalPages()" aria-label="Next">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+    </ng-container>
+    <!-- ════════════════════ END ROLES TAB ════════════════════ -->
+
+    <!-- ════════════════════ PERMISSION CATALOG TAB ════════════════════ -->
+    <ng-container *ngIf="activeTab === 'permissions'">
+
+      <!-- ─── Permission catalog filter ─── -->
+      <div class="table-card mb-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1">Search permissions</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control" placeholder="Filter by key or module…"
+                     [(ngModel)]="filterPermText" (ngModelChange)="permPage = 1" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">Type</label>
+            <select class="form-select form-select-sm" [(ngModel)]="filterPermType" (ngModelChange)="permPage = 1">
+              <option value="all">All</option>
+              <option value="system">System</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button class="btn btn-outline-secondary btn-sm w-100" type="button"
+                    (click)="filterPermText = ''; filterPermType = 'all'; permPage = 1" title="Clear filters">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Permission catalog table ─── -->
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Display Name</th>
+                <th>Module</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of pagedFilteredPerms()">
+                <td><code class="small">{{ p.key }}</code></td>
+                <td class="fw-medium small">{{ p.displayName }}</td>
+                <td><span class="badge bg-light text-dark border">{{ p.module }}</span></td>
+                <td class="text-muted small">{{ p.description || '—' }}</td>
+                <td>
+                  <span *ngIf="p.isSystem" class="badge bg-info text-dark">System</span>
+                  <span *ngIf="!p.isSystem" class="badge bg-warning text-dark">Custom</span>
+                </td>
+                <td>
+                  <span class="badge" [class.bg-success]="p.isActive" [class.bg-secondary]="!p.isActive">
+                    {{ p.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex gap-1 justify-content-end" *ngIf="auth.isSuperAdmin() && !p.isSystem">
+                    <button class="btn btn-sm btn-outline-primary" (click)="startEditPerm(p)" title="Edit">
+                      <i class="bi bi-pencil me-1"></i>Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" (click)="confirmDeletePerm(p)"
+                            [disabled]="deletingPermId === p.id" title="Delete">
+                      <span *ngIf="deletingPermId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="deletingPermId !== p.id" class="bi bi-trash me-1"></i>Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="filteredPerms().length === 0">
+                <td colspan="7" class="text-center text-muted py-3">
+                  {{ customPerms.length === 0 ? 'Loading permissions…' : 'No permissions match the filters.' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="filteredPerms().length > permPageSize" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+          <small class="text-muted">Showing {{ permPageStart() }}–{{ permPageEnd() }} of {{ filteredPerms().length }}</small>
+          <nav>
+            <ul class="pagination pagination-sm mb-0">
+              <li class="page-item" [class.disabled]="permPage === 1">
+                <button class="page-link" type="button" (click)="setPermPage(permPage - 1)" [disabled]="permPage === 1" aria-label="Previous">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+              </li>
+              <ng-container *ngFor="let p of permPageNumbers()">
+                <li *ngIf="p !== -1" class="page-item" [class.active]="p === permPage">
+                  <button class="page-link" type="button" (click)="setPermPage(p)">{{ p }}</button>
+                </li>
+                <li *ngIf="p === -1" class="page-item disabled">
+                  <span class="page-link">…</span>
+                </li>
+              </ng-container>
+              <li class="page-item" [class.disabled]="permPage === permTotalPages()">
+                <button class="page-link" type="button" (click)="setPermPage(permPage + 1)" [disabled]="permPage === permTotalPages()" aria-label="Next">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+    </ng-container>
+    <!-- ════════════════════ END PERMISSION CATALOG TAB ════════════════════ -->
   `
 })
 export class AdminRolesComponent implements OnInit, OnDestroy {
   private api   = inject(ApiService);
   private fb    = inject(FormBuilder);
   private toast = inject(ToastService);
+  auth          = inject(AuthService);
 
   items: AppRole[] = [];
+
+  // ── Tab state ──
+  activeTab: 'roles' | 'permissions' = 'roles';
 
   // ── Role form state ──
   editingId:   number | null = null;
@@ -340,6 +545,18 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   readonly pageSize = 10;
   sortKey: 'name' | 'permissions' | 'status' | null = null;
   sortDir: 'asc' | 'desc' = 'asc';
+
+  // ── Custom permission catalog state ──
+  customPerms: CustomPermission[] = [];
+  filterPermText = '';
+  filterPermType: 'all' | 'system' | 'custom' = 'all';
+  editingPerm: CustomPermission | undefined = undefined;
+  permFormMode: 'create' | 'edit' = 'create';
+  permFormError = '';
+  savingPerm = false;
+  deletingPermId: number | null = null;
+  permPage = 1;
+  readonly permPageSize = 10;
 
   private readonly AVATAR_COLORS = [
     '#4f6ef7', '#2da44e', '#e36209', '#8250df',
@@ -368,6 +585,14 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
     isActive:    [true]
   });
 
+  permForm = this.fb.group({
+    key:         ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/)]],
+    displayName: ['', Validators.required],
+    module:      ['', Validators.required],
+    description: [''],
+    isActive:    [true]
+  });
+
   ngOnInit(): void {
     this.load();
     this.api.listPermissionCatalog().subscribe({
@@ -376,14 +601,183 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
         this.permsGrouped = this.buildGroups(this.permsCatalog);
       }
     });
+    this.api.listCustomPermissions().subscribe({
+      next: list => this.customPerms = list || []
+    });
   }
 
   ngOnDestroy(): void { this.unlockBody(); }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.editingPerm !== undefined) { this.cancelPermEdit(); return; }
     if (this.permRoleId !== null || this.permStaffId !== null) { this.cancelPerms(); return; }
     if (this.editingId  !== null) this.cancelEdit();
+  }
+
+  // ── Permission catalog loading ─────────────────────────────────────────────
+
+  loadPerms(): void {
+    this.api.listCustomPermissions().subscribe({
+      next: list => this.customPerms = list || []
+    });
+    // Refresh the permissions catalog too (custom permissions may now appear)
+    this.api.listPermissionCatalog().subscribe({
+      next: list => {
+        this.permsCatalog = list || [];
+        this.permsGrouped = this.buildGroups(this.permsCatalog);
+      }
+    });
+  }
+
+  filteredPerms(): CustomPermission[] {
+    const q = this.filterPermText.trim().toLowerCase();
+    return this.customPerms.filter(p => {
+      if (q && !p.key.toLowerCase().includes(q) && !p.module.toLowerCase().includes(q) && !p.displayName.toLowerCase().includes(q)) return false;
+      if (this.filterPermType === 'system' && !p.isSystem) return false;
+      if (this.filterPermType === 'custom' && p.isSystem) return false;
+      return true;
+    });
+  }
+
+  pagedFilteredPerms(): CustomPermission[] {
+    const start = (this.permPage - 1) * this.permPageSize;
+    return this.filteredPerms().slice(start, start + this.permPageSize);
+  }
+
+  permTotalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredPerms().length / this.permPageSize));
+  }
+
+  permPageStart(): number {
+    const len = this.filteredPerms().length;
+    if (len === 0) return 0;
+    return (this.permPage - 1) * this.permPageSize + 1;
+  }
+
+  permPageEnd(): number {
+    return Math.min(this.permPage * this.permPageSize, this.filteredPerms().length);
+  }
+
+  permPageNumbers(): number[] {
+    const total = this.permTotalPages();
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const cur = this.permPage;
+    const pages: number[] = [1];
+    const start = Math.max(2, cur - 2);
+    const end   = Math.min(total - 1, cur + 2);
+    if (start > 2) pages.push(-1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < total - 1) pages.push(-1);
+    pages.push(total);
+    return pages;
+  }
+
+  setPermPage(p: number): void {
+    if (p < 1 || p > this.permTotalPages()) return;
+    this.permPage = p;
+    scrollAdminContentTop();
+  }
+
+  // ── Custom permission CRUD ─────────────────────────────────────────────────
+
+  startCreatePerm(): void {
+    this.permFormMode  = 'create';
+    this.permFormError = '';
+    this.savingPerm    = false;
+    this.permForm.reset({ key: '', displayName: '', module: '', description: '', isActive: true });
+    this.permForm.get('key')?.enable();
+    this.editingPerm = {} as CustomPermission;
+    this.lockBody();
+  }
+
+  startEditPerm(p: CustomPermission): void {
+    this.permFormMode  = 'edit';
+    this.permFormError = '';
+    this.savingPerm    = false;
+    this.permForm.reset({
+      key: p.key,
+      displayName: p.displayName,
+      module: p.module,
+      description: p.description || '',
+      isActive: p.isActive
+    });
+    this.permForm.get('key')?.disable();
+    this.editingPerm = p;
+    this.lockBody();
+  }
+
+  cancelPermEdit(): void {
+    this.editingPerm   = undefined;
+    this.permFormError = '';
+    this.unlockBody();
+  }
+
+  savePerm(): void {
+    if (this.permForm.invalid) { this.permForm.markAllAsTouched(); return; }
+    this.savingPerm    = true;
+    this.permFormError = '';
+    const v = this.permForm.getRawValue() as any;
+
+    if (this.permFormMode === 'create') {
+      this.api.createCustomPermission({
+        key: v.key,
+        displayName: v.displayName,
+        module: v.module,
+        description: v.description || undefined
+      }).subscribe({
+        next: () => {
+          this.toast.show(`Permission "${v.key}" created.`, 'success', 4000, { title: 'Permission created' });
+          this.savingPerm  = false;
+          this.editingPerm = undefined;
+          this.unlockBody();
+          this.loadPerms();
+          this.load();
+        },
+        error: (err: any) => {
+          this.savingPerm    = false;
+          this.permFormError = err?.error?.message || 'Could not create permission. Please try again.';
+        }
+      });
+    } else {
+      const id = this.editingPerm!.id;
+      this.api.updateCustomPermission(id, {
+        displayName: v.displayName,
+        module: v.module,
+        description: v.description || undefined,
+        isActive: v.isActive
+      }).subscribe({
+        next: () => {
+          this.toast.show(`Permission updated.`, 'success', 4000, { title: 'Permission updated' });
+          this.savingPerm  = false;
+          this.editingPerm = undefined;
+          this.unlockBody();
+          this.loadPerms();
+          this.load();
+        },
+        error: (err: any) => {
+          this.savingPerm    = false;
+          this.permFormError = err?.error?.message || 'Could not update permission. Please try again.';
+        }
+      });
+    }
+  }
+
+  confirmDeletePerm(p: CustomPermission): void {
+    if (!confirm(`Delete permission "${p.key}"? This cannot be undone.`)) return;
+    this.deletingPermId = p.id;
+    this.api.deleteCustomPermission(p.id).subscribe({
+      next: () => {
+        this.toast.show(`Permission "${p.key}" deleted.`, 'success', 3000, { title: 'Permission deleted' });
+        this.deletingPermId = null;
+        this.loadPerms();
+        this.load();
+      },
+      error: (err: any) => {
+        this.deletingPermId = null;
+        this.toast.show(err?.error?.message || 'Could not delete permission.', 'danger', 4000, { title: 'Delete failed' });
+      }
+    });
   }
 
   // ── Role form ──────────────────────────────────────────────────────────────

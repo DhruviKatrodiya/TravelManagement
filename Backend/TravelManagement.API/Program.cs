@@ -48,11 +48,23 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+/*connection for mysql*/
+// builder.Services.AddDbContext<TravelDbContext>(options =>
+// options.UseMySql(
+//         builder.Configuration.GetConnectionString("DefaultConnection"),
+// ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+//     ));
+
+/*connection for sql server*/
+
 builder.Services.AddDbContext<TravelDbContext>(options =>
-options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
-    ));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+    sqlOptions => { sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null); }
+));
+
+// "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=TravelManagementDb;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True;"
+
+// "DefaultConnection": "server=localhost;database=TravelManagementDb;user=root_dhruvi;password=root@dhruvi;"
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
@@ -81,11 +93,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddSingleton<IAuthorizationHandler, MinimumLevelHandler>();
 builder.Services.AddAuthorization(options =>
 {
-    var staffMin = builder.Configuration.GetValue<int>("SystemThresholds:StaffMinLevel",      1);
-    var adminMin = builder.Configuration.GetValue<int>("SystemThresholds:AdminMinLevel",      2);
+    var staffMin = builder.Configuration.GetValue<int>("SystemThresholds:StaffMinLevel", 1);
+    var adminMin = builder.Configuration.GetValue<int>("SystemThresholds:AdminMinLevel", 2);
     var superMin = builder.Configuration.GetValue<int>("SystemThresholds:SuperAdminMinLevel", 3);
-    options.AddPolicy(RolePolicies.StaffOrAbove,   p => p.AddRequirements(new MinimumLevelRequirement(staffMin)));
-    options.AddPolicy(RolePolicies.AdminOrAbove,   p => p.AddRequirements(new MinimumLevelRequirement(adminMin)));
+    options.AddPolicy(RolePolicies.StaffOrAbove, p => p.AddRequirements(new MinimumLevelRequirement(staffMin)));
+    options.AddPolicy(RolePolicies.AdminOrAbove, p => p.AddRequirements(new MinimumLevelRequirement(adminMin)));
     options.AddPolicy(RolePolicies.SuperAdminOnly, p => p.AddRequirements(new MinimumLevelRequirement(superMin)));
 });
 
@@ -409,11 +421,30 @@ END");
 
     try
     {
+        await DataSeeder.SeedCustomPermissionsAsync(db);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to seed custom permissions on startup");
+    }
+
+    try
+    {
         await DataSeeder.SeedSuperAdminAsync(db, app.Configuration);
     }
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "Failed to seed super admin on startup");
+    }
+
+    try
+    {
+        var saEmail = app.Configuration["DefaultSuperAdmin:Email"];
+        await DataSeeder.FixStaleRoleValuesAsync(db, saEmail);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to fix stale role values on startup");
     }
 
     try

@@ -440,3 +440,28 @@ export interface Designation {
   departmentName: string;
   isActive: boolean;
 }
+
+export interface CustomPermission {
+  id: number;
+  key: string;
+  displayName: string;
+  module: string;
+  description?: string;
+  isSystem: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CustomPermissionCreateRequest {
+  key: string;
+  displayName: string;
+  module: string;
+  description?: string;
+}
+
+export interface CustomPermissionUpdateRequest {
+  displayName: string;
+  module: string;
+  description?: string;
+  isActive: boolean;
+}

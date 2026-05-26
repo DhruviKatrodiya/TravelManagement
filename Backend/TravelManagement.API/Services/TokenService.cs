@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TravelManagement.API.Helpers;
 using TravelManagement.API.Models;
+using TravelManagement.API.Models.Enums;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Services;
@@ -25,7 +26,14 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(ClaimTypes.Name, user.FullName),
             new(ClaimTypes.Role, user.Role.ToString()),
-            new("lvl", ((int)user.Role).ToString()),
+            new("lvl", (user.Role switch
+            {
+                UserRole.Customer   => 0,
+                UserRole.Staff      => 1,
+                UserRole.Admin      => 2,
+                UserRole.SuperAdmin => 3,
+                _                   => 1
+            }).ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("gsession", globalSessionToken)
         };

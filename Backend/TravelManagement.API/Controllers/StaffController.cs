@@ -1,7 +1,9 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using TravelManagement.API.Data;
 using TravelManagement.API.DTOs.Common;
 using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
@@ -14,11 +16,13 @@ public class StaffController : ControllerBase
 {
     private readonly IStaffService _svc;
     private readonly IConfiguration _config;
+    private readonly TravelDbContext _db;
 
-    public StaffController(IStaffService svc, IConfiguration config)
+    public StaffController(IStaffService svc, IConfiguration config, TravelDbContext db)
     {
         _svc    = svc;
         _config = config;
+        _db     = db;
     }
 
     [HttpGet]
@@ -62,8 +66,19 @@ public class StaffController : ControllerBase
     [HttpGet("permissions/catalog")]
     [AllowAnonymous]
     [Authorize(Policy = "AdminOrAbove")]
-    public ActionResult<ApiResponse<IEnumerable<string>>> PermissionsCatalog()
-        => Ok(ApiResponse<IEnumerable<string>>.Ok(Permissions.All));
+    public async Task<ActionResult<ApiResponse<IEnumerable<string>>>> PermissionsCatalog()
+    {
+        var custom = await _db.CustomPermissions
+            .Where(p => p.IsActive)
+            .Select(p => p.Key)
+            .ToListAsync();
+        // Merge: system keys first (Permissions.All order), then any extra custom keys
+        var systemKeys = Permissions.All.ToHashSet();
+        var merged = Permissions.All
+            .Concat(custom.Where(k => !systemKeys.Contains(k)))
+            .ToList();
+        return Ok(ApiResponse<IEnumerable<string>>.Ok(merged));
+    }
 
     [HttpGet("{id}/permissions")]
     [Authorize(Policy = "StaffOrAbove")]
@@ -74,7 +89,8 @@ public class StaffController : ControllerBase
     [Authorize(Policy = "AdminOrAbove")]
     public async Task<ActionResult<ApiResponse<object>>> SetPermissions(int id, StaffPermissionsUpdateRequest req)
     {
-        var allowed = Permissions.All.ToHashSet();
+        var customKeys = await _db.CustomPermissions.Where(p => p.IsActive).Select(p => p.Key).ToListAsync();
+        var allowed = Permissions.All.Concat(customKeys).ToHashSet();
         var sanitized = req.Permissions.Where(p => allowed.Contains(p)).ToList();
         var ok = await _svc.SetPermissionsAsync(id, sanitized);
         return ok ? Ok(ApiResponse<object>.Ok(new { }, "Permissions updated")) : NotFound(ApiResponse<object>.Fail("Staff not found"));

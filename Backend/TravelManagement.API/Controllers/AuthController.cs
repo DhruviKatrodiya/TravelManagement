@@ -15,6 +15,22 @@ public class AuthController : ControllerBase
 
     public AuthController(IAuthService auth) => _auth = auth;
 
+    [HttpGet("check-email")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> CheckEmail([FromQuery] string email)
+    {
+        var exists = await _auth.EmailExistsAsync(email);
+        return Ok(ApiResponse<object>.Ok(new { exists }));
+    }
+
+    [HttpGet("check-phone")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> CheckPhone([FromQuery] string phone)
+    {
+        var exists = await _auth.PhoneExistsAsync(phone);
+        return Ok(ApiResponse<object>.Ok(new { exists }));
+    }
+
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(RegisterRequest req)

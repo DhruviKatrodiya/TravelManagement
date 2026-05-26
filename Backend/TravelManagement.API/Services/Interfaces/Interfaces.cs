@@ -11,6 +11,8 @@ namespace TravelManagement.API.Services.Interfaces;
 
 public interface IAuthService
 {
+    Task<bool> EmailExistsAsync(string email);
+    Task<bool> PhoneExistsAsync(string phone);
     Task<AuthResponse> RegisterCustomerAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<UserDto> GetCurrentUserAsync(int userId);

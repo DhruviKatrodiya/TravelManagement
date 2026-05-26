@@ -3,7 +3,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiResponse, AppRole, Booking, BookingCreateRequest, City, Country, Customer, DashboardStats,
+  ApiResponse, AppRole, Booking, BookingCreateRequest, City, Country, Customer, CustomPermission,
+  CustomPermissionCreateRequest, CustomPermissionUpdateRequest, DashboardStats,
   Department, Designation, Driver, Expense, Facility, GeoState, HomeDestination, Notification,
   Payment, PaymentInitiateResponse, Refund, Review, Staff, Tour, TourPackage, TourSchedule,
   TripProfit, Vehicle, VehicleAllocation
@@ -229,6 +230,19 @@ export class ApiService {
   updateRole(id: number, req: any): Observable<AppRole> { return this.unwrap(this.http.put<ApiResponse<AppRole>>(`${this.base}/roles/${id}`, req)); }
   deleteRole(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/roles/${id}`)); }
   setRoleActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/roles/${id}/active?active=${active}`, {})); }
+
+  listCustomPermissions(): Observable<CustomPermission[]> {
+    return this.unwrap(this.http.get<ApiResponse<CustomPermission[]>>(`${this.base}/custom-permissions`));
+  }
+  createCustomPermission(req: CustomPermissionCreateRequest): Observable<CustomPermission> {
+    return this.unwrap(this.http.post<ApiResponse<CustomPermission>>(`${this.base}/custom-permissions`, req));
+  }
+  updateCustomPermission(id: number, req: CustomPermissionUpdateRequest): Observable<CustomPermission> {
+    return this.unwrap(this.http.put<ApiResponse<CustomPermission>>(`${this.base}/custom-permissions/${id}`, req));
+  }
+  deleteCustomPermission(id: number): Observable<void> {
+    return this.unwrap(this.http.delete<ApiResponse<void>>(`${this.base}/custom-permissions/${id}`));
+  }
 
   listHomeDestinations(activeOnly: boolean = true, assignedToMe?: boolean): Observable<HomeDestination[]> {
     return this.unwrap(this.http.get<ApiResponse<HomeDestination[]>>(`${this.base}/home-destinations`, { params: this.toParams({ activeOnly, assignedToMe }) }));

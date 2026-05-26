@@ -39,6 +39,7 @@ public class TravelDbContext : DbContext
     public DbSet<Designation> Designations => Set<Designation>();
     public DbSet<AppRole> AppRoles => Set<AppRole>();
     public DbSet<AppRolePermission> AppRolePermissions => Set<AppRolePermission>();
+    public DbSet<CustomPermission> CustomPermissions => Set<CustomPermission>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -160,6 +161,11 @@ public class TravelDbContext : DbContext
         builder.Entity<Staff>(e =>
         {
             e.HasOne(x => x.AppRole).WithMany().HasForeignKey(x => x.AppRoleId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<CustomPermission>(e =>
+        {
+            e.HasIndex(x => x.Key).IsUnique();
         });
 
         builder.Entity<Customer>(e =>

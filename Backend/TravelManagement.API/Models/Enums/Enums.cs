@@ -2,10 +2,19 @@ namespace TravelManagement.API.Models.Enums;
 
 public enum UserRole
 {
-    Customer = 0,
-    Staff = 1,
-    Admin = 2,
-    SuperAdmin = 3
+    SuperAdmin = 1,
+    OperationsManager = 2,
+    SalesManager = 3,
+    TourCoordinator = 4,
+    TourGuide = 5,
+    DriverManager = 6,
+    CustomerSupport = 7,
+    FinanceOfficer = 8,
+    MarketingExecutive = 9,
+    FieldAgent = 10,
+    Admin = 11,
+    Staff = 12,
+    Customer = 13
 }
 
 public enum Destination

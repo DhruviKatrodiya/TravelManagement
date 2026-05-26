@@ -7,10 +7,7 @@ export const environment = {
 /**
  * single session bug and add for new permission 
  * permission selection bug
- * register time goto login page not home page
  * when superadmin login at open home page not dashboard
- * Customer profile update not working, gender radio button not textbox selection
  * When change the password with send email after verify in db for email exists or not check in customer table after send otp and store
- * email functionality not working
- * 
+ * when any record delete but this delete record id relation for another table then show error message "This record is in use, you can't delete this record"
  */

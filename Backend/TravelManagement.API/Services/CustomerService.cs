@@ -11,12 +11,23 @@ public class CustomerService : ICustomerService
     private readonly TravelDbContext _db;
     private readonly IMapper _mapper;
     private readonly IEmailService _email;
+    private readonly ILogger<CustomerService> _logger;
 
-    public CustomerService(TravelDbContext db, IMapper mapper, IEmailService email)
+    public CustomerService(TravelDbContext db, IMapper mapper, IEmailService email, ILogger<CustomerService> logger)
     {
         _db = db;
         _mapper = mapper;
         _email = email;
+        _logger = logger;
+    }
+
+    private void FireEmail(string toEmail, string toName, string subject, string htmlBody)
+    {
+        _ = _email.SendAsync(toEmail, toName, subject, htmlBody)
+            .ContinueWith(
+                t => _logger.LogError(t.Exception?.InnerException ?? t.Exception,
+                    "[Email] Background send to {Email} | Subject: {Subject} failed", toEmail, subject),
+                TaskContinuationOptions.OnlyOnFaulted);
     }
 
     public async Task<IEnumerable<CustomerDto>> ListAsync()
@@ -77,12 +88,16 @@ public class CustomerService : ICustomerService
 
         await _db.SaveChangesAsync();
 
-        _ = _email.SendAsync(c.User.Email, c.User.FullName,
+        FireEmail(c.User.Email, c.User.FullName,
             "Your profile was updated",
-            $@"<h2>Profile updated</h2>
-               <p>Hi {c.User.FullName},</p>
-               <p>An administrator updated your account details. If you did not request this, please contact support.</p>
-               <p>Email on file: {c.User.Email}</p>");
+            $@"<div style=""font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"">
+                 <h2>Profile Updated</h2>
+                 <p>Hi {c.User.FullName},</p>
+                 <p>Your Travel Management account details were updated on <b>{DateTime.UtcNow:dd MMM yyyy HH:mm} UTC</b>.</p>
+                 <p style=""background:#fff3cd;border-left:4px solid #f0a500;padding:12px 16px;border-radius:4px;"">
+                   If you did not request this change, please contact support immediately.
+                 </p>
+               </div>");
 
         return await GetAsync(customerId);
     }
@@ -117,13 +132,19 @@ public class CustomerService : ICustomerService
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync();
 
-        _ = _email.SendAsync(customer.User.Email, customer.User.FullName,
+        FireEmail(customer.User.Email, customer.User.FullName,
             "Welcome to Travel Management",
-            $@"<h2>Welcome, {customer.User.FullName}!</h2>
-               <p>An account has been created for you on Travel Management.</p>
-               <p><b>Email:</b> {customer.User.Email}</p>
-               <p><b>Temporary password:</b> {req.Password}</p> 
-               <p>Please sign in and change your password as soon as possible.</p>");
+            $@"<div style=""font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"">
+                 <h2 style=""color:#2d6a4f;"">Welcome, {customer.User.FullName}!</h2>
+                 <p>An account has been created for you on Travel Management.</p>
+                 <table style=""width:100%;background:#f8f9fa;border-radius:8px;padding:16px;margin:20px 0;border-collapse:collapse;"">
+                   <tr><td style=""padding:6px 0;color:#555;"">Email</td><td style=""padding:6px 0;font-weight:bold;"">{customer.User.Email}</td></tr>
+                   <tr><td style=""padding:6px 0;color:#555;"">Temporary password</td><td style=""padding:6px 0;font-weight:bold;"">{req.Password}</td></tr>
+                 </table>
+                 <p style=""background:#fffbe6;border-left:4px solid #f0a500;padding:12px 16px;border-radius:4px;"">
+                   Please sign in and change your password as soon as possible.
+                 </p>
+               </div>");
 
         return (await GetAsync(customer.Id))!;
     }
@@ -145,9 +166,19 @@ public class CustomerService : ICustomerService
 
         var subject = active ? "Your account has been reactivated" : "Your account has been deactivated";
         var body = active
-            ? $@"<h2>Account reactivated</h2><p>Hi {c.User.FullName},</p><p>Your Travel Management account is active again. You can sign in normally.</p>"
-            : $@"<h2>Account deactivated</h2><p>Hi {c.User.FullName},</p><p>Your Travel Management account has been deactivated. You will not be able to sign in. Please contact support if you believe this is a mistake.</p>";
-        _ = _email.SendAsync(c.User.Email, c.User.FullName, subject, body);
+            ? $@"<div style=""font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"">
+                   <h2 style=""color:#2d6a4f;"">Account Reactivated</h2>
+                   <p>Hi {c.User.FullName},</p>
+                   <p>Your Travel Management account is active again. You can sign in normally.</p>
+                 </div>"
+            : $@"<div style=""font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"">
+                   <h2 style=""color:#c0392b;"">Account Deactivated</h2>
+                   <p>Hi {c.User.FullName},</p>
+                   <p>Your Travel Management account has been deactivated. You will not be able to sign in.</p>
+                   <p>Please contact support if you believe this is a mistake.</p>
+                 </div>";
+
+        FireEmail(c.User.Email, c.User.FullName, subject, body);
         return true;
     }
 }

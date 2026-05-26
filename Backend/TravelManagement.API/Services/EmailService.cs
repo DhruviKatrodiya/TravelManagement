@@ -79,11 +79,13 @@ public class EmailService : IEmailService
                 "If using Gmail: regular account passwords are blocked since May 2022. " +
                 "Go to myaccount.google.com → Security → 2-Step Verification (enable it) → App Passwords → create one for Mail → paste the 16-char code into appsettings.json Password field.",
                 _settings.SmtpHost, _settings.SmtpPort, _settings.Username);
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Email] Failed to send email to {Email} via {Host}:{Port}",
                 actualToEmail, _settings.SmtpHost, _settings.SmtpPort);
+            throw;
         }
     }
 

@@ -19,21 +19,31 @@ public static class DataSeeder
 
     public static async Task SeedSuperAdminAsync(TravelDbContext db, IConfiguration config)
     {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.SuperAdmin);
+        var section = config.GetSection("DefaultSuperAdmin");
+        var superAdminEmail = section["Email"] ?? "superadmin@travel.local";
+
+        // Look up by email — role value in DB may be stale from an older enum ordering.
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == superAdminEmail)
+                ?? await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.SuperAdmin);
 
         if (user == null)
         {
-            var section  = config.GetSection("DefaultSuperAdmin");
             user = new User
             {
                 FullName     = section["FullName"] ?? "Super Administrator",
-                Email        = section["Email"]    ?? "superadmin@travel.local",
+                Email        = superAdminEmail,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(section["Password"] ?? "SuperAdmin@123"),
                 Role         = UserRole.SuperAdmin,
                 IsActive     = true,
                 CreatedAt    = DateTime.UtcNow
             };
             db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+        else if (user.Role != UserRole.SuperAdmin)
+        {
+            // Fix stale role value (e.g. DB was seeded with an older sequential enum)
+            user.Role = UserRole.SuperAdmin;
             await db.SaveChangesAsync();
         }
 
@@ -89,6 +99,59 @@ public static class DataSeeder
         }
     }
 
+    // ── Stale role value migration ────────────────────────────────────────────
+    // Handles DBs originally seeded with a sequential enum (Customer=0, Staff=1, Admin=2,
+    // SuperAdmin=3) before explicit non-sequential values were introduced.
+    public static async Task FixStaleRoleValuesAsync(TravelDbContext db, string? superAdminEmail = null)
+    {
+        var primaryRoles = new HashSet<int> { 1, 11, 12, 13 }; // SuperAdmin, Admin, Staff, Customer
+
+        // Pass 1: users with a role integer that doesn't map to any primary role constant.
+        var staleUsers = await db.Users
+            .Where(u => !primaryRoles.Contains((int)u.Role))
+            .ToListAsync();
+
+        foreach (var user in staleUsers)
+        {
+            if (await db.Customers.AnyAsync(c => c.UserId == user.Id))
+            {
+                user.Role = UserRole.Customer;
+                continue;
+            }
+
+            var staff = await db.StaffMembers
+                .Include(s => s.AppRole)
+                .FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+            if (staff == null) continue;
+
+            user.Role = staff.AppRole?.Name == "Executive" ? UserRole.SuperAdmin :
+                        staff.AppRole?.Name == "Admin"     ? UserRole.Admin :
+                        UserRole.Staff;
+        }
+
+        // Pass 2: users who appear as SuperAdmin (role=1) but whose StaffMember record
+        // belongs to a non-Executive role — these are old Staff users (role was 1 in the
+        // sequential enum) that inadvertently now match the SuperAdmin constant.
+        var falseAdmins = await db.Users
+            .Where(u => u.Role == UserRole.SuperAdmin &&
+                        (superAdminEmail == null || u.Email != superAdminEmail))
+            .ToListAsync();
+
+        foreach (var user in falseAdmins)
+        {
+            var staff = await db.StaffMembers
+                .Include(s => s.AppRole)
+                .FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+            if (staff?.AppRole == null || staff.AppRole.Name == "Executive") continue;
+
+            user.Role = staff.AppRole.Name == "Admin" ? UserRole.Admin : UserRole.Staff;
+        }
+
+        await db.SaveChangesAsync();
+    }
+
     // ── Admin StaffMember bootstrap ───────────────────────────────────────────
     // Admin users created outside the People page (e.g. directly in the DB) won't have a
     // StaffMember record. Without one, GetPermissionsByUserIdAsync always returns [].
@@ -113,6 +176,39 @@ public static class DataSeeder
                     JoinedAt  = DateTime.UtcNow
                 });
             }
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // ── Custom Permissions ────────────────────────────────────────────────────
+
+    public static async Task SeedCustomPermissionsAsync(TravelDbContext db)
+    {
+        var existing = (await db.CustomPermissions.Select(p => p.Key).ToListAsync()).ToHashSet();
+        var toAdd = Permissions.All
+            .Where(key => !existing.Contains(key))
+            .Select(key =>
+            {
+                var parts = key.Split('.', 2);
+                var module = parts[0];
+                var action = parts.Length > 1 ? parts[1] : key;
+                var displayName = action == "toggle" ? "Activate / Deactivate"
+                    : action.Replace("_", " ").Replace(module + ".", "");
+                displayName = char.ToUpper(displayName[0]) + displayName[1..];
+                return new Models.CustomPermission
+                {
+                    Key = key,
+                    DisplayName = displayName,
+                    Module = module,
+                    IsSystem = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+            }).ToList();
+
+        if (toAdd.Count > 0)
+        {
+            db.CustomPermissions.AddRange(toAdd);
             await db.SaveChangesAsync();
         }
     }

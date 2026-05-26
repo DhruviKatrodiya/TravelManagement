@@ -70,6 +70,14 @@ export class AuthService {
     );
   }
 
+  checkEmail(email: string): Observable<ApiResponse<{ exists: boolean }>> {
+    return this.http.get<ApiResponse<{ exists: boolean }>>(`${this.base}/check-email`, { params: { email } });
+  }
+
+  checkPhone(phone: string): Observable<ApiResponse<{ exists: boolean }>> {
+    return this.http.get<ApiResponse<{ exists: boolean }>>(`${this.base}/check-phone`, { params: { phone } });
+  }
+
   register(req: RegisterRequest): Observable<ApiResponse<AuthResponse>> {
     return this.http.post<ApiResponse<AuthResponse>>(`${this.base}/register`, req).pipe(
       tap(r => { if (r.success && r.data) this.persist(r.data); })
