@@ -176,9 +176,15 @@ public class StaffService : IStaffService
 
     public async Task<List<string>> GetPermissionsByUserIdAsync(int userId)
     {
-        var staff = await _db.StaffMembers.FirstOrDefaultAsync(s => s.UserId == userId);
+        var staff = await _db.StaffMembers
+            .Include(s => s.AppRole).ThenInclude(r => r!.Permissions)
+            .FirstOrDefaultAsync(s => s.UserId == userId);
         if (staff == null) return new List<string>();
-        return await GetPermissionsAsync(staff.Id);
+
+        var direct   = await GetPermissionsAsync(staff.Id);
+        var fromRole = staff.AppRole?.Permissions.Select(p => p.Permission) ?? Enumerable.Empty<string>();
+
+        return direct.Concat(fromRole).Distinct().ToList();
     }
 
     public async Task<bool> SetPermissionsAsync(int staffId, IEnumerable<string> permissions)
@@ -203,14 +209,18 @@ public class StaffService : IStaffService
 
         if (added.Count > 0 || removed.Count > 0)
         {
-            var notifMessage = BuildPermissionChangeMessage(added, removed);
-            await _notifications.CreateAsync(
-                staff.User.Id,
-                NotificationType.General,
-                "Your permissions have been updated",
-                notifMessage,
-                "/staff/allocations"
-            );
+            try
+            {
+                var notifMessage = BuildPermissionChangeMessage(added, removed);
+                await _notifications.CreateAsync(
+                    staff.User.Id,
+                    NotificationType.General,
+                    "Your permissions have been updated",
+                    notifMessage,
+                    "/staff/allocations"
+                );
+            }
+            catch { /* notification failure must not roll back a successful permission save */ }
 
             _ = _email.SendAsync(
                 staff.User.Email,
@@ -225,12 +235,19 @@ public class StaffService : IStaffService
 
     private static string BuildPermissionChangeMessage(List<string> added, List<string> removed)
     {
+        static string Summarise(string verb, List<string> perms)
+        {
+            var sample = string.Join(", ", perms.Take(5).Select(FormatPermission));
+            return perms.Count > 5
+                ? $"{verb} {perms.Count} permissions ({sample} and {perms.Count - 5} more)"
+                : $"{verb}: {sample}";
+        }
+
         var parts = new List<string>();
-        if (added.Count > 0)
-            parts.Add($"Granted: {string.Join(", ", added.Select(FormatPermission))}");
-        if (removed.Count > 0)
-            parts.Add($"Revoked: {string.Join(", ", removed.Select(FormatPermission))}");
-        return string.Join(" | ", parts);
+        if (added.Count   > 0) parts.Add(Summarise("Granted", added));
+        if (removed.Count > 0) parts.Add(Summarise("Revoked", removed));
+        var msg = string.Join(" | ", parts);
+        return msg.Length > 997 ? msg[..997] + "…" : msg;
     }
 
     private static string BuildPermissionChangeEmail(string name, List<string> added, List<string> removed)

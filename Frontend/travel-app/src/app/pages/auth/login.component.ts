@@ -113,8 +113,10 @@ export class LoginComponent {
 
   private defaultLanding(): string {
     const user = this.auth.currentUser();
-    return user != null
-      ? this.systemRoles.defaultRouteFor(user.privilegeLevel)
-      : '/';
+    if (!user) return '/';
+    const fromConfig = this.systemRoles.defaultRouteFor(user.privilegeLevel);
+    if (fromConfig && fromConfig !== '/') return fromConfig;
+    // Fallback when _roles hasn't loaded yet: role name convention (SuperAdmin → /superadmin)
+    return user.privilegeLevel >= 1 ? '/' + user.role.toLowerCase() : '/customer';
   }
 }

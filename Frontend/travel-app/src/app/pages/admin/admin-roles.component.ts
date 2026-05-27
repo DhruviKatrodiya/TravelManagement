@@ -254,6 +254,124 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       </div>
     </div>
 
+    <!-- ─── Role view modal ─── -->
+    <div *ngIf="viewingRole !== null" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewingRole !== null" class="modal fade show d-block" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-eye me-2"></i>Role Details</h5>
+            <button type="button" class="btn-close" (click)="closeViewRole()"></button>
+          </div>
+          <div class="modal-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-3 text-muted small">Name</dt>
+              <dd class="col-sm-9 fw-semibold">{{ viewingRole.name }}</dd>
+              <dt class="col-sm-3 text-muted small">Description</dt>
+              <dd class="col-sm-9">{{ viewingRole.description || '—' }}</dd>
+              <dt class="col-sm-3 text-muted small">Status</dt>
+              <dd class="col-sm-9">
+                <span class="badge" [class.bg-success]="viewingRole.isActive" [class.bg-secondary]="!viewingRole.isActive">
+                  {{ viewingRole.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </dd>
+              <dt class="col-sm-3 text-muted small pt-1">Permissions</dt>
+              <dd class="col-sm-9">
+                <span *ngIf="viewingRole.permissions.length === 0" class="text-muted small fst-italic">None assigned</span>
+                <div *ngIf="viewingRole.permissions.length > 0">
+                  <div class="text-muted small mb-2">{{ viewingRole.permissions.length }} permission{{ viewingRole.permissions.length !== 1 ? 's' : '' }} assigned</div>
+                  <div *ngFor="let group of rolePermsByModule(viewingRole)" class="mb-3">
+                    <div class="fw-semibold small mb-1" style="color: var(--tm-primary, #4f6c3a);">
+                      {{ moduleLabel(group.module) }}
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                      <span *ngFor="let key of group.perms" class="badge bg-light text-dark border" style="font-size:.72rem;">
+                        {{ permLabel(key) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </dd>
+              <dt class="col-sm-3 text-muted small pt-1">Members</dt>
+              <dd class="col-sm-9">
+                <span *ngIf="!viewingRole.members?.length" class="text-muted small fst-italic">No users assigned</span>
+                <div *ngFor="let m of viewingRole.members" class="d-flex align-items-center gap-2 mb-1">
+                  <span class="d-flex align-items-center justify-content-center rounded-circle text-white fw-semibold flex-shrink-0"
+                        [style.background]="avatarColor(m.name)"
+                        style="width:26px;height:26px;font-size:0.68rem;">
+                    {{ m.name.charAt(0).toUpperCase() }}
+                  </span>
+                  <span class="small">{{ m.name }}</span>
+                </div>
+              </dd>
+
+              <!-- Individual user overrides — shown only when the member has actual overrides -->
+              <ng-container *ngIf="viewingMember !== null && viewingMember.permissions.length > 0">
+                <dt class="col-sm-3 text-muted small pt-1">Individual overrides</dt>
+                <dd class="col-sm-9">
+                  <div class="text-muted small mb-2">
+                    {{ viewingMember.permissions.length }} individual override{{ viewingMember.permissions.length !== 1 ? 's' : '' }}
+                    assigned directly to <strong>{{ viewingMember.name }}</strong>
+                  </div>
+                  <div class="d-flex flex-wrap gap-1">
+                    <span *ngFor="let key of viewingMember.permissions" class="badge bg-light text-dark border" style="font-size:.72rem;">
+                      {{ permLabel(key) }}
+                    </span>
+                  </div>
+                </dd>
+              </ng-container>
+            </dl>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" (click)="closeViewRole()">
+              <i class="bi bi-x-lg me-1"></i>Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Permission view modal ─── -->
+    <div *ngIf="viewingPerm !== null" class="modal-backdrop fade show"></div>
+    <div *ngIf="viewingPerm !== null" class="modal fade show d-block" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-eye me-2"></i>Permission Details</h5>
+            <button type="button" class="btn-close" (click)="closeViewPerm()"></button>
+          </div>
+          <div class="modal-body">
+            <dl class="row mb-0">
+              <dt class="col-sm-4 text-muted small">Key</dt>
+              <dd class="col-sm-8"><code class="small">{{ viewingPerm.key }}</code></dd>
+              <dt class="col-sm-4 text-muted small">Display Name</dt>
+              <dd class="col-sm-8 fw-semibold">{{ viewingPerm.displayName }}</dd>
+              <dt class="col-sm-4 text-muted small">Module</dt>
+              <dd class="col-sm-8"><span class="badge bg-light text-dark border">{{ viewingPerm.module }}</span></dd>
+              <dt class="col-sm-4 text-muted small">Description</dt>
+              <dd class="col-sm-8">{{ viewingPerm.description || '—' }}</dd>
+              <dt class="col-sm-4 text-muted small">Type</dt>
+              <dd class="col-sm-8">
+                <span *ngIf="viewingPerm.isSystem" class="badge bg-info text-dark">System</span>
+                <span *ngIf="!viewingPerm.isSystem" class="badge bg-warning text-dark">Custom</span>
+              </dd>
+              <dt class="col-sm-4 text-muted small">Status</dt>
+              <dd class="col-sm-8">
+                <span class="badge" [class.bg-success]="viewingPerm.isActive" [class.bg-secondary]="!viewingPerm.isActive">
+                  {{ viewingPerm.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </dd>
+            </dl>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-outline-secondary" type="button" (click)="closeViewPerm()">
+              <i class="bi bi-x-lg me-1"></i>Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ════════════════════ ROLES TAB ════════════════════ -->
     <ng-container *ngIf="activeTab === 'roles'">
 
@@ -263,7 +381,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           <div class="col-md-3">
             <label class="form-label small text-muted mb-1">Search user</label>
             <div class="input-group input-group-sm">
-              <span class="input-group-text"><i class="bi bi-person-search"></i></span>
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
               <input type="text" class="form-control" placeholder="Filter by user name…"
                      [(ngModel)]="filterUser" (ngModelChange)="onFilterChange()" />
             </div>
@@ -345,16 +463,19 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 </td>
                 <td class="text-end">
                   <div class="d-flex gap-1 justify-content-end">
+                    <button class="btn btn-sm btn-outline-primary" (click)="openViewRole(row.role, row.member)" title="View details">
+                      <i class="bi bi-eye me-1"></i>View
+                    </button>
                     <button class="btn btn-sm btn-outline-secondary"
                             (click)="row.member ? openUserPerms(row.member) : openPerms(row.role)"
                             title="Manage permissions">
                       <i class="bi bi-key me-1"></i>Permissions
                     </button>
-                    <button class="btn btn-sm btn-outline-primary" (click)="startEdit(row.role)">Edit</button>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="startEdit(row.role)">Edit</button>
                     <button *ngIf="row.role.isActive" class="btn btn-sm btn-outline-danger"
                             (click)="toggleActive(row.role)" [disabled]="togglingId === row.role.id">
                       <span *ngIf="togglingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
-                      <i *ngIf="togglingId !== row.role.id" class="bi bi-pause-circle me-1"></i>Deactivate
+                      <i *ngIf="togglingId !== row.role.id" class="bi bi-eye-slash me-1"></i>Deactivate
                     </button>
                     <button *ngIf="!row.role.isActive" class="btn btn-sm btn-outline-success"
                             (click)="toggleActive(row.role)" [disabled]="togglingId === row.role.id">
@@ -460,11 +581,22 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                   </span>
                 </td>
                 <td class="text-end">
-                  <div class="d-flex gap-1 justify-content-end" *ngIf="auth.isSuperAdmin() && !p.isSystem">
-                    <button class="btn btn-sm btn-outline-primary" (click)="startEditPerm(p)" title="Edit">
-                      <i class="bi bi-pencil me-1"></i>Edit
+                  <div class="d-flex gap-1 justify-content-end" *ngIf="auth.isSuperAdmin()">
+                    <button class="btn btn-sm btn-outline-primary" (click)="openViewPerm(p)" title="View details">
+                      <i class="bi bi-eye me-1"></i>View
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" (click)="confirmDeletePerm(p)"
+                    <button class="btn btn-sm btn-outline-secondary" (click)="startEditPerm(p)" title="Edit">Edit</button>
+                    <button *ngIf="p.isActive" class="btn btn-sm btn-outline-danger"
+                            (click)="togglePermActive(p)" [disabled]="togglingPermId === p.id">
+                      <span *ngIf="togglingPermId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="togglingPermId !== p.id" class="bi bi-eye-slash me-1"></i>Deactivate
+                    </button>
+                    <button *ngIf="!p.isActive" class="btn btn-sm btn-outline-success"
+                            (click)="togglePermActive(p)" [disabled]="togglingPermId === p.id">
+                      <span *ngIf="togglingPermId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="togglingPermId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
+                    </button>
+                    <button *ngIf="!p.isSystem" class="btn btn-sm btn-outline-danger" (click)="confirmDeletePerm(p)"
                             [disabled]="deletingPermId === p.id" title="Delete">
                       <span *ngIf="deletingPermId === p.id" class="spinner-border spinner-border-sm me-1"></span>
                       <i *ngIf="deletingPermId !== p.id" class="bi bi-trash me-1"></i>Delete
@@ -558,6 +690,10 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   permPage = 1;
   readonly permPageSize = 10;
 
+  viewingRole: AppRole | null = null;
+  viewingMember: AppRoleMember | null = null;
+  viewingPerm: CustomPermission | null = null;
+
   private readonly AVATAR_COLORS = [
     '#4f6ef7', '#2da44e', '#e36209', '#8250df',
     '#cf222e', '#0969da', '#1a7f37', '#9a6700',
@@ -576,6 +712,7 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   selectedPerms  = new Set<string>();
   expandedModules = new Set<string>();
   togglingId: number | null = null;
+  togglingPermId: number | null = null;
 
   @ViewChild('permModalBody') permModalBodyRef?: ElementRef<HTMLElement>;
 
@@ -612,7 +749,9 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   onEscape(): void {
     if (this.editingPerm !== undefined) { this.cancelPermEdit(); return; }
     if (this.permRoleId !== null || this.permStaffId !== null) { this.cancelPerms(); return; }
-    if (this.editingId  !== null) this.cancelEdit();
+    if (this.editingId  !== null) { this.cancelEdit(); return; }
+    if (this.viewingRole !== null) { this.closeViewRole(); return; }
+    if (this.viewingPerm !== null) { this.closeViewPerm(); return; }
   }
 
   // ── Permission catalog loading ─────────────────────────────────────────────
@@ -776,6 +915,41 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
       error: (err: any) => {
         this.deletingPermId = null;
         this.toast.show(err?.error?.message || 'Could not delete permission.', 'danger', 4000, { title: 'Delete failed' });
+      }
+    });
+  }
+
+  openViewRole(r: AppRole, member: AppRoleMember | null = null): void {
+    this.viewingRole = r;
+    this.viewingMember = member;
+    this.lockBody();
+  }
+  closeViewRole(): void { this.viewingRole = null; this.viewingMember = null; this.unlockBody(); }
+
+  openViewPerm(p: CustomPermission): void { this.viewingPerm = p; this.lockBody(); }
+  closeViewPerm(): void { this.viewingPerm = null; this.unlockBody(); }
+
+  togglePermActive(p: CustomPermission): void {
+    if (this.togglingPermId !== null) return;
+    this.togglingPermId = p.id;
+    this.api.updateCustomPermission(p.id, {
+      displayName: p.displayName,
+      module: p.module,
+      description: p.description,
+      isActive: !p.isActive
+    }).subscribe({
+      next: () => {
+        this.togglingPermId = null;
+        this.toast.show(
+          `Permission "${p.key}" ${p.isActive ? 'deactivated' : 'activated'}.`,
+          'success', 3000,
+          { title: 'Permission updated' }
+        );
+        this.loadPerms();
+      },
+      error: () => {
+        this.togglingPermId = null;
+        this.toast.show(`Could not update "${p.key}".`, 'danger', 4000, { title: 'Update failed' });
       }
     });
   }
@@ -986,6 +1160,17 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   moduleLabel(module: string): string {
     const map: Record<string, string> = { customers: 'People' };
     return map[module] ?? module.replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  rolePermsByModule(role: AppRole): { module: string; perms: string[] }[] {
+    const groups = new Map<string, string[]>();
+    for (const key of role.permissions) {
+      const [mod] = key.split('.');
+      const arr = groups.get(mod) ?? [];
+      arr.push(key);
+      groups.set(mod, arr);
+    }
+    return Array.from(groups.entries()).map(([module, perms]) => ({ module, perms }));
   }
 
   private buildGroups(catalog: string[]): { module: string; keys: string[] }[] {

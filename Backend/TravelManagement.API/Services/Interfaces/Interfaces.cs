@@ -21,7 +21,7 @@ public interface IAuthService
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest request);
     Task ForgotPasswordAsync(ForgotPasswordRequest request);
     Task VerifyForgotPasswordOtpAsync(VerifyForgotPasswordOtpRequest request);
-    Task LogoutAsync();
+    Task LogoutAsync(int userId);
 }
 
 public interface IAppSettingsService

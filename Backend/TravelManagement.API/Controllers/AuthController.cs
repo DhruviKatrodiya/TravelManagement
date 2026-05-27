@@ -51,7 +51,8 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<object>>> Logout()
     {
-        await _auth.LogoutAsync();
+        if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+            await _auth.LogoutAsync(userId);
         return Ok(ApiResponse<object>.Ok(new { }, "Logged out"));
     }
 

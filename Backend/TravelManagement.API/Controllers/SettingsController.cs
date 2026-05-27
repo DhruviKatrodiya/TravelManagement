@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TravelManagement.API.DTOs.Common;
+using TravelManagement.API.Helpers;
 using TravelManagement.API.Services.Interfaces;
 
 namespace TravelManagement.API.Controllers;
@@ -30,6 +31,7 @@ public class SettingsController : ControllerBase
 
     [HttpPost("test-email")]
     [Authorize(Policy = "AdminOrAbove")]
+    [RequirePermission(Permissions.SettingsEmail)]
     public async Task<ActionResult<ApiResponse<string>>> TestEmail([FromBody] TestEmailRequest req)
     {
         var to = string.IsNullOrWhiteSpace(req.To)

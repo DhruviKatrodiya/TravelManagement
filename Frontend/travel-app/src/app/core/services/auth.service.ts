@@ -17,8 +17,6 @@ export class AuthService {
   private readonly userSignal = signal<User | null>(this.readStoredUser());
   private sessionPoll$: Subscription | null = null;
   private readonly SESSION_POLL_MS = 30_000;
-  private readonly logoutChannel = new BroadcastChannel('travel_session');
-
   readonly currentUser      = this.userSignal.asReadonly();
   readonly isAuthenticated  = computed(() => !!this.userSignal());
   readonly role             = computed<UserRole | null>(() => this.userSignal()?.role ?? null);
@@ -41,8 +39,6 @@ export class AuthService {
   constructor(private http: HttpClient, private router: Router, private systemRoles: SystemRolesService) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    // Other tabs broadcast logout — force-logout this tab immediately
-    this.logoutChannel.onmessage = () => this.forceLogout();
     // Resume polling if token already exists (e.g. page refresh within same tab)
     if (this.getToken()) this.startSessionPoll();
   }
@@ -96,23 +92,31 @@ export class AuthService {
     return this.http.post<ApiResponse<unknown>>(`${this.base}/change-password`, { currentPassword, newPassword, otp });
   }
 
-  /** User-initiated logout: invalidates global session on backend + notifies all tabs. */
+  /** User-initiated logout: invalidates this tab's session on the backend. */
   logout(): void {
     const token = this.getToken();
     if (token) {
       this.http.post(`${this.base}/logout`, {}).subscribe({ error: () => {} });
     }
-    this.logoutChannel.postMessage('logout');
     this.forceLogout();
   }
 
-  /** Force-logout without a backend call — used by the interceptor and cross-tab broadcast. */
+  /** Force-logout without a backend call — used by the interceptor on 401. */
   forceLogout(): void {
     this.stopSessionPoll();
+    const currentUrl = this.router.url;
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     this.userSignal.set(null);
-    this.router.navigateByUrl('/auth/login');
+    // Only preserve returnUrl for authenticated routes — public pages (/, /tours, /about)
+    // should not be restored; after re-login defaultLanding() sends the user to their dashboard.
+    const PROTECTED = ['/superadmin', '/admin', '/staff', '/customer'];
+    const isProtected = PROTECTED.some(p => currentUrl?.startsWith(p));
+    if (isProtected) {
+      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: currentUrl } });
+    } else {
+      this.router.navigateByUrl('/auth/login');
+    }
   }
 
   getToken(): string | null {

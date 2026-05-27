@@ -12,8 +12,8 @@ import { ToastService } from '../../core/services/toast.service';
 
     <ul class="nav nav-tabs mb-3">
       <li class="nav-item"><a class="nav-link" [class.active]="tab==='profile'" href="javascript:;" (click)="tab='profile'">Profile</a></li>
-      <li class="nav-item"><a class="nav-link" [class.active]="tab==='password'" href="javascript:;" (click)="tab='password'">Password</a></li>
-      <li class="nav-item" *ngIf="auth.isAdmin()"><a class="nav-link" [class.active]="tab==='email'" href="javascript:;" (click)="tab='email'">Email</a></li>
+      <li class="nav-item" *ngIf="auth.hasPermission('settings.password')"><a class="nav-link" [class.active]="tab==='password'" href="javascript:;" (click)="tab='password'">Password</a></li>
+      <li class="nav-item" *ngIf="auth.hasPermission('settings.email')"><a class="nav-link" [class.active]="tab==='email'" href="javascript:;" (click)="tab='email'">Email</a></li>
     </ul>
 
     <div class="table-card" *ngIf="tab==='profile'">
@@ -50,7 +50,7 @@ import { ToastService } from '../../core/services/toast.service';
       </form>
     </div>
 
-    <div class="table-card" *ngIf="tab==='password'">
+    <div class="table-card" *ngIf="tab==='password' && auth.hasPermission('settings.password')">
       <div class="d-flex align-items-center mb-1">
         <h5 class="fw-bold mb-0"><i class="bi bi-shield-lock me-2"></i>Change password</h5>
       </div>
@@ -136,7 +136,7 @@ import { ToastService } from '../../core/services/toast.service';
       </form>
     </div>
 
-    <div class="table-card" *ngIf="tab==='email' && auth.isAdmin()">
+    <div class="table-card" *ngIf="tab==='email' && auth.hasPermission('settings.email')">
       <div class="d-flex align-items-center mb-1">
         <h5 class="fw-bold mb-0"><i class="bi bi-envelope-check me-2"></i>Email configuration</h5>
       </div>

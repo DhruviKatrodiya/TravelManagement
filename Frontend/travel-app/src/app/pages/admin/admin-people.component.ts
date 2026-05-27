@@ -1,12 +1,36 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
-import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
+import { AbstractControl, AsyncValidatorFn, FormBuilder, ValidationErrors, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AppRole, City, Country, Department, Designation, GeoState } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
-import { Observable } from 'rxjs';
+import { Observable, map, of, switchMap, timer } from 'rxjs';
+
+function emailExistsValidator(auth: AuthService, skipValue?: string): AsyncValidatorFn {
+  return (control: AbstractControl): Observable<ValidationErrors | null> => {
+    const email = (control.value as string) || '';
+    if (!email || !email.includes('@')) return of(null);
+    if (skipValue && email.toLowerCase() === skipValue.toLowerCase()) return of(null);
+    return timer(500).pipe(
+      switchMap(() => auth.checkEmail(email)),
+      map(r => r.data?.exists ? { emailTaken: true } : null)
+    );
+  };
+}
+
+function phoneExistsValidator(auth: AuthService, skipValue?: string): AsyncValidatorFn {
+  return (control: AbstractControl): Observable<ValidationErrors | null> => {
+    const phone = (control.value as string) || '';
+    if (!phone || phone.length < 7) return of(null);
+    if (skipValue && phone === skipValue) return of(null);
+    return timer(500).pipe(
+      switchMap(() => auth.checkPhone(phone)),
+      map(r => r.data?.exists ? { phoneTaken: true } : null)
+    );
+  };
+}
 
 interface Person {
   id: number;
@@ -128,8 +152,15 @@ interface Person {
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Email <span class="text-danger">*</span></label>
-                  <input type="email" class="form-control" formControlName="email" [class.is-invalid]="isInvalid(form.get('email'))" />
-                  <div class="invalid-feedback">Valid email is required.</div>
+                  <div class="input-group">
+                    <input type="email" class="form-control" formControlName="email" [class.is-invalid]="isInvalid(form.get('email'))" />
+                    <span class="input-group-text" *ngIf="form.get('email')?.pending">
+                      <span class="spinner-border spinner-border-sm text-secondary"></span>
+                    </span>
+                  </div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('email')) && form.get('email')?.errors?.['required']">Email is required.</div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('email')) && form.get('email')?.errors?.['email']">Enter a valid email address.</div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('email')) && form.get('email')?.errors?.['emailTaken']">This email is already registered.</div>
                 </div>
                 <div class="col-md-6" *ngIf="editingId === 0">
                   <label class="form-label">Password <span class="text-danger">*</span></label>
@@ -144,8 +175,14 @@ interface Person {
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Phone <span class="text-danger">*</span></label>
-                  <input class="form-control" formControlName="phone" [class.is-invalid]="isInvalid(form.get('phone'))" />
-                  <div class="invalid-feedback">Phone is required.</div>
+                  <div class="input-group">
+                    <input class="form-control" formControlName="phone" [class.is-invalid]="isInvalid(form.get('phone'))" />
+                    <span class="input-group-text" *ngIf="form.get('phone')?.pending">
+                      <span class="spinner-border spinner-border-sm text-secondary"></span>
+                    </span>
+                  </div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('phone')) && form.get('phone')?.errors?.['required']">Phone is required.</div>
+                  <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('phone')) && form.get('phone')?.errors?.['phoneTaken']">This phone number is already registered.</div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Role <span class="text-danger">*</span></label>
@@ -232,27 +269,50 @@ interface Person {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">City <span class="text-danger">*</span></label>
-                    <select class="form-select" formControlName="city" [class.is-invalid]="isInvalid(form.get('city'))"
-                            (change)="onCityChange()">
+                    <select *ngIf="!cityIsOther" class="form-select" formControlName="city"
+                            [class.is-invalid]="isInvalid(form.get('city'))" (change)="onCityChange()">
                       <option value="">— Select city —</option>
                       <option *ngFor="let c of allCities" [value]="c.name">{{ c.name }}</option>
+                      <option value="__other__">Other…</option>
                     </select>
+                    <div *ngIf="cityIsOther" class="input-group">
+                      <input type="text" class="form-control" placeholder="City name…"
+                             [value]="form.get('city')?.value" (input)="onCustomCityInput($event)"
+                             [class.is-invalid]="isInvalid(form.get('city'))" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="clearCityOther()"><i class="bi bi-x-lg"></i></button>
+                    </div>
                     <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('city'))">City is required.</div>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">State <span class="text-danger">*</span></label>
-                    <select class="form-select" formControlName="state" [class.is-invalid]="isInvalid(form.get('state'))">
+                    <select *ngIf="!stateIsOther" class="form-select" formControlName="state"
+                            [class.is-invalid]="isInvalid(form.get('state'))" (change)="onStateCustChange()">
                       <option value="">— Select state —</option>
                       <option *ngFor="let s of allStates" [value]="s.name">{{ s.name }}</option>
+                      <option value="__other__">Other…</option>
                     </select>
+                    <div *ngIf="stateIsOther" class="input-group">
+                      <input type="text" class="form-control" placeholder="State name…"
+                             [value]="form.get('state')?.value" (input)="onCustomStateInput($event)"
+                             [class.is-invalid]="isInvalid(form.get('state'))" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="clearStateOther()"><i class="bi bi-x-lg"></i></button>
+                    </div>
                     <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('state'))">State is required.</div>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label">Country <span class="text-danger">*</span></label>
-                    <select class="form-select" formControlName="country" [class.is-invalid]="isInvalid(form.get('country'))">
+                    <select *ngIf="!countryIsOther" class="form-select" formControlName="country"
+                            [class.is-invalid]="isInvalid(form.get('country'))" (change)="onCountryCustChange()">
                       <option value="">— Select country —</option>
                       <option *ngFor="let c of countries" [value]="c.name">{{ c.name }}</option>
+                      <option value="__other__">Other…</option>
                     </select>
+                    <div *ngIf="countryIsOther" class="input-group">
+                      <input type="text" class="form-control" placeholder="Country name…"
+                             [value]="form.get('country')?.value" (input)="onCustomCountryInput($event)"
+                             [class.is-invalid]="isInvalid(form.get('country'))" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="clearCountryOther()"><i class="bi bi-x-lg"></i></button>
+                    </div>
                     <div class="text-danger small mt-1" *ngIf="isInvalid(form.get('country'))">Country is required.</div>
                   </div>
                   <div class="col-md-6">
@@ -296,7 +356,7 @@ interface Person {
             </div>
             <div class="modal-footer">
               <button class="btn btn-outline-secondary" type="button" (click)="cancel()"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-              <button class="btn btn-primary" [disabled]="form.invalid"><i class="bi bi-check2-circle me-1"></i>Save</button>
+              <button class="btn btn-primary" [disabled]="form.invalid || form.pending"><i class="bi bi-check2-circle me-1"></i>Save</button>
             </div>
           </form>
         </div>
@@ -432,6 +492,9 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
   showPassword = false;
   deptIsOther = false;
   desigIsOther = false;
+  cityIsOther = false;
+  stateIsOther = false;
+  countryIsOther = false;
 
   @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
 
@@ -544,11 +607,16 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     this.showPassword = false;
     this.deptIsOther = false;
     this.desigIsOther = false;
+    this.cityIsOther = false;
+    this.stateIsOther = false;
+    this.countryIsOther = false;
     this.formDesignations = [];
     this.form.reset({ fullName: '', email: '', password: '', phone: '', appRoleId: null, systemRole: 'Staff', department: '', designation: '', salary: null, dateOfBirth: '', gender: '', address: '', city: '', state: '', country: '', postalCode: '', idProofType: '', idProofNumber: '', isActive: true });
     this.clearFieldValidators();
     this.form.controls.password.setValidators([Validators.required, Validators.minLength(6)]);
     this.form.controls.password.updateValueAndValidity();
+    this.form.controls.email.setAsyncValidators([emailExistsValidator(this.auth)]);
+    this.form.controls.phone.setAsyncValidators([phoneExistsValidator(this.auth)]);
     this.lockBody();
   }
 
@@ -560,6 +628,9 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     this.deptIsOther = !!p.department && !this.departments.some(d => d.name === p.department);
     this.syncFormDesignations(p.department || '');
     this.desigIsOther = !!p.designation && !this.formDesignations.some(d => d.name === p.designation);
+    this.cityIsOther    = !!p.city    && !this.allCities.some(c => c.name === p.city);
+    this.stateIsOther   = !!p.state   && !this.allStates.some(s => s.name === p.state);
+    this.countryIsOther = !!p.country && !this.countries.some(c => c.name === p.country);
     this.form.reset({
       fullName: p.fullName, email: p.email, password: '', phone: p.phone || '',
       appRoleId: p.appRoleId ?? null, systemRole: p.systemRole || 'Staff',
@@ -573,12 +644,17 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     this.form.controls.password.clearValidators();
     this.form.controls.password.updateValueAndValidity();
     this.setValidatorsForType(p.personType);
+    this.form.controls.email.setAsyncValidators([emailExistsValidator(this.auth, p.email)]);
+    this.form.controls.phone.setAsyncValidators([phoneExistsValidator(this.auth, p.phone || '')]);
     this.lockBody();
   }
 
   cancel(): void {
     this.editingId = null; this.editingPersonType = null; this.formError = '';
     this.showPassword = false; this.deptIsOther = false; this.desigIsOther = false;
+    this.cityIsOther = false; this.stateIsOther = false; this.countryIsOther = false;
+    this.form.controls.email.clearAsyncValidators();
+    this.form.controls.phone.clearAsyncValidators();
     this.unlockBody();
   }
 
@@ -630,7 +706,10 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     op$.subscribe({
       next: () => {
         this.toast.show(isNew ? `"${v.fullName}" added.` : `"${v.fullName}" updated.`, 'success', 4000, { title: isNew ? 'Person created' : 'Person updated' });
-        this.editingId = null; this.editingPersonType = null; this.unlockBody(); this.loadAll();
+        this.editingId = null; this.editingPersonType = null;
+        this.form.controls.email.clearAsyncValidators();
+        this.form.controls.phone.clearAsyncValidators();
+        this.unlockBody(); this.loadAll();
       },
       error: (err: any) => {
         this.formError = err?.error?.message || 'Could not save. Please try again.';
@@ -674,9 +753,29 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
 
   // ── City cascade ──────────────────────────────────────────────────
   onCityChange(): void {
-    const city = this.allCities.find(c => c.name === this.form.controls.city.value);
+    const val = this.form.controls.city.value || '';
+    if (val === '__other__') { this.cityIsOther = true; this.form.patchValue({ city: '' }, { emitEvent: false }); return; }
+    const city = this.allCities.find(c => c.name === val);
     if (city) this.form.patchValue({ state: (city as any).stateName, country: (city as any).countryName }, { emitEvent: false });
   }
+
+  onStateCustChange(): void {
+    const val = this.form.controls.state.value || '';
+    if (val === '__other__') { this.stateIsOther = true; this.form.patchValue({ state: '' }, { emitEvent: false }); }
+  }
+
+  onCountryCustChange(): void {
+    const val = this.form.controls.country.value || '';
+    if (val === '__other__') { this.countryIsOther = true; this.form.patchValue({ country: '' }, { emitEvent: false }); }
+  }
+
+  onCustomCityInput(e: Event): void { this.form.patchValue({ city: (e.target as HTMLInputElement).value }, { emitEvent: false }); }
+  onCustomStateInput(e: Event): void { this.form.patchValue({ state: (e.target as HTMLInputElement).value }, { emitEvent: false }); }
+  onCustomCountryInput(e: Event): void { this.form.patchValue({ country: (e.target as HTMLInputElement).value }, { emitEvent: false }); }
+
+  clearCityOther(): void { this.cityIsOther = false; this.form.patchValue({ city: '' }, { emitEvent: false }); }
+  clearStateOther(): void { this.stateIsOther = false; this.form.patchValue({ state: '' }, { emitEvent: false }); }
+  clearCountryOther(): void { this.countryIsOther = false; this.form.patchValue({ country: '' }, { emitEvent: false }); }
 
   // ── Filter / Sort / Page ──────────────────────────────────────────
   filtered(): Person[] {

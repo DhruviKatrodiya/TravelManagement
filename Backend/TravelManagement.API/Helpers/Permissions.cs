@@ -114,6 +114,9 @@ public static class Permissions
     public const string RolesCreate = "roles.create";
     public const string RolesDelete = "roles.delete";
 
+    // Settings
+    public const string SettingsEmail = "settings.email";
+
     public static readonly IReadOnlyList<string> All = new[]
     {
         ToursView, ToursCreate, ToursEdit, ToursDelete,
@@ -139,6 +142,7 @@ public static class Permissions
         CitiesView, CitiesCreate, CitiesEdit, CitiesToggle,
         DepartmentsView, DepartmentsCreate, DepartmentsEdit, DepartmentsToggle,
         DesignationsView, DesignationsCreate, DesignationsEdit, DesignationsToggle,
-        RolesView, RolesEdit, RolesCreate, RolesDelete
+        RolesView, RolesEdit, RolesCreate, RolesDelete,
+        SettingsEmail
     };
 }

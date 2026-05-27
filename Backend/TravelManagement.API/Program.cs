@@ -403,24 +403,6 @@ END");
 
     try
     {
-        await DataSeeder.SeedAsync(db);
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to seed geo/org data on startup");
-    }
-
-    try
-    {
-        await DataSeeder.SeedRolesAsync(db);
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Failed to seed default roles on startup");
-    }
-
-    try
-    {
         await DataSeeder.SeedCustomPermissionsAsync(db);
     }
     catch (Exception ex)

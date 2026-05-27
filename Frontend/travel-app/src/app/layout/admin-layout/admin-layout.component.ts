@@ -61,7 +61,7 @@ const LANG_KEY = 'travel.lang';
               <div class="px-3 py-2 border-bottom">
                 <div class="fw-semibold small">{{ auth.currentUser()?.fullName }}</div>
                 <div class="text-muted" style="font-size:.75rem">{{ auth.currentUser()?.email }}</div>
-                <span class="role-badge mt-1">{{ auth.role() }}</span>
+                <span class="role-badge mt-1">{{ systemRoles.displayNameFor(auth.privilegeLevel()) }}</span>
               </div>
               <a class="dropdown-item" routerLink="/"><i class="bi bi-globe me-2"></i>View site</a>
               <a class="dropdown-item" [routerLink]="basePath() + '/settings'"><i class="bi bi-gear me-2"></i>Settings</a>

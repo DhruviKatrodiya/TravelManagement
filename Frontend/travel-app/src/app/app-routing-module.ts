@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
-import { authGuard } from './core/guards/role.guard';
+import { authGuard, staffHomeRedirectGuard } from './core/guards/role.guard';
 import { PublicLayoutComponent } from './layout/public-layout/public-layout.component';
 import { CustomerLayoutComponent } from './layout/customer-layout/customer-layout.component';
 import { AdminLayoutComponent } from './layout/admin-layout/admin-layout.component';
@@ -80,7 +80,7 @@ const routes: Routes = [
     path: '',
     component: PublicLayoutComponent,
     children: [
-      { path: '', component: HomeComponent },
+      { path: '', component: HomeComponent, canActivate: [staffHomeRedirectGuard] },
       { path: 'tours', component: ToursListComponent },
       { path: 'tours/:id', component: TourDetailComponent },
       { path: 'about', component: AboutComponent }
@@ -109,23 +109,11 @@ const routes: Routes = [
       { path: 'profile', component: ProfileComponent }
     ]
   },
-  // Management panels — the guard enforces exact-level routing (e.g. Admin → /admin, SuperAdmin → /superadmin).
-  // Route prefixes are driven by SystemRolesService config; adding a new panel requires only a route entry here
-  // plus a matching record in appsettings.json SystemRoles[].
+  // Management panels — fully dynamic. The route prefix comes from the URL param and is validated
+  // against appsettings.json SystemRoles[] by the guard. Adding a new role only requires a new
+  // entry in appsettings.json — no code change needed here.
   {
-    path: 'staff',
-    component: AdminLayoutComponent,
-    canActivate: [authGuard],
-    children: managementChildren
-  },
-  {
-    path: 'admin',
-    component: AdminLayoutComponent,
-    canActivate: [authGuard],
-    children: managementChildren
-  },
-  {
-    path: 'superadmin',
+    path: ':rolePrefix',
     component: AdminLayoutComponent,
     canActivate: [authGuard],
     children: managementChildren

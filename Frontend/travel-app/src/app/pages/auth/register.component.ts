@@ -129,15 +129,20 @@ function phoneExistsValidator(auth: AuthService): AsyncValidatorFn {
                   <!-- Country -->
                   <div class="col-md-6">
                     <label class="form-label">Country <span class="text-danger">*</span></label>
-                    <select class="form-select" [class.is-invalid]="countryCtl.touched && countryCtl.invalid"
+                    <select *ngIf="selCountry !== 'other'" class="form-select"
+                            [class.is-invalid]="countryCtl.touched && countryCtl.invalid"
                             (change)="onCountryChange($event)">
                       <option value="" [selected]="selCountry === ''">Select country...</option>
                       <option *ngFor="let c of countries" [value]="c.id" [selected]="c.id == selCountry">{{ c.name }}</option>
-                      <option value="other" [selected]="selCountry === 'other'">Other</option>
+                      <option value="other">Other</option>
                     </select>
-                    <input *ngIf="selCountry === 'other'" class="form-control mt-2" formControlName="country"
-                           placeholder="Enter country name"
-                           [class.is-invalid]="countryCtl.touched && countryCtl.invalid" />
+                    <div *ngIf="selCountry === 'other'" class="input-group">
+                      <input class="form-control" formControlName="country" placeholder="Enter country name"
+                             [class.is-invalid]="countryCtl.touched && countryCtl.invalid" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="clearCountry()" title="Back to list">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
                     <small class="text-danger d-block mt-1" *ngIf="countryCtl.touched && countryCtl.errors?.['required']">
                       <i class="bi bi-exclamation-circle me-1"></i>Country is required.
                     </small>
@@ -146,16 +151,21 @@ function phoneExistsValidator(auth: AuthService): AsyncValidatorFn {
                   <!-- State -->
                   <div class="col-md-6">
                     <label class="form-label">State <span class="text-danger">*</span></label>
-                    <select class="form-select" [class.is-invalid]="stateCtl.touched && stateCtl.invalid"
+                    <select *ngIf="selState !== 'other'" class="form-select"
+                            [class.is-invalid]="stateCtl.touched && stateCtl.invalid"
                             [value]="selState" (change)="onStateChange($event)"
                             [disabled]="selCountry === '' || (selCountry !== 'other' && states.length === 0)">
                       <option value="">Select state...</option>
                       <option *ngFor="let s of states" [value]="s.id">{{ s.name }}</option>
                       <option value="other">Other</option>
                     </select>
-                    <input *ngIf="selState === 'other'" class="form-control mt-2" formControlName="state"
-                           placeholder="Enter state name"
-                           [class.is-invalid]="stateCtl.touched && stateCtl.invalid" />
+                    <div *ngIf="selState === 'other'" class="input-group">
+                      <input class="form-control" formControlName="state" placeholder="Enter state name"
+                             [class.is-invalid]="stateCtl.touched && stateCtl.invalid" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="clearState()" title="Back to list">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
                     <small class="text-danger d-block mt-1" *ngIf="stateCtl.touched && stateCtl.errors?.['required']">
                       <i class="bi bi-exclamation-circle me-1"></i>State is required.
                     </small>
@@ -164,16 +174,21 @@ function phoneExistsValidator(auth: AuthService): AsyncValidatorFn {
                   <!-- City -->
                   <div class="col-md-6">
                     <label class="form-label">City <span class="text-danger">*</span></label>
-                    <select class="form-select" [class.is-invalid]="cityCtl.touched && cityCtl.invalid"
+                    <select *ngIf="selCity !== 'other'" class="form-select"
+                            [class.is-invalid]="cityCtl.touched && cityCtl.invalid"
                             [value]="selCity" (change)="onCityChange($event)"
                             [disabled]="selState === '' || (selState !== 'other' && cities.length === 0)">
                       <option value="">Select city...</option>
                       <option *ngFor="let c of cities" [value]="c.id">{{ c.name }}</option>
                       <option value="other">Other</option>
                     </select>
-                    <input *ngIf="selCity === 'other'" class="form-control mt-2" formControlName="city"
-                           placeholder="Enter city name"
-                           [class.is-invalid]="cityCtl.touched && cityCtl.invalid" />
+                    <div *ngIf="selCity === 'other'" class="input-group">
+                      <input class="form-control" formControlName="city" placeholder="Enter city name"
+                             [class.is-invalid]="cityCtl.touched && cityCtl.invalid" />
+                      <button type="button" class="btn btn-outline-secondary" (click)="clearCity()" title="Back to list">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
                     <small class="text-danger d-block mt-1" *ngIf="cityCtl.touched && cityCtl.errors?.['required']">
                       <i class="bi bi-exclamation-circle me-1"></i>City is required.
                     </small>
@@ -305,6 +320,30 @@ export class RegisterComponent implements OnInit {
       this.cityCtl.setValue('');
     }
     this.cityCtl.markAsTouched();
+  }
+
+  clearCountry(): void {
+    this.selCountry = '';
+    this.selState   = '';
+    this.selCity    = '';
+    this.states     = [];
+    this.cities     = [];
+    this.countryCtl.setValue('');
+    this.stateCtl.setValue('');
+    this.cityCtl.setValue('');
+  }
+
+  clearState(): void {
+    this.selState = '';
+    this.selCity  = '';
+    this.cities   = [];
+    this.stateCtl.setValue('');
+    this.cityCtl.setValue('');
+  }
+
+  clearCity(): void {
+    this.selCity = '';
+    this.cityCtl.setValue('');
   }
 
   submit(): void {

@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Subscription, filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationStore, StoredNotification } from '../../core/services/notification-store.service';
+import { SystemRolesService } from '../../core/services/system-roles.service';
 
 @Component({
   selector: 'app-public-layout',
@@ -45,8 +46,8 @@ import { NotificationStore, StoredNotification } from '../../core/services/notif
             <ng-template #loggedIn>
               <li class="nav-item" *ngIf="auth.isCustomer()"><a class="nav-link" routerLink="/customer">My account</a></li>
               <li class="nav-item" *ngIf="auth.isStaff()">
-                <a class="nav-link" [routerLink]="auth.isAdmin() ? '/admin' : '/staff'">
-                  {{ auth.currentUser()?.fullName || (auth.isAdmin() ? 'Admin' : 'Staff') }}
+                <a class="nav-link" [routerLink]="'/' + systemRoles.routePrefixFor(auth.privilegeLevel())">
+                  {{ auth.currentUser()?.fullName || systemRoles.displayNameFor(auth.privilegeLevel()) }}
                 </a>
               </li>
               <!-- Notification bell for logged-in users -->
@@ -154,6 +155,7 @@ export class PublicLayoutComponent implements OnInit, OnDestroy {
   destOpen = false;
 
   auth = inject(AuthService);
+  systemRoles = inject(SystemRolesService);
   private store = inject(NotificationStore);
   private router = inject(Router);
 

@@ -180,25 +180,5 @@ public class TravelDbContext : DbContext
             e.HasOne(x => x.Tour).WithMany().HasForeignKey(x => x.TourId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        SeedData(builder);
-    }
-
-    private static void SeedData(ModelBuilder builder)
-    {
-        var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        builder.Entity<User>().HasData(
-            new User
-            {
-                Id = 1,
-                FullName = "Administrator",
-                Email = "admin@travel.local",
-                Phone = "+910000000001",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
-                Role = UserRole.Admin,
-                IsActive = true,
-                CreatedAt = seedDate
-            }
-        );
     }
 }

@@ -80,7 +80,7 @@ public class AuthService : IAuthService
         };
 
         _db.Customers.Add(customer);
-        var globalToken = await RotateGlobalSessionAsync();
+        var sessionToken = AssignUserSession(user);
         await _db.SaveChangesAsync();
 
         FireEmail(user.Email, user.FullName,
@@ -95,7 +95,7 @@ public class AuthService : IAuthService
                  <p style=""color:#888;font-size:0.9em;"">If you did not create this account, please contact support immediately.</p>
                </div>");
 
-        var (token, expiresAt) = _tokens.GenerateToken(user, globalToken);
+        var (token, expiresAt) = _tokens.GenerateToken(user, sessionToken);
         return new AuthResponse
         {
             Token = token,
@@ -117,11 +117,11 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Your account has been deactivated. Please contact support to regain access.");
 
         user.LastLoginAt = DateTime.UtcNow;
-        var globalToken = await RotateGlobalSessionAsync();
+        var sessionToken = AssignUserSession(user);
         await _db.SaveChangesAsync();
 
         var perms = user.Role is UserRole.Staff or UserRole.Admin or UserRole.SuperAdmin ? await _staff.GetPermissionsByUserIdAsync(user.Id) : null;
-        var (token, expiresAt) = _tokens.GenerateToken(user, globalToken, perms);
+        var (token, expiresAt) = _tokens.GenerateToken(user, sessionToken, perms);
 
         FireEmail(user.Email, user.FullName,
             "Successful sign-in to Travel Management",
@@ -244,7 +244,7 @@ public class AuthService : IAuthService
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user is null || !user.IsActive)
-            return; // Never reveal whether the email exists
+            throw new InvalidOperationException("No account found with this email address.");
 
         var existing = _db.OtpRecords.Where(o => o.Email == user.Email);
         _db.OtpRecords.RemoveRange(existing);
@@ -334,28 +334,20 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task LogoutAsync()
+    public async Task LogoutAsync(int userId)
     {
-        var settings = await _db.AppSettings.FindAsync(1);
-        if (settings != null)
+        var user = await _db.Users.FindAsync(userId);
+        if (user != null)
         {
-            settings.ActiveSessionToken = null;
+            user.SessionToken = null;
             await _db.SaveChangesAsync();
         }
     }
 
-    private async Task<string> RotateGlobalSessionAsync()
+    private static string AssignUserSession(User user)
     {
         var newToken = Guid.NewGuid().ToString("N");
-        var settings = await _db.AppSettings.FindAsync(1);
-        if (settings != null)
-        {
-            settings.ActiveSessionToken = newToken;
-        }
-        else
-        {
-            _db.AppSettings.Add(new AppSetting { Id = 1, ActiveSessionToken = newToken });
-        }
+        user.SessionToken = newToken;
         return newToken;
     }
 
