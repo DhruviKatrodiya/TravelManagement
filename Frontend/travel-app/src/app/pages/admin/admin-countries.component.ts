@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Country } from '../../core/models/api.models';
 
 @Component({
@@ -12,30 +13,6 @@ import { Country } from '../../core/models/api.models';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Countries</h2>
       <button *ngIf="auth.hasPermission('countries.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add country</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate country?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This country will be hidden from dropdowns:</p>
-            <p class="fw-bold mb-0">{{ deleteTarget.name }}</p>
-            <p class="text-muted small mt-2 mb-0">States and cities under this country are unaffected. You can reactivate it at any time.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -118,12 +95,16 @@ import { Country } from '../../core/models/api.models';
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
                   <button *ngIf="auth.hasPermission('countries.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(c)"><i class="bi bi-pencil me-1"></i>Edit</button>
-                  <button *ngIf="c.isActive && auth.hasPermission('countries.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id">
+                  <button *ngIf="c.isActive && auth.hasPermission('countries.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="deletingId === c.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!c.isActive && auth.hasPermission('countries.toggle')" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id">
                     <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('countries.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(c)" [disabled]="permanentDeletingId === c.id" title="Permanently delete this record">
+                    <span *ngIf="permanentDeletingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== c.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -150,14 +131,15 @@ export class AdminCountriesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: Country[] = [];
   editingId: number | null = null;
   formError = '';
   @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
-  deleteTarget: Country | null = null;
-  deleting = false;
+  deletingId: number | null = null;
   togglingId: number | null = null;
+  permanentDeletingId: number | null = null;
   filterName = '';
   filterStatus: 'all' | 'active' | 'inactive' = 'all';
   sortKey: 'name' | 'status' | null = null;
@@ -175,7 +157,6 @@ export class AdminCountriesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
@@ -259,22 +240,25 @@ export class AdminCountriesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(c: Country): void { this.deleteTarget = c; this.lockBody(); }
-  cancelDelete(): void { if (!this.deleting) { this.deleteTarget = null; this.unlockBody(); } }
-
-  confirmDelete(): void {
-    const c = this.deleteTarget;
-    if (!c || this.deleting) return;
-    this.deleting = true;
+  async remove(c: Country): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate Country',
+      message: `Deactivate "${c.name}"?`,
+      detail: 'This country will be hidden from dropdowns. States and cities under it are unaffected. You can reactivate it at any time.',
+    });
+    if (!ok) return;
+    this.deletingId = c.id;
     this.api.setCountryActive(c.id, false).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        this.unlockBody();
-        this.toast.show(`"${c.name}" deactivated.`, 'info', 3000);
+        this.deletingId = null;
+        this.toast.show(`"${c.name}" deactivated.`, 'info', 3000, { title: 'Deactivated' });
         this.load();
       },
-      error: () => { this.deleting = false; this.toast.show('Could not deactivate. Please try again.', 'danger', 3000); }
+      error: (err: any) => {
+        this.deletingId = null;
+        const msg = err?.error?.message || 'Could not deactivate. Please try again.';
+        this.toast.show(msg, 'danger', 5000, { title: 'Deactivate failed' });
+      }
     });
   }
 
@@ -284,6 +268,27 @@ export class AdminCountriesComponent implements OnInit, OnDestroy {
     this.api.setCountryActive(c.id, true).subscribe({
       next: () => { this.togglingId = null; this.toast.show(`"${c.name}" activated.`, 'success', 3000); this.load(); },
       error: () => { this.togglingId = null; this.toast.show('Could not activate. Please try again.', 'danger', 3000); }
+    });
+  }
+
+  async permanentDelete(c: Country): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete country?',
+      message: `Delete "${c.name}" permanently?`,
+      detail: 'This will permanently remove the country from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = c.id;
+    this.api.deleteCountry(c.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`"${c.name}" permanently deleted.`, 'success', 4000, { title: 'Deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${c.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
+      }
     });
   }
 }

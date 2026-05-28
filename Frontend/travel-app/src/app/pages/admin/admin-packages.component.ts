@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Facility, Tour, TourPackage } from '../../core/models/api.models';
 
 @Component({
@@ -13,30 +14,6 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
     <div class="mb-4">
       <h2 class="fw-bold mb-1">Packages</h2>
       <p class="text-muted small mb-0">Manage packages from the Tours page. This screen lets you activate or deactivate them.</p>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger">Deactivate package?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This package will be hidden from customers and removed from active tour offerings:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.name }}" — {{ tourName(deleteTarget.tourId) }}</p>
-            <p class="text-muted small mb-0">It will stay in the database with status <strong>Hidden</strong> and can be activated again anytime. The package count on the Tours page will update.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting">Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -215,12 +192,16 @@ import { Facility, Tour, TourPackage } from '../../core/models/api.models';
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(p)" title="View package details"><i class="bi bi-eye me-1"></i>View</button>
-                  <button *ngIf="p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id" title="Hide this package from customers">
+                  <button *ngIf="p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="deletingId === p.id" title="Hide this package from customers">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!p.isActive && auth.hasPermission('packages.delete')" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id" title="Make this package visible again">
                     <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('packages.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(p)" [disabled]="permanentDeletingId === p.id" title="Permanently delete this package">
+                    <span *ngIf="permanentDeletingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== p.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -257,6 +238,7 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
+  confirmModal = inject(ConfirmModalService);
 
   tours: Tour[] = [];
   facilities: Facility[] = [];
@@ -267,8 +249,8 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
   selectedFacilityIds: number[] = [];
   currentItineraries: any[] = [];
 
-  deleteTarget: TourPackage | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterName = '';
@@ -334,17 +316,11 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -559,33 +535,25 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(p: TourPackage): void {
-    this.deleteTarget = p;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const p = this.deleteTarget;
-    if (!p || this.deleting) return;
-    this.deleting = true;
+  async remove(p: TourPackage): Promise<void> {
     const tName = this.tourName(p.tourId);
-    this.api.updatePackage(p.id, { ...p, isActive: false, facilityIds: (p.facilities || []).map(f => f.facilityId) } as any).subscribe({
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate package?',
+      message: `"${p.name}" — ${tName}`,
+      detail: 'This package will be hidden from customers. It stays in the database and can be activated again anytime.',
+      confirmLabel: 'Deactivate'
+    });
+    if (!ok) return;
+    this.deletingId = p.id;
+    this.api.updatePackage(p.id, { ...p, isActive: false, facilityIds: (p.facilities || []).map((f: any) => f.facilityId) } as any).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Package "${p.name}" of ${tName} is now hidden from customers.`, 'info', 4000, { title: 'Package deactivated' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not deactivate "${p.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        this.toast.show(err?.error?.message || `Could not deactivate "${p.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
   }
@@ -603,6 +571,28 @@ export class AdminPackagesComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${p.name}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(p: TourPackage): Promise<void> {
+    const tName = this.tourName(p.tourId);
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete package?',
+      message: `Delete "${p.name}" — ${tName} permanently?`,
+      detail: 'This will permanently remove the package from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = p.id;
+    this.api.deletePackage(p.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Package "${p.name}" has been permanently deleted.`, 'success', 4000, { title: 'Package deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${p.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

@@ -72,7 +72,7 @@ const managementChildren = [
   { path: 'cities',      component: AdminCitiesComponent,      canActivate: [authGuard], data: { permission: 'cities.view' } },
   { path: 'departments', component: AdminDepartmentsComponent, canActivate: [authGuard], data: { permission: 'departments.view' } },
   { path: 'designations',component: AdminDesignationsComponent,canActivate: [authGuard], data: { permission: 'designations.view' } },
-  { path: 'settings',    component: AdminSettingsComponent }
+  { path: 'settings',    component: AdminSettingsComponent,    canActivate: [authGuard], data: { permission: 'settings.view' } }
 ];
 
 const routes: Routes = [

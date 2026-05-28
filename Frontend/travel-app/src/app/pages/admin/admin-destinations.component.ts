@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { HomeDestination } from '../../core/models/api.models';
 
 @Component({
@@ -15,30 +16,6 @@ import { HomeDestination } from '../../core/models/api.models';
         <p class="text-muted small mb-0">Shown in the "Popular Destinations" section of the public home page.</p>
       </div>
       <button *ngIf="auth.hasPermission('destinations.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add destination</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate destination?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This destination will be hidden from the public home page:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.name }}" ({{ deleteTarget.country }})</p>
-            <p class="text-muted small mb-0">It will stay in the database with status <strong>Hidden</strong> and you can activate it again anytime.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -161,12 +138,16 @@ import { HomeDestination } from '../../core/models/api.models';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View destination details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('destinations.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(d)">Edit</button>
-                  <button *ngIf="d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this destination">
+                  <button *ngIf="d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="deletingId === d.id" title="Hide this destination">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!d.isActive && auth.hasPermission('destinations.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Make this destination visible again">
                     <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('destinations.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(d)" [disabled]="permanentDeletingId === d.id" title="Permanently delete this destination">
+                    <span *ngIf="permanentDeletingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== d.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -206,6 +187,7 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  confirmModal = inject(ConfirmModalService);
 
   items: HomeDestination[] = [];
   editingId: number | null = null;
@@ -214,8 +196,8 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
   previewBroken = false;
   formError = '';
 
-  deleteTarget: HomeDestination | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterName = '';
@@ -286,17 +268,11 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -461,32 +437,24 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(d: HomeDestination): void {
-    this.deleteTarget = d;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const d = this.deleteTarget;
-    if (!d || this.deleting) return;
-    this.deleting = true;
+  async remove(d: HomeDestination): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate destination?',
+      message: `"${d.name}" (${d.country})`,
+      detail: 'This destination will be hidden from the public home page. It stays in the database and can be activated again anytime.',
+      confirmLabel: 'Deactivate'
+    });
+    if (!ok) return;
+    this.deletingId = d.id;
     this.api.updateHomeDestination(d.id, { ...d, isActive: false } as any).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Destination "${d.name}" (${d.country}) is now hidden from the home page.`, 'info', 4000, { title: 'Destination deactivated' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not deactivate "${d.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        this.toast.show(err?.error?.message || `Could not deactivate "${d.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
   }
@@ -503,6 +471,27 @@ export class AdminDestinationsComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${d.name}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(d: HomeDestination): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete destination?',
+      message: `Delete "${d.name}" (${d.country}) permanently?`,
+      detail: 'This will permanently remove the destination from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = d.id;
+    this.api.deleteHomeDestination(d.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Destination "${d.name}" has been permanently deleted.`, 'success', 4000, { title: 'Destination deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${d.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

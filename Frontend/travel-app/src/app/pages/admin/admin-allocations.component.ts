@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Booking, Driver, Staff, Vehicle, VehicleAllocation } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -13,30 +14,6 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Vehicle, Staff &amp; Driver Allocations</h2>
       <button *ngIf="auth.hasPermission('allocations.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>New allocation</button>
-    </div>
-
-    <!-- Delete confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-trash me-2"></i>Remove allocation?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This will release the vehicle for these dates:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.vehicleName }}"</p>
-            <p class="text-muted small mb-0">From <strong>{{ deleteTarget.startDate | date:'mediumDate' }}</strong> to <strong>{{ deleteTarget.endDate | date:'mediumDate' }}</strong>. The booking itself is not affected.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Removing…' : 'Remove' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- New / Edit allocation modal -->
@@ -185,7 +162,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(a)" title="View allocation details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('allocations.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(a)">Edit</button>
-                  <button *ngIf="auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(a)" [disabled]="deleting && deleteTarget?.id === a.id" title="Remove this allocation">
+                  <button *ngIf="auth.hasPermission('allocations.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(a)" [disabled]="deletingId === a.id" title="Remove this allocation">
                     <i class="bi bi-trash me-1"></i>Remove
                   </button>
                 </div>
@@ -220,6 +197,7 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: VehicleAllocation[] = [];
   vehicles: Vehicle[] = [];
@@ -231,8 +209,7 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
   viewMode = false;
   formError = '';
 
-  deleteTarget: VehicleAllocation | null = null;
-  deleting = false;
+  deletingId: number | null = null;
 
   filterText = '';
   filterVehicleId = 0;
@@ -281,17 +258,11 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.creating) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -511,31 +482,23 @@ export class AdminAllocationsComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(a: VehicleAllocation): void {
-    this.deleteTarget = a;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (!this.creating) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const a = this.deleteTarget;
-    if (!a || this.deleting) return;
-    this.deleting = true;
+  async remove(a: VehicleAllocation): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Remove allocation',
+      message: `Remove allocation for "${a.vehicleName}"?`,
+      detail: 'This will release the vehicle for these dates. The booking itself is not affected.',
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
+    this.deletingId = a.id;
     this.api.deleteAllocation(a.id).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (!this.creating) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Allocation for "${a.vehicleName}" has been removed.`, 'info', 4000, { title: 'Allocation removed' });
         this.load();
       },
       error: () => {
-        this.deleting = false;
+        this.deletingId = null;
         this.toast.show(`Could not remove allocation. Please try again.`, 'danger', 4000, { title: 'Remove failed' });
       }
     });

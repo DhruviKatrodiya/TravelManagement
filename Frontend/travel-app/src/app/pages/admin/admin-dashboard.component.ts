@@ -15,37 +15,37 @@ Chart.register(...registerables);
     <div *ngIf="!stats" class="text-center py-5"><div class="spinner-border text-primary"></div></div>
 
     <ng-container *ngIf="stats">
-      <!-- KPI cards -->
+      <!-- KPI cards — each gated by its own permission -->
       <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.totalrevenue')">
           <div class="kpi"><div class="label">Total revenue</div><div class="value text-success">₹ {{ stats.totalRevenue | number:'1.0-0' }}</div><div class="sub">Lifetime</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.expenses')">
           <div class="kpi"><div class="label">Total expenses</div><div class="value text-danger">₹ {{ stats.totalExpenses | number:'1.0-0' }}</div><div class="sub">Lifetime</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.profit')">
           <div class="kpi"><div class="label">Profit</div><div class="value" [class.text-success]="stats.profit >= 0" [class.text-danger]="stats.profit < 0">₹ {{ stats.profit | number:'1.0-0' }}</div><div class="sub">Revenue − expenses</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.customers')">
           <div class="kpi"><div class="label">Customers</div><div class="value">{{ stats.totalCustomers }}</div><div class="sub">Registered</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.bookings')">
           <div class="kpi"><div class="label">Bookings</div><div class="value">{{ stats.totalBookings }}</div><div class="sub">{{ stats.confirmedBookings }} confirmed</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.pending')">
           <div class="kpi"><div class="label">Pending</div><div class="value text-warning">{{ stats.pendingBookings }}</div><div class="sub">Awaiting payment</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.tours_packages')">
           <div class="kpi"><div class="label">Tours / Packages</div><div class="value">{{ stats.activeTours }} / {{ stats.activePackages }}</div><div class="sub">Currently active</div></div>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" *ngIf="auth.hasPermission('dashboard.fleet')">
           <div class="kpi"><div class="label">Fleet</div><div class="value">{{ stats.vehiclesAvailable }} / {{ stats.driversAvailable }}</div><div class="sub">Vehicles / Drivers</div></div>
         </div>
       </div>
 
-      <!-- Charts -->
+      <!-- Charts — each gated independently -->
       <div class="row g-3 mb-4">
-        <div class="col-lg-6">
+        <div class="col-lg-6" *ngIf="auth.hasPermission('dashboard.revenue_chart')">
           <div class="table-card h-100">
             <h6 class="fw-bold mb-3">Monthly revenue</h6>
             <div style="position: relative; height: 260px;">
@@ -54,7 +54,7 @@ Chart.register(...registerables);
             <div *ngIf="noMonthlyRevenue()" class="text-center text-muted small mt-2">No revenue data in the last 6 months.</div>
           </div>
         </div>
-        <div class="col-lg-6">
+        <div class="col-lg-6" *ngIf="auth.hasPermission('dashboard.bookings_chart')">
           <div class="table-card h-100">
             <h6 class="fw-bold mb-3">Monthly bookings</h6>
             <div style="position: relative; height: 260px;">
@@ -66,7 +66,7 @@ Chart.register(...registerables);
       </div>
 
       <div class="row g-3">
-        <div class="col-lg-6">
+        <div class="col-lg-6" *ngIf="auth.hasPermission('dashboard.destinations_chart')">
           <div class="table-card h-100">
             <h6 class="fw-bold mb-3">Bookings by destination</h6>
             <div style="position: relative; height: 260px;">
@@ -75,7 +75,7 @@ Chart.register(...registerables);
             <div *ngIf="stats.bookingsByDestination.length === 0" class="text-center text-muted small mt-2">No destination data yet.</div>
           </div>
         </div>
-        <div class="col-lg-6">
+        <div class="col-lg-6" *ngIf="auth.hasPermission('dashboard.top_tours')">
           <div class="table-card h-100 d-flex flex-column">
             <h6 class="fw-bold mb-3">Top tours</h6>
             <table class="table table-sm mb-0">

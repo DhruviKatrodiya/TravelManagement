@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -73,8 +73,7 @@ export class LoginComponent {
   private fb          = inject(FormBuilder);
   private auth        = inject(AuthService);
   private router      = inject(Router);
-  private route       = inject(ActivatedRoute);
-  private toast       = inject(ToastService);
+private toast       = inject(ToastService);
   private systemRoles = inject(SystemRolesService);
 
   loading = false;
@@ -99,8 +98,8 @@ export class LoginComponent {
         if (r.success) {
           const user = r.data?.user;
           this.toast.show(`Welcome back, ${user?.fullName ?? 'there'}!`, 'success', 4000, { title: 'Signed in', persist: false });
-          const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-          this.router.navigateByUrl(returnUrl || this.defaultLanding());
+          const landing = this.defaultLanding();
+          this.router.navigateByUrl(landing);
         }
       },
       error: (err: any) => {
@@ -114,9 +113,11 @@ export class LoginComponent {
   private defaultLanding(): string {
     const user = this.auth.currentUser();
     if (!user) return '/';
+    // Customers land on the public home page; staff/admin go to their dashboard
+    if (user.privilegeLevel < this.systemRoles.staffMinLevel()) return '/';
     const fromConfig = this.systemRoles.defaultRouteFor(user.privilegeLevel);
     if (fromConfig && fromConfig !== '/') return fromConfig;
     // Fallback when _roles hasn't loaded yet: role name convention (SuperAdmin → /superadmin)
-    return user.privilegeLevel >= 1 ? '/' + user.role.toLowerCase() : '/customer';
+    return '/' + user.role.toLowerCase();
   }
 }

@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { TripProfit } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -30,7 +31,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
       </form>
     </div>
 
-    <!-- KPI cards (dashboard style) -->
+    <!-- KPI cards — each gated by its own permission -->
     <div class="row g-3 mb-3">
       <div class="col-md-3">
         <div class="kpi">
@@ -39,21 +40,21 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           <div class="sub">In selected period</div>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-3" *ngIf="auth.hasPermission('reports.revenue')">
         <div class="kpi">
           <div class="label">Revenue</div>
           <div class="value text-success">₹ {{ totals.revenue | number:'1.0-0' }}</div>
           <div class="sub">Booking income</div>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-3" *ngIf="auth.hasPermission('reports.expenses')">
         <div class="kpi">
           <div class="label">Expenses</div>
           <div class="value text-danger">₹ {{ totals.expenses | number:'1.0-0' }}</div>
           <div class="sub">Tracked costs</div>
         </div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-3" *ngIf="auth.hasPermission('reports.profit')">
         <div class="kpi">
           <div class="label">Profit</div>
           <div class="value" [class.text-success]="totals.profit >= 0" [class.text-danger]="totals.profit < 0">₹ {{ totals.profit | number:'1.0-0' }}</div>
@@ -81,9 +82,9 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <th class="sortable" (click)="toggleSort('date')">Trip date <i class="bi" [ngClass]="sortIcon('date')"></i></th>
               <th class="sortable" (click)="toggleSort('booking')">Booking <i class="bi" [ngClass]="sortIcon('booking')"></i></th>
               <th class="sortable" (click)="toggleSort('tour')">Tour <i class="bi" [ngClass]="sortIcon('tour')"></i></th>
-              <th class="sortable text-end" (click)="toggleSort('revenue')">Revenue <i class="bi" [ngClass]="sortIcon('revenue')"></i></th>
-              <th class="sortable text-end" (click)="toggleSort('expenses')">Expenses <i class="bi" [ngClass]="sortIcon('expenses')"></i></th>
-              <th class="sortable text-end" (click)="toggleSort('profit')">Profit <i class="bi" [ngClass]="sortIcon('profit')"></i></th>
+              <th *ngIf="auth.hasPermission('reports.revenue')"  class="sortable text-end" (click)="toggleSort('revenue')">Revenue <i class="bi" [ngClass]="sortIcon('revenue')"></i></th>
+              <th *ngIf="auth.hasPermission('reports.expenses')" class="sortable text-end" (click)="toggleSort('expenses')">Expenses <i class="bi" [ngClass]="sortIcon('expenses')"></i></th>
+              <th *ngIf="auth.hasPermission('reports.profit')"   class="sortable text-end" (click)="toggleSort('profit')">Profit <i class="bi" [ngClass]="sortIcon('profit')"></i></th>
             </tr>
           </thead>
           <tbody>
@@ -91,11 +92,11 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
               <td>{{ p.tripStartDate | date:'mediumDate' }}</td>
               <td><code>{{ p.bookingReference }}</code></td>
               <td>{{ p.tourName }}</td>
-              <td class="text-end">₹ {{ p.revenue | number:'1.0-0' }}</td>
-              <td class="text-end">₹ {{ p.expenses | number:'1.0-0' }}</td>
-              <td class="text-end" [class.text-success]="p.profit >= 0" [class.text-danger]="p.profit < 0">₹ {{ p.profit | number:'1.0-0' }}</td>
+              <td *ngIf="auth.hasPermission('reports.revenue')"  class="text-end">₹ {{ p.revenue | number:'1.0-0' }}</td>
+              <td *ngIf="auth.hasPermission('reports.expenses')" class="text-end">₹ {{ p.expenses | number:'1.0-0' }}</td>
+              <td *ngIf="auth.hasPermission('reports.profit')"   class="text-end" [class.text-success]="p.profit >= 0" [class.text-danger]="p.profit < 0">₹ {{ p.profit | number:'1.0-0' }}</td>
             </tr>
-            <tr *ngIf="filtered().length === 0"><td colspan="6" class="text-center text-muted py-3">{{ items.length === 0 ? 'No data for this period.' : 'No trips match the filters.' }}</td></tr>
+            <tr *ngIf="filtered().length === 0"><td [attr.colspan]="visibleReportCols" class="text-center text-muted py-3">{{ items.length === 0 ? 'No data for this period.' : 'No trips match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -121,7 +122,8 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
 })
 export class AdminReportsComponent implements OnInit {
   private api = inject(ApiService);
-  private fb = inject(FormBuilder);
+  private fb  = inject(FormBuilder);
+  auth        = inject(AuthService);
 
   items: TripProfit[] = [];
   filterText = '';
@@ -212,6 +214,14 @@ export class AdminReportsComponent implements OnInit {
   filtersApplied(): boolean {
     const v = this.form.getRawValue();
     return !!this.filterText || !!v.from || !!v.to;
+  }
+
+  get visibleReportCols(): number {
+    let n = 3; // date, booking, tour are always visible
+    if (this.auth.hasPermission('reports.revenue'))  n++;
+    if (this.auth.hasPermission('reports.expenses')) n++;
+    if (this.auth.hasPermission('reports.profit'))   n++;
+    return n;
   }
 
   totalPages(): number { return Math.max(1, Math.ceil(this.filtered().length / this.pageSize)); }

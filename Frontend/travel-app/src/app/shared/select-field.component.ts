@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, forwardRef } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, NgZone, OnDestroy, OnInit, Output, ViewChild, forwardRef, inject } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 declare const bootstrap: any;
@@ -54,7 +54,7 @@ export interface SelectOption {
     }
   ]
 })
-export class SelectFieldComponent implements ControlValueAccessor {
+export class SelectFieldComponent implements ControlValueAccessor, OnInit, OnDestroy {
   @Input() options: SelectOption[] = [];
   @Input() placeholder = 'Select…';
   @Input() size: '' | 'sm' = '';
@@ -62,6 +62,25 @@ export class SelectFieldComponent implements ControlValueAccessor {
   @Input() searchable = false;
   @Input() invalid = false;
   @Output() valueChange = new EventEmitter<string | number>();
+
+  private el = inject(ElementRef);
+  private ngZone = inject(NgZone);
+
+  private readonly onDocClick = (e: MouseEvent): void => {
+    if (!this.el.nativeElement.contains(e.target as Node)) {
+      this.close();
+    }
+  };
+
+  ngOnInit(): void {
+    this.ngZone.runOutsideAngular(() =>
+      document.addEventListener('click', this.onDocClick, true)
+    );
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('click', this.onDocClick, true);
+  }
 
   @ViewChild('toggleBtn') toggleBtn?: ElementRef<HTMLButtonElement>;
   @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;

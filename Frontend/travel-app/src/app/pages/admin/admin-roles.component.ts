@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { AppRole, AppRoleMember, CustomPermission } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -162,8 +163,12 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                              [id]="'perm-' + key"
                              [checked]="selectedPerms.has(key)"
                              (change)="togglePerm(key)" />
-                      <label class="form-check-label small" [attr.for]="'perm-' + key">
+                      <label class="form-check-label small d-inline-flex align-items-center gap-1" [attr.for]="'perm-' + key">
                         {{ permLabel(key) }}
+                        <i *ngIf="isViewKey(key)"
+                           class="bi bi-shield-lock-fill text-primary ms-1"
+                           style="font-size:.75rem;"
+                           title="Page access — this must be enabled for any other permission in this module to take effect"></i>
                       </label>
                     </div>
                   </div>
@@ -313,10 +318,15 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                     {{ viewingMember.permissions.length }} individual override{{ viewingMember.permissions.length !== 1 ? 's' : '' }}
                     assigned directly to <strong>{{ viewingMember.name }}</strong>
                   </div>
-                  <div class="d-flex flex-wrap gap-1">
-                    <span *ngFor="let key of viewingMember.permissions" class="badge bg-light text-dark border" style="font-size:.72rem;">
-                      {{ permLabel(key) }}
-                    </span>
+                  <div *ngFor="let group of groupPermsByModule(viewingMember.permissions)" class="mb-2">
+                    <div class="fw-semibold small mb-1" style="color: var(--tm-primary, #4f6c3a);">
+                      {{ moduleLabel(group.module) }}
+                    </div>
+                    <div class="d-flex flex-wrap gap-1">
+                      <span *ngFor="let key of group.perms" class="badge bg-light text-dark border" style="font-size:.72rem;">
+                        {{ permLabel(key) }}
+                      </span>
+                    </div>
                   </div>
                 </dd>
               </ng-container>
@@ -482,6 +492,10 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                       <span *ngIf="togglingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
                       <i *ngIf="togglingId !== row.role.id" class="bi bi-check2-circle me-1"></i>Activate
                     </button>
+                    <button *ngIf="auth.hasPermission('roles.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(row.role)" [disabled]="permanentDeletingId === row.role.id" title="Permanently delete this role">
+                      <span *ngIf="permanentDeletingId === row.role.id" class="spinner-border spinner-border-sm me-1"></span>
+                      <i *ngIf="permanentDeletingId !== row.role.id" class="bi bi-trash me-1"></i>Delete
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -596,8 +610,8 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                       <span *ngIf="togglingPermId === p.id" class="spinner-border spinner-border-sm me-1"></span>
                       <i *ngIf="togglingPermId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
                     </button>
-                    <button *ngIf="!p.isSystem" class="btn btn-sm btn-outline-danger" (click)="confirmDeletePerm(p)"
-                            [disabled]="deletingPermId === p.id" title="Delete">
+                    <button class="btn btn-sm btn-danger" (click)="confirmDeletePerm(p)"
+                            [disabled]="deletingPermId === p.id" title="Permanently delete this permission">
                       <span *ngIf="deletingPermId === p.id" class="spinner-border spinner-border-sm me-1"></span>
                       <i *ngIf="deletingPermId !== p.id" class="bi bi-trash me-1"></i>Delete
                     </button>
@@ -648,6 +662,7 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   private api   = inject(ApiService);
   private fb    = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
   auth          = inject(AuthService);
 
   items: AppRole[] = [];
@@ -712,6 +727,7 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   selectedPerms  = new Set<string>();
   expandedModules = new Set<string>();
   togglingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingPermId: number | null = null;
 
   @ViewChild('permModalBody') permModalBodyRef?: ElementRef<HTMLElement>;
@@ -902,8 +918,13 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
     }
   }
 
-  confirmDeletePerm(p: CustomPermission): void {
-    if (!confirm(`Delete permission "${p.key}"? This cannot be undone.`)) return;
+  async confirmDeletePerm(p: CustomPermission): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Delete Permission',
+      message: `Delete permission "${p.key}"?`,
+      detail: 'This will remove the permission from all roles and users it was assigned to.',
+    });
+    if (!ok) return;
     this.deletingPermId = p.id;
     this.api.deleteCustomPermission(p.id).subscribe({
       next: () => {
@@ -1110,9 +1131,29 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   // ── Permission helpers ─────────────────────────────────────────────────────
 
   togglePerm(key: string): void {
-    if (this.selectedPerms.has(key)) this.selectedPerms.delete(key);
-    else this.selectedPerms.add(key);
+    const dot    = key.indexOf('.');
+    const module = key.substring(0, dot);
+    const action = key.substring(dot + 1);
+    const viewKey = `${module}.view`;
+
+    if (this.selectedPerms.has(key)) {
+      this.selectedPerms.delete(key);
+      // Unchecking view revokes all permissions for this module
+      if (action === 'view') {
+        for (const k of this.permsCatalog) {
+          if (k.startsWith(module + '.')) this.selectedPerms.delete(k);
+        }
+      }
+    } else {
+      this.selectedPerms.add(key);
+      // Checking any non-view permission auto-grants view (page access prerequisite)
+      if (action !== 'view' && this.permsCatalog.includes(viewKey)) {
+        this.selectedPerms.add(viewKey);
+      }
+    }
   }
+
+  isViewKey(key: string): boolean { return key.endsWith('.view'); }
 
   selectAllPerms(on: boolean): void {
     if (on) this.permsCatalog.forEach(k => this.selectedPerms.add(k));
@@ -1163,8 +1204,12 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
   }
 
   rolePermsByModule(role: AppRole): { module: string; perms: string[] }[] {
+    return this.groupPermsByModule(role.permissions);
+  }
+
+  groupPermsByModule(keys: string[]): { module: string; perms: string[] }[] {
     const groups = new Map<string, string[]>();
-    for (const key of role.permissions) {
+    for (const key of keys) {
       const [mod] = key.split('.');
       const arr = groups.get(mod) ?? [];
       arr.push(key);
@@ -1181,7 +1226,14 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
       arr.push(key);
       groups.set(mod, arr);
     }
-    return Array.from(groups.entries()).map(([module, keys]) => ({ module, keys }));
+    return Array.from(groups.entries()).map(([module, keys]) => ({
+      module,
+      keys: [...keys].sort((a, b) => {
+        if (a.endsWith('.view') && !b.endsWith('.view')) return -1;
+        if (!a.endsWith('.view') &&  b.endsWith('.view')) return 1;
+        return a.localeCompare(b);
+      })
+    }));
   }
 
   // ── Misc ──────────────────────────────────────────────────────────────────
@@ -1307,6 +1359,27 @@ export class AdminRolesComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not update "${r.name}".`, 'danger', 4000, { title: 'Update failed' });
+      }
+    });
+  }
+
+  async permanentDelete(r: AppRole): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete role?',
+      message: `Delete role "${r.name}" permanently?`,
+      detail: 'This will permanently remove the role and revoke it from all assigned users. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = r.id;
+    this.api.deleteRole(r.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Role "${r.name}" permanently deleted.`, 'success', 4000, { title: 'Role deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete role "${r.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

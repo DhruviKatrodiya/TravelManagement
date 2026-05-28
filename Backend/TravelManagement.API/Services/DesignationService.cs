@@ -55,4 +55,13 @@ public class DesignationService : IDesignationService
         await _db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var d = await _db.Designations.FindAsync(id);
+        if (d == null) return false;
+        _db.Designations.Remove(d);
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

@@ -4,6 +4,7 @@ import { forkJoin } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Facility, HomeDestination, Tour, TourPackage } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -14,29 +15,6 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Tours</h2>
       <button *ngIf="auth.hasPermission('tours.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add tour</button>
-    </div>
-
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate tour?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This tour will be hidden from customers:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.name }}"</p>
-            <p class="text-muted small mb-0">It will stay in the database with status <strong>Hidden</strong> and you can activate it again anytime.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div *ngIf="editingId !== null" class="modal-backdrop fade show"></div>
@@ -290,12 +268,16 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(t)" title="View tour details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('tours.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(t)">Edit</button>
-                  <button *ngIf="t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(t)" [disabled]="togglingId === t.id" title="Hide this tour from customers">
+                  <button *ngIf="t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(t)" [disabled]="deletingId === t.id" title="Hide this tour from customers">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!t.isActive && auth.hasPermission('tours.delete')" class="btn btn-sm btn-outline-success" (click)="activate(t)" [disabled]="togglingId === t.id" title="Make this tour visible again">
                     <span *ngIf="togglingId === t.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== t.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('tours.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(t)" [disabled]="permanentDeletingId === t.id" title="Permanently delete this tour">
+                    <span *ngIf="permanentDeletingId === t.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== t.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -333,6 +315,7 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   tours: Tour[] = [];
   editingId: number | null = null;
@@ -341,8 +324,8 @@ export class AdminToursComponent implements OnInit, OnDestroy {
   previewBroken = false;
   formError = '';
 
-  deleteTarget: Tour | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterName = '';
@@ -528,17 +511,11 @@ export class AdminToursComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -854,32 +831,24 @@ export class AdminToursComponent implements OnInit, OnDestroy {
     this.api.listHomeDestinations(false).subscribe({ next: ds => this.homeDestinations = ds });
   }
 
-  remove(t: Tour): void {
-    this.deleteTarget = t;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const t = this.deleteTarget;
-    if (!t || this.deleting) return;
-    this.deleting = true;
+  async remove(t: Tour): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate Tour',
+      message: `Deactivate "${t.name}"?`,
+      detail: 'This tour will be hidden from customers. It will stay in the database with status Hidden and you can activate it again anytime.',
+    });
+    if (!ok) return;
+    this.deletingId = t.id;
     this.api.updateTour(t.id, { ...t, isActive: false } as any).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Tour "${t.name}" (${t.destination}) is now hidden from customers.`, 'info', 4000, { title: 'Tour deactivated' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not deactivate "${t.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        const msg = err?.error?.message || `Could not deactivate "${t.name}". Please try again.`;
+        this.toast.show(msg, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
   }
@@ -896,6 +865,27 @@ export class AdminToursComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${t.name}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(t: Tour): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete tour?',
+      message: `Delete "${t.name}" permanently?`,
+      detail: 'This will permanently remove the tour and all its packages from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = t.id;
+    this.api.deleteTour(t.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Tour "${t.name}" has been permanently deleted.`, 'success', 4000, { title: 'Tour deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${t.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

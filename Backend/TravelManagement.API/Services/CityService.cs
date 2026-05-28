@@ -58,4 +58,13 @@ public class CityService : ICityService
         await _db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var c = await _db.Cities.FindAsync(id);
+        if (c == null) return false;
+        _db.Cities.Remove(c);
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

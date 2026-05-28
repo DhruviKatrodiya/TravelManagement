@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Booking, Expense } from '../../core/models/api.models';
 
 @Component({
@@ -30,30 +31,6 @@ import { Booking, Expense } from '../../core/models/api.models';
           <div class="label">Entries</div>
           <div class="value">{{ activeCount }}</div>
           <div class="sub">{{ inactiveCount }} hidden (₹ {{ inactiveTotal | number:'1.0-0' }})</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate expense?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This expense will be hidden from active reports and totals:</p>
-            <p class="fw-bold mb-2">{{ deleteTarget.category }} — ₹ {{ deleteTarget.amount | number:'1.2-2' }}</p>
-            <p class="text-muted small mb-0">{{ deleteTarget.description }}. It stays in the database with status <strong>Hidden</strong> and can be activated again anytime. The Total expenses figure on the dashboard will update.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -174,12 +151,16 @@ import { Booking, Expense } from '../../core/models/api.models';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(e)" title="View expense details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('expenses.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(e)">Edit</button>
-                  <button *ngIf="e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(e)" [disabled]="togglingId === e.id" title="Hide this expense from reports">
+                  <button *ngIf="e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(e)" [disabled]="deletingId === e.id" title="Hide this expense from reports">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!e.isActive && auth.hasPermission('expenses.delete')" class="btn btn-sm btn-outline-success" (click)="activate(e)" [disabled]="togglingId === e.id" title="Include this expense again">
                     <span *ngIf="togglingId === e.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== e.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('expenses.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(e)" [disabled]="permanentDeletingId === e.id" title="Permanently delete this expense">
+                    <span *ngIf="permanentDeletingId === e.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== e.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -213,14 +194,15 @@ export class AdminExpensesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: Expense[] = [];
   bookings: Booking[] = [];
   editingId: number | null = null;
   viewMode = false;
 
-  deleteTarget: Expense | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   query = '';
@@ -265,16 +247,11 @@ export class AdminExpensesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
   private lockBody(): void { document.body.classList.add('modal-open'); }
   private unlockBody(): void { document.body.classList.remove('modal-open'); }
@@ -435,28 +412,23 @@ export class AdminExpensesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(e: Expense): void { this.deleteTarget = e; this.lockBody(); }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const e = this.deleteTarget;
-    if (!e || this.deleting) return;
-    this.deleting = true;
+  async remove(e: Expense): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate expense',
+      message: `Deactivate "${e.category}" — ₹ ${e.amount.toLocaleString()}?`,
+      detail: 'This expense will be hidden from active reports and totals. It stays in the database and can be activated again anytime. The Total expenses figure on the dashboard will update.',
+      confirmLabel: 'Deactivate',
+    });
+    if (!ok) return;
+    this.deletingId = e.id;
     this.api.updateExpense(e.id, this.toRequest(e, false)).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Expense "${e.category}" of ₹ ${e.amount.toLocaleString()} on ${new Date(e.expenseDate).toLocaleDateString()} is now hidden from reports.`, 'info', 4000, { title: 'Expense deactivated' });
         this.load();
       },
       error: () => {
-        this.deleting = false;
+        this.deletingId = null;
         this.toast.show(`Could not deactivate this expense. Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
@@ -474,6 +446,27 @@ export class AdminExpensesComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate this expense. Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(e: Expense): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete expense?',
+      message: `Delete "${e.category}" — ₹ ${e.amount.toLocaleString()} permanently?`,
+      detail: 'This will permanently remove the expense from the database and all reports. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = e.id;
+    this.api.deleteExpense(e.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Expense "${e.category}" has been permanently deleted.`, 'success', 4000, { title: 'Expense deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete this expense. Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

@@ -52,4 +52,13 @@ public class CountryService : ICountryService
         await _db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var c = await _db.Countries.FindAsync(id);
+        if (c == null) return false;
+        _db.Countries.Remove(c);
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

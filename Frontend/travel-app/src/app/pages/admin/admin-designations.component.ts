@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Department, Designation } from '../../core/models/api.models';
 
 @Component({
@@ -12,30 +13,6 @@ import { Department, Designation } from '../../core/models/api.models';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Designations</h2>
       <button *ngIf="auth.hasPermission('designations.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add designation</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate designation?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This designation will be hidden from staff dropdowns:</p>
-            <p class="fw-bold mb-0">{{ deleteTarget.name }} ({{ deleteTarget.departmentName }})</p>
-            <p class="text-muted small mt-2 mb-0">You can reactivate it at any time.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -128,12 +105,16 @@ import { Department, Designation } from '../../core/models/api.models';
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
                   <button *ngIf="auth.hasPermission('designations.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(d)"><i class="bi bi-pencil me-1"></i>Edit</button>
-                  <button *ngIf="d.isActive && auth.hasPermission('designations.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id">
+                  <button *ngIf="d.isActive && auth.hasPermission('designations.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="deletingId === d.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!d.isActive && auth.hasPermission('designations.toggle')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id">
                     <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('designations.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(d)" [disabled]="permanentDeletingId === d.id" title="Permanently delete this record">
+                    <span *ngIf="permanentDeletingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== d.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -160,15 +141,16 @@ export class AdminDesignationsComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: Designation[] = [];
   departments: Department[] = [];
   editingId: number | null = null;
   formError = '';
   @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
-  deleteTarget: Designation | null = null;
-  deleting = false;
+  deletingId: number | null = null;
   togglingId: number | null = null;
+  permanentDeletingId: number | null = null;
   filterName = '';
   filterDeptId: number | string = '';
   filterStatus: 'all' | 'active' | 'inactive' = 'all';
@@ -190,7 +172,6 @@ export class AdminDesignationsComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
@@ -253,16 +234,25 @@ export class AdminDesignationsComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(d: Designation): void { this.deleteTarget = d; this.lockBody(); }
-  cancelDelete(): void { if (!this.deleting) { this.deleteTarget = null; this.unlockBody(); } }
-
-  confirmDelete(): void {
-    const d = this.deleteTarget;
-    if (!d || this.deleting) return;
-    this.deleting = true;
+  async remove(d: Designation): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate Designation',
+      message: `Deactivate "${d.name}"?`,
+      detail: 'This designation will be hidden from staff dropdowns. You can reactivate it at any time.',
+    });
+    if (!ok) return;
+    this.deletingId = d.id;
     this.api.setDesignationActive(d.id, false).subscribe({
-      next: () => { this.deleting = false; this.deleteTarget = null; this.unlockBody(); this.toast.show(`"${d.name}" deactivated.`, 'info', 3000); this.load(); },
-      error: () => { this.deleting = false; this.toast.show('Could not deactivate. Please try again.', 'danger', 3000); }
+      next: () => {
+        this.deletingId = null;
+        this.toast.show(`"${d.name}" deactivated.`, 'info', 3000, { title: 'Deactivated' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.deletingId = null;
+        const msg = err?.error?.message || 'Could not deactivate. Please try again.';
+        this.toast.show(msg, 'danger', 5000, { title: 'Deactivate failed' });
+      }
     });
   }
 
@@ -272,6 +262,27 @@ export class AdminDesignationsComponent implements OnInit, OnDestroy {
     this.api.setDesignationActive(d.id, true).subscribe({
       next: () => { this.togglingId = null; this.toast.show(`"${d.name}" activated.`, 'success', 3000); this.load(); },
       error: () => { this.togglingId = null; this.toast.show('Could not activate. Please try again.', 'danger', 3000); }
+    });
+  }
+
+  async permanentDelete(d: Designation): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete designation?',
+      message: `Delete "${d.name}" permanently?`,
+      detail: 'This will permanently remove the designation from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = d.id;
+    this.api.deleteDesignation(d.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`"${d.name}" permanently deleted.`, 'success', 4000, { title: 'Deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${d.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
+      }
     });
   }
 }

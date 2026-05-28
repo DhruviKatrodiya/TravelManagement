@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Driver } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -13,30 +14,6 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Drivers</h2>
       <button *ngIf="auth.hasPermission('drivers.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add driver</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate driver?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This driver will be hidden from allocation lists:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.fullName }}" — {{ deleteTarget.licenseNumber }}</p>
-            <p class="text-muted small mb-0">Driver records stay in the database and can be reactivated at any time. Existing allocations are not affected.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -171,12 +148,16 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(d)" title="View driver details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('drivers.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(d)" [disabled]="!d.isActive">Edit</button>
-                  <button *ngIf="d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="togglingId === d.id" title="Hide this driver from allocation">
+                  <button *ngIf="d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(d)" [disabled]="deletingId === d.id" title="Hide this driver from allocation">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!d.isActive && auth.hasPermission('drivers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(d)" [disabled]="togglingId === d.id" title="Bring this driver back for allocation">
                     <span *ngIf="togglingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== d.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('drivers.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(d)" [disabled]="permanentDeletingId === d.id" title="Permanently delete this driver">
+                    <span *ngIf="permanentDeletingId === d.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== d.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -210,14 +191,15 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  confirmModal = inject(ConfirmModalService);
 
   items: Driver[] = [];
   editingId: number | null = null;
   viewMode = false;
   formError = '';
 
-  deleteTarget: Driver | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterText = '';
@@ -248,17 +230,11 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -421,32 +397,24 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(d: Driver): void {
-    this.deleteTarget = d;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const d = this.deleteTarget;
-    if (!d || this.deleting) return;
-    this.deleting = true;
+  async remove(d: Driver): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate driver?',
+      message: `"${d.fullName}" — ${d.licenseNumber}`,
+      detail: 'This driver will be hidden from allocation lists. Records stay in the database and can be reactivated at any time.',
+      confirmLabel: 'Deactivate'
+    });
+    if (!ok) return;
+    this.deletingId = d.id;
     this.api.setDriverActive(d.id, false).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Driver "${d.fullName}" has been hidden from allocation.`, 'info', 4000, { title: 'Driver deactivated' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not deactivate "${d.fullName}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        this.toast.show(err?.error?.message || `Could not deactivate "${d.fullName}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
   }
@@ -463,6 +431,27 @@ export class AdminDriversComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${d.fullName}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(d: Driver): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete driver?',
+      message: `Delete "${d.fullName}" permanently?`,
+      detail: 'This will permanently remove the driver from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = d.id;
+    this.api.deleteDriver(d.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Driver "${d.fullName}" has been permanently deleted.`, 'success', 4000, { title: 'Driver deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${d.fullName}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

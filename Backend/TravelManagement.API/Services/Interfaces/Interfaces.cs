@@ -210,6 +210,7 @@ public interface ICountryService
     Task<CountryDto> CreateAsync(CountryRequest req);
     Task<CountryDto?> UpdateAsync(int id, CountryRequest req);
     Task<bool> SetActiveAsync(int id, bool active);
+    Task<bool> DeleteAsync(int id);
 }
 
 public interface IStateService
@@ -219,6 +220,7 @@ public interface IStateService
     Task<StateDto> CreateAsync(StateRequest req);
     Task<StateDto?> UpdateAsync(int id, StateRequest req);
     Task<bool> SetActiveAsync(int id, bool active);
+    Task<bool> DeleteAsync(int id);
 }
 
 public interface ICityService
@@ -228,6 +230,7 @@ public interface ICityService
     Task<CityDto> CreateAsync(CityRequest req);
     Task<CityDto?> UpdateAsync(int id, CityRequest req);
     Task<bool> SetActiveAsync(int id, bool active);
+    Task<bool> DeleteAsync(int id);
 }
 
 public interface IDepartmentService
@@ -237,6 +240,7 @@ public interface IDepartmentService
     Task<DepartmentDto> CreateAsync(DepartmentRequest req);
     Task<DepartmentDto?> UpdateAsync(int id, DepartmentRequest req);
     Task<bool> SetActiveAsync(int id, bool active);
+    Task<bool> DeleteAsync(int id);
 }
 
 public interface IDesignationService
@@ -246,6 +250,7 @@ public interface IDesignationService
     Task<DesignationDto> CreateAsync(DesignationRequest req);
     Task<DesignationDto?> UpdateAsync(int id, DesignationRequest req);
     Task<bool> SetActiveAsync(int id, bool active);
+    Task<bool> DeleteAsync(int id);
 }
 
 public interface IRoleService

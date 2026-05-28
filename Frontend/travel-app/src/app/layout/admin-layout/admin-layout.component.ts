@@ -4,6 +4,7 @@ import { BrandService } from '../../core/services/brand.service';
 import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { NotificationStore, StoredNotification } from '../../core/services/notification-store.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Router } from '@angular/router';
 
 interface Lang { code: string; label: string; }
@@ -26,7 +27,7 @@ const LANG_KEY = 'travel.lang';
 
         <div class="d-flex align-items-center gap-2 nav-actions">
           <!-- Language -->
-          <div class="dropdown">
+          <div class="dropdown" *ngIf="auth.hasPermission('interface.language')">
             <button class="btn nav-pill dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-translate"></i>
               <span class="small fw-semibold">{{ currentLang().code }}</span>
@@ -42,12 +43,12 @@ const LANG_KEY = 'travel.lang';
           </div>
 
           <!-- Theme -->
-          <button class="btn nav-icon" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.mode() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+          <button *ngIf="auth.hasPermission('interface.theme')" class="btn nav-icon" type="button" (click)="theme.toggle()" [attr.aria-label]="theme.mode() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
             <i class="bi" [class.bi-sun]="theme.mode() === 'dark'" [class.bi-moon-stars]="theme.mode() === 'light'"></i>
           </button>
 
           <!-- Notifications -->
-          <button class="btn nav-icon position-relative" type="button" (click)="toggleNotifPanel()" [attr.aria-expanded]="notifPanelOpen()" aria-label="Notifications">
+          <button *ngIf="auth.hasPermission('interface.notifications')" class="btn nav-icon position-relative" type="button" (click)="toggleNotifPanel()" [attr.aria-expanded]="notifPanelOpen()" aria-label="Notifications">
             <i class="bi bi-bell"></i>
             <span *ngIf="unreadCount() > 0" class="notif-badge">{{ unreadCount() > 99 ? '99+' : unreadCount() }}</span>
           </button>
@@ -64,7 +65,7 @@ const LANG_KEY = 'travel.lang';
                 <span class="role-badge mt-1">{{ systemRoles.displayNameFor(auth.privilegeLevel()) }}</span>
               </div>
               <a class="dropdown-item" routerLink="/"><i class="bi bi-globe me-2"></i>View site</a>
-              <a class="dropdown-item" [routerLink]="basePath() + '/settings'"><i class="bi bi-gear me-2"></i>Settings</a>
+              <a class="dropdown-item" *ngIf="auth.hasPermission('settings.view')" [routerLink]="basePath() + '/settings'"><i class="bi bi-gear me-2"></i>Settings</a>
               <div class="dropdown-divider my-0"></div>
               <button class="dropdown-item text-danger" (click)="auth.logout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
             </div>
@@ -143,19 +144,69 @@ const LANG_KEY = 'travel.lang';
         <a *ngIf="auth.hasPermission('cities.view')" [routerLink]="basePath() + '/cities'" routerLinkActive="active"><i class="bi bi-building"></i> Cities</a>
         <a *ngIf="auth.hasPermission('departments.view')" [routerLink]="basePath() + '/departments'" routerLinkActive="active"><i class="bi bi-diagram-3"></i> Departments</a>
         <a *ngIf="auth.hasPermission('designations.view')" [routerLink]="basePath() + '/designations'" routerLinkActive="active"><i class="bi bi-person-badge-fill"></i> Designations</a>
-        <a [routerLink]="basePath() + '/settings'" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
+        <a *ngIf="auth.hasPermission('settings.view')" [routerLink]="basePath() + '/settings'" routerLinkActive="active"><i class="bi bi-gear"></i> Settings</a>
       </aside>
       <section class="content">
         <router-outlet></router-outlet>
       </section>
     </div>
+
+    <!-- ═══════ Global delete-confirmation modal ═══════ -->
+    <ng-container *ngIf="confirmModal.isOpen()">
+      <div class="modal-backdrop fade show" style="z-index:1070"></div>
+      <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true"
+           style="z-index:1071" (keydown.escape)="confirmModal.dismiss()">
+        <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+          <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
+
+            <!-- Header -->
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+              <div class="d-flex align-items-center gap-3">
+                <div class="flex-shrink-0 rounded-circle d-flex align-items-center justify-content-center"
+                     style="width:46px;height:46px;background:rgba(220,53,69,.12)">
+                  <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size:1.25rem"></i>
+                </div>
+                <h5 class="modal-title fw-bold mb-0">{{ confirmModal.options().title }}</h5>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body px-4 pt-3 pb-2">
+              <p class="fw-medium mb-2">{{ confirmModal.options().message }}</p>
+              <p *ngIf="confirmModal.options().detail" class="text-muted small mb-3">
+                {{ confirmModal.options().detail }}
+              </p>
+              <div class="d-flex align-items-center gap-2 rounded-2 px-3 py-2"
+                   style="background:rgba(255,193,7,.1);border:1px solid rgba(255,193,7,.35)">
+                <i class="bi bi-shield-exclamation text-warning flex-shrink-0"></i>
+                <small><strong>Warning:</strong> This action is permanent and cannot be undone.</small>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer border-0 px-4 pt-3 pb-4 gap-2">
+              <button type="button" class="btn btn-outline-secondary px-4"
+                      (click)="confirmModal.dismiss()">
+                <i class="bi bi-x-lg me-1"></i>Cancel
+              </button>
+              <button type="button" class="btn btn-danger px-4"
+                      (click)="confirmModal.accept()">
+                <i class="bi bi-trash3 me-1"></i>{{ confirmModal.options().confirmLabel ?? 'Delete' }}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </ng-container>
   `
 })
 export class AdminLayoutComponent implements OnInit, OnDestroy {
-  auth        = inject(AuthService);
-  brand       = inject(BrandService);
-  systemRoles = inject(SystemRolesService);
-  theme       = inject(ThemeService);
+  auth          = inject(AuthService);
+  brand         = inject(BrandService);
+  systemRoles   = inject(SystemRolesService);
+  theme         = inject(ThemeService);
+  confirmModal  = inject(ConfirmModalService);
   private store  = inject(NotificationStore);
   private router = inject(Router);
 

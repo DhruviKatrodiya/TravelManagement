@@ -55,4 +55,13 @@ public class StateService : IStateService
         await _db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var s = await _db.States.FindAsync(id);
+        if (s == null) return false;
+        _db.States.Remove(s);
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

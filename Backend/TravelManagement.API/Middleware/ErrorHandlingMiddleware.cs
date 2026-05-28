@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using TravelManagement.API.DTOs.Common;
 
 namespace TravelManagement.API.Middleware;
@@ -23,27 +24,48 @@ public class ErrorHandlingMiddleware
         }
         catch (Exception ex)
         {
-            var status = ex switch
+            string message;
+            HttpStatusCode status;
+
+            if (ex is DbUpdateException dbEx && IsForeignKeyViolation(dbEx))
             {
-                UnauthorizedAccessException => HttpStatusCode.Unauthorized,
-                KeyNotFoundException => HttpStatusCode.NotFound,
-                InvalidOperationException => HttpStatusCode.BadRequest,
-                ArgumentException => HttpStatusCode.BadRequest,
-                _ => HttpStatusCode.InternalServerError
-            };
-
-            if (status == HttpStatusCode.InternalServerError)
-                _logger.LogError(ex, "Unhandled exception");
+                status  = HttpStatusCode.Conflict;
+                message = "This record is in use, you can't delete this record.";
+                _logger.LogWarning(dbEx, "FK constraint violation on delete");
+            }
             else
-                _logger.LogWarning(ex, "Handled exception {Status}", status);
+            {
+                status = ex switch
+                {
+                    UnauthorizedAccessException => HttpStatusCode.Unauthorized,
+                    KeyNotFoundException        => HttpStatusCode.NotFound,
+                    InvalidOperationException   => HttpStatusCode.BadRequest,
+                    ArgumentException           => HttpStatusCode.BadRequest,
+                    _                           => HttpStatusCode.InternalServerError
+                };
+                message = ex.Message;
 
-            context.Response.StatusCode = (int)status;
+                if (status == HttpStatusCode.InternalServerError)
+                    _logger.LogError(ex, "Unhandled exception");
+                else
+                    _logger.LogWarning(ex, "Handled exception {Status}", status);
+            }
+
+            context.Response.StatusCode  = (int)status;
             context.Response.ContentType = "application/json";
-            var payload = ApiResponse<object>.Fail(ex.Message);
+            var payload = ApiResponse<object>.Fail(message);
             await context.Response.WriteAsync(JsonSerializer.Serialize(payload, new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             }));
         }
+    }
+
+    private static bool IsForeignKeyViolation(DbUpdateException ex)
+    {
+        var inner = ex.InnerException?.Message ?? string.Empty;
+        return inner.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase)
+            || inner.Contains("REFERENCE constraint", StringComparison.OrdinalIgnoreCase)
+            || inner.Contains("foreign key constraint", StringComparison.OrdinalIgnoreCase);
     }
 }

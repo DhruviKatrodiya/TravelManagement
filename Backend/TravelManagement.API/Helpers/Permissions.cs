@@ -65,7 +65,24 @@ public static class Permissions
     public const string ExpensesEdit = "expenses.edit";
     public const string ExpensesDelete = "expenses.delete";
 
-    public const string ReportsView = "reports.view";
+    public const string ReportsView     = "reports.view";
+    public const string ReportsRevenue  = "reports.revenue";
+    public const string ReportsExpenses = "reports.expenses";
+    public const string ReportsProfit   = "reports.profit";
+
+    // Dashboard widgets — each can be shown/hidden independently per role
+    public const string DashboardTotalRevenue       = "dashboard.totalrevenue";
+    public const string DashboardExpenses           = "dashboard.expenses";
+    public const string DashboardProfit             = "dashboard.profit";
+    public const string DashboardCustomers          = "dashboard.customers";
+    public const string DashboardBookings           = "dashboard.bookings";
+    public const string DashboardPending            = "dashboard.pending";
+    public const string DashboardToursPackages      = "dashboard.tours_packages";
+    public const string DashboardFleet              = "dashboard.fleet";
+    public const string DashboardRevenueChart       = "dashboard.revenue_chart";
+    public const string DashboardBookingsChart      = "dashboard.bookings_chart";
+    public const string DashboardDestinationsChart  = "dashboard.destinations_chart";
+    public const string DashboardTopTours           = "dashboard.top_tours";
 
     // Search permissions
     public const string ToursSearch       = "tours.search";
@@ -87,26 +104,31 @@ public static class Permissions
     public const string CountriesCreate = "countries.create";
     public const string CountriesEdit   = "countries.edit";
     public const string CountriesToggle = "countries.toggle";
+    public const string CountriesDelete = "countries.delete";
 
     public const string StatesView   = "states.view";
     public const string StatesCreate = "states.create";
     public const string StatesEdit   = "states.edit";
     public const string StatesToggle = "states.toggle";
+    public const string StatesDelete = "states.delete";
 
     public const string CitiesView   = "cities.view";
     public const string CitiesCreate = "cities.create";
     public const string CitiesEdit   = "cities.edit";
     public const string CitiesToggle = "cities.toggle";
+    public const string CitiesDelete = "cities.delete";
 
     public const string DepartmentsView   = "departments.view";
     public const string DepartmentsCreate = "departments.create";
     public const string DepartmentsEdit   = "departments.edit";
     public const string DepartmentsToggle = "departments.toggle";
+    public const string DepartmentsDelete = "departments.delete";
 
     public const string DesignationsView   = "designations.view";
     public const string DesignationsCreate = "designations.create";
     public const string DesignationsEdit   = "designations.edit";
     public const string DesignationsToggle = "designations.toggle";
+    public const string DesignationsDelete = "designations.delete";
 
     // Role management — restricted: Admin-tier users need explicit SuperAdmin assignment
     public const string RolesView   = "roles.view";
@@ -114,8 +136,16 @@ public static class Permissions
     public const string RolesCreate = "roles.create";
     public const string RolesDelete = "roles.delete";
 
+    // Interface / navbar controls
+    public const string InterfaceLanguage      = "interface.language";
+    public const string InterfaceTheme         = "interface.theme";
+    public const string InterfaceNotifications = "interface.notifications";
+
     // Settings
-    public const string SettingsEmail = "settings.email";
+    public const string SettingsView     = "settings.view";
+    public const string SettingsProfile  = "settings.profile";
+    public const string SettingsPassword = "settings.password";
+    public const string SettingsEmail    = "settings.email";
 
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -133,16 +163,20 @@ public static class Permissions
         PaymentsView,
         RefundsView, RefundsEdit,
         ExpensesView, ExpensesCreate, ExpensesEdit, ExpensesDelete,
-        ReportsView,
+        ReportsView, ReportsRevenue, ReportsExpenses, ReportsProfit,
+        DashboardTotalRevenue, DashboardExpenses, DashboardProfit, DashboardCustomers,
+        DashboardBookings, DashboardPending, DashboardToursPackages, DashboardFleet,
+        DashboardRevenueChart, DashboardBookingsChart, DashboardDestinationsChart, DashboardTopTours,
         ToursSearch, DestinationsSearch, PackagesSearch, FacilitiesSearch, SchedulesSearch,
         CustomersSearch, BookingsSearch, PaymentsSearch, RefundsSearch, ExpensesSearch,
         VehiclesSearch, DriversSearch, AllocationsSearch, ReviewsSearch,
-        CountriesView, CountriesCreate, CountriesEdit, CountriesToggle,
-        StatesView, StatesCreate, StatesEdit, StatesToggle,
-        CitiesView, CitiesCreate, CitiesEdit, CitiesToggle,
-        DepartmentsView, DepartmentsCreate, DepartmentsEdit, DepartmentsToggle,
-        DesignationsView, DesignationsCreate, DesignationsEdit, DesignationsToggle,
+        CountriesView, CountriesCreate, CountriesEdit, CountriesToggle, CountriesDelete,
+        StatesView, StatesCreate, StatesEdit, StatesToggle, StatesDelete,
+        CitiesView, CitiesCreate, CitiesEdit, CitiesToggle, CitiesDelete,
+        DepartmentsView, DepartmentsCreate, DepartmentsEdit, DepartmentsToggle, DepartmentsDelete,
+        DesignationsView, DesignationsCreate, DesignationsEdit, DesignationsToggle, DesignationsDelete,
+        InterfaceLanguage, InterfaceTheme, InterfaceNotifications,
         RolesView, RolesEdit, RolesCreate, RolesDelete,
-        SettingsEmail
+        SettingsView, SettingsProfile, SettingsPassword, SettingsEmail
     };
 }

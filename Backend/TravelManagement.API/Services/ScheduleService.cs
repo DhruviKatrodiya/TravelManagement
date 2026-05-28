@@ -62,6 +62,11 @@ public class ScheduleService : IScheduleService
     {
         var s = await _db.TourSchedules.FindAsync(id);
         if (s == null) return false;
+
+        bool inUse = await _db.Bookings.AnyAsync(b => b.TourScheduleId == id);
+        if (inUse)
+            throw new InvalidOperationException("This record is in use, you can't delete this record.");
+
         _db.TourSchedules.Remove(s);
         await _db.SaveChangesAsync();
         return true;

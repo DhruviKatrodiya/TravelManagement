@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { AppRole, City, Country, Customer, GeoState } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -13,30 +14,6 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Customers</h2>
       <button *ngIf="auth.hasPermission('customers.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add customer</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate customer?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This customer will no longer be able to log in:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.fullName }}" — {{ deleteTarget.email }}</p>
-            <p class="text-muted small mb-0">Their bookings and history stay in the database. You can reactivate them at any time from this list.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -229,12 +206,16 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(c)" title="View customer details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(c)">Edit</button>
-                  <button *ngIf="c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="togglingId === c.id" title="Block this customer from logging in">
+                  <button *ngIf="c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(c)" [disabled]="deletingId === c.id" title="Block this customer from logging in">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!c.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-success" (click)="activate(c)" [disabled]="togglingId === c.id" title="Allow this customer to log in again">
                     <span *ngIf="togglingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== c.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('customers.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(c)" [disabled]="permanentDeletingId === c.id" title="Permanently delete this customer">
+                    <span *ngIf="permanentDeletingId === c.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== c.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -272,6 +253,7 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  confirmModal = inject(ConfirmModalService);
 
   items: Customer[] = [];
   countries: Country[] = [];
@@ -283,8 +265,8 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
   formError = '';
   showPassword = false;
 
-  deleteTarget: Customer | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
 
   filterName = '';
   filterCountry = '';
@@ -328,17 +310,11 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -557,32 +533,24 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
     }
   }
 
-  remove(c: Customer): void {
-    this.deleteTarget = c;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const c = this.deleteTarget;
-    if (!c || this.deleting) return;
-    this.deleting = true;
+  async remove(c: Customer): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate customer?',
+      message: `"${c.fullName}" — ${c.email}`,
+      detail: 'This customer will no longer be able to log in. Their bookings and history stay in the database and can be reactivated at any time.',
+      confirmLabel: 'Deactivate'
+    });
+    if (!ok) return;
+    this.deletingId = c.id;
     this.api.setCustomerActive(c.id, false).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Customer "${c.fullName}" can no longer log in.`, 'info', 4000, { title: 'Customer deactivated' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not deactivate "${c.fullName}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        this.toast.show(err?.error?.message || `Could not deactivate "${c.fullName}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
   }
@@ -599,6 +567,27 @@ export class AdminCustomersComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${c.fullName}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(c: Customer): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete customer?',
+      message: `Delete "${c.fullName}" permanently?`,
+      detail: 'This will permanently remove the customer and all their data from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = c.id;
+    this.api.deleteCustomer(c.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Customer "${c.fullName}" has been permanently deleted.`, 'success', 4000, { title: 'Customer deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${c.fullName}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

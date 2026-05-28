@@ -49,4 +49,10 @@ public class StatesController : ControllerBase
         => await _svc.SetActiveAsync(id, active)
             ? Ok(ApiResponse<object>.Ok(new { }, active ? "Activated" : "Deactivated"))
             : NotFound(ApiResponse<object>.Fail("Not found"));
+
+    [HttpDelete("{id}")]
+    [Authorize(Policy = "StaffOrAbove")]
+    [RequirePermission(Permissions.StatesDelete)]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(int id)
+        => await _svc.DeleteAsync(id) ? Ok(ApiResponse<object>.Ok(new { }, "Deleted")) : NotFound(ApiResponse<object>.Fail("Not found"));
 }

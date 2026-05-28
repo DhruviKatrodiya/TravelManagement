@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
 
 @Component({
@@ -12,30 +13,6 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Trip Calendar</h2>
       <button *ngIf="auth.hasPermission('schedules.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Schedule new trip</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Close this trip?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This scheduled trip will be closed and hidden from new bookings:</p>
-            <p class="fw-bold mb-2">{{ deleteTarget.tourName }} — {{ deleteTarget.packageName }}</p>
-            <p class="text-muted small mb-0">{{ deleteTarget.startDate | date:'mediumDate' }} → {{ deleteTarget.endDate | date:'mediumDate' }}. It will stay in the database with status <strong>Closed</strong> and you can reopen it anytime. Existing bookings are not affected.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Closing…' : 'Close trip' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -156,12 +133,16 @@ import { Tour, TourPackage, TourSchedule } from '../../core/models/api.models';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(s)" title="View trip details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('schedules.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(s)">Edit</button>
-                  <button *ngIf="s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id" title="Close this trip">
+                  <button *ngIf="s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="deletingId === s.id" title="Close this trip">
                     <i class="bi bi-eye-slash me-1"></i>Close
                   </button>
                   <button *ngIf="!s.isActive && auth.hasPermission('schedules.delete')" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id" title="Reopen this trip">
                     <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Reopen
+                  </button>
+                  <button *ngIf="auth.hasPermission('schedules.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(s)" [disabled]="permanentDeletingId === s.id" title="Permanently delete this schedule">
+                    <span *ngIf="permanentDeletingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== s.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -197,6 +178,7 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: TourSchedule[] = [];
   tours: Tour[] = [];
@@ -206,8 +188,8 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
   formError = '';
   @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
 
-  deleteTarget: TourSchedule | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterText = '';
@@ -245,16 +227,11 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
   private lockBody(): void { document.body.classList.add('modal-open'); }
   private unlockBody(): void { document.body.classList.remove('modal-open'); }
@@ -461,32 +438,27 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(s: TourSchedule): void { this.deleteTarget = s; this.lockBody(); }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const s = this.deleteTarget;
-    if (!s || this.deleting) return;
-    this.deleting = true;
+  async remove(s: TourSchedule): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Close trip',
+      message: `Close "${s.tourName} — ${s.packageName}"?`,
+      detail: 'This scheduled trip will be closed and hidden from new bookings. It will stay in the database with status Closed and you can reopen it anytime. Existing bookings are not affected.',
+      confirmLabel: 'Close trip',
+    });
+    if (!ok) return;
+    this.deletingId = s.id;
     this.api.updateSchedule(s.id, {
       tourId: s.tourId, tourPackageId: s.tourPackageId,
       startDate: this.toDateInput(s.startDate), endDate: this.toDateInput(s.endDate),
       availableSeats: s.availableSeats, isActive: false
     } as any).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Trip "${s.tourName} — ${s.packageName}" on ${this.fmtDate(s.startDate)} is now closed for bookings.`, 'info', 4000, { title: 'Trip closed' });
         this.load();
       },
       error: () => {
-        this.deleting = false;
+        this.deletingId = null;
         this.toast.show(`Could not close this trip. Please try again.`, 'danger', 4000, { title: 'Close failed' });
       }
     });
@@ -508,6 +480,27 @@ export class AdminSchedulesComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not reopen this trip. Please try again.`, 'danger', 4000, { title: 'Reopen failed' });
+      }
+    });
+  }
+
+  async permanentDelete(s: TourSchedule): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete schedule?',
+      message: `Delete "${s.tourName} — ${s.packageName}" permanently?`,
+      detail: 'This will permanently remove the schedule from the database. Existing bookings may be affected. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = s.id;
+    this.api.deleteSchedule(s.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Schedule "${s.tourName} — ${s.packageName}" has been permanently deleted.`, 'success', 4000, { title: 'Schedule deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete this schedule. Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

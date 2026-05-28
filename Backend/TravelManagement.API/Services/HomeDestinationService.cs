@@ -118,6 +118,12 @@ public class HomeDestinationService : IHomeDestinationService
     {
         var row = await _db.HomeDestinations.FindAsync(id);
         if (row == null) return false;
+
+        bool inUse = row.TourId.HasValue
+                  || await _db.HomeDestinationTours.AnyAsync(l => l.HomeDestinationId == id);
+        if (inUse)
+            throw new InvalidOperationException("This record is in use, you can't delete this record.");
+
         _db.HomeDestinations.Remove(row);
         await _db.SaveChangesAsync();
         return true;

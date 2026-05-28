@@ -66,7 +66,6 @@ public class CustomPermissionsController : ControllerBase
     {
         var perm = await _db.CustomPermissions.FindAsync(id);
         if (perm == null) return NotFound(ApiResponse<object>.Fail("Not found"));
-        if (perm.IsSystem) return BadRequest(ApiResponse<object>.Fail("System permissions cannot be deleted."));
 
         // Check if in use
         bool inUse = await _db.AppRolePermissions.AnyAsync(p => p.Permission == perm.Key)

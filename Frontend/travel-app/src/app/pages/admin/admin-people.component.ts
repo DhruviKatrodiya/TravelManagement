@@ -4,6 +4,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { AppRole, City, Country, Department, Designation, GeoState } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 import { Observable, map, of, switchMap, timer } from 'rxjs';
@@ -103,27 +104,6 @@ interface Person {
           </div>
           <div class="modal-footer">
             <button class="btn btn-outline-secondary" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header"><h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate person?</h5></div>
-          <div class="modal-body">
-            <p class="mb-1">This person will no longer be able to log in:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.fullName }}" — {{ deleteTarget.email }}</p>
-            <p class="text-muted small mb-0">Their records stay in the database. You can reactivate them at any time.</p>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>{{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
           </div>
         </div>
       </div>
@@ -429,12 +409,16 @@ interface Person {
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(p)"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(p)">Edit</button>
-                  <button *ngIf="p.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="togglingId === p.id">
+                  <button *ngIf="p.isActive && auth.hasPermission('customers.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(p)" [disabled]="deletingId === p.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!p.isActive && auth.hasPermission('customers.edit')" class="btn btn-sm btn-outline-success" (click)="activate(p)" [disabled]="togglingId === p.id">
                     <span *ngIf="togglingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== p.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('customers.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(p)" [disabled]="permanentDeletingId === p.id" title="Permanently delete this record">
+                    <span *ngIf="permanentDeletingId === p.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== p.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -464,6 +448,7 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
   private api   = inject(ApiService);
   private fb    = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: Person[] = [];
   roles: AppRole[] = [];
@@ -483,9 +468,9 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
   readonly pageSize = 15;
 
   viewTarget: Person | null = null;
-  deleteTarget: Person | null = null;
-  deleting = false;
+  deletingId: number | null = null;
   togglingId: number | null = null;
+  permanentDeletingId: number | null = null;
   editingId: number | null = null;
   editingPersonType: 'staff' | 'customer' | null = null;
   formError = '';
@@ -558,7 +543,6 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.viewTarget) { this.closeView(); return; }
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) { this.cancel(); return; }
   }
 
@@ -568,22 +552,32 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
 
   // ── View ──────────────────────────────────────────────────────────
   view(p: Person): void { this.viewTarget = p; this.lockBody(); }
-  closeView(): void { this.viewTarget = null; if (this.editingId === null && !this.deleteTarget) this.unlockBody(); }
+  closeView(): void { this.viewTarget = null; if (this.editingId === null) this.unlockBody(); }
   onViewBackdrop(e: MouseEvent): void { if ((e.target as HTMLElement).classList.contains('modal')) this.closeView(); }
 
   // ── Deactivate ────────────────────────────────────────────────────
-  remove(p: Person): void { this.deleteTarget = p; this.lockBody(); }
-  cancelDelete(): void { if (this.deleting) return; this.deleteTarget = null; if (this.editingId === null) this.unlockBody(); }
-  confirmDelete(): void {
-    const p = this.deleteTarget;
-    if (!p || this.deleting) return;
-    this.deleting = true;
+  async remove(p: Person): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate Person',
+      message: `Deactivate "${p.fullName}"?`,
+      detail: 'This person will no longer be able to log in. Their records stay in the database. You can reactivate them at any time.',
+    });
+    if (!ok) return;
+    this.deletingId = p.id;
     const op$ = p.personType === 'staff'
       ? this.api.updateStaff(p.id, { ...p, isActive: false } as any)
       : this.api.setCustomerActive(p.id, false);
     op$.subscribe({
-      next: () => { this.deleting = false; this.deleteTarget = null; if (this.editingId === null) this.unlockBody(); this.toast.show(`"${p.fullName}" deactivated.`, 'info', 4000, { title: 'Deactivated' }); this.loadAll(); },
-      error: () => { this.deleting = false; this.toast.show(`Could not deactivate "${p.fullName}".`, 'danger', 4000); }
+      next: () => {
+        this.deletingId = null;
+        this.toast.show(`"${p.fullName}" deactivated.`, 'info', 4000, { title: 'Deactivated' });
+        this.loadAll();
+      },
+      error: (err: any) => {
+        this.deletingId = null;
+        const msg = err?.error?.message || `Could not deactivate "${p.fullName}". Please try again.`;
+        this.toast.show(msg, 'danger', 5000, { title: 'Deactivate failed' });
+      }
     });
   }
 
@@ -596,6 +590,30 @@ export class AdminPeopleComponent implements OnInit, OnDestroy {
     op$.subscribe({
       next: () => { this.togglingId = null; this.toast.show(`"${p.fullName}" activated.`, 'success', 3000, { title: 'Activated' }); this.loadAll(); },
       error: () => { this.togglingId = null; this.toast.show(`Could not activate "${p.fullName}".`, 'danger', 4000); }
+    });
+  }
+
+  async permanentDelete(p: Person): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete person?',
+      message: `Delete "${p.fullName}" permanently?`,
+      detail: 'This will permanently remove this person and all their associated records from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = p.id;
+    const op$ = p.personType === 'staff'
+      ? this.api.deleteStaff(p.id)
+      : this.api.deleteCustomer(p.id);
+    op$.subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`"${p.fullName}" permanently deleted.`, 'success', 4000, { title: 'Deleted' });
+        this.loadAll();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${p.fullName}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
+      }
     });
   }
 

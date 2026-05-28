@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Facility } from '../../core/models/api.models';
 
 @Component({
@@ -12,30 +13,6 @@ import { Facility } from '../../core/models/api.models';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Facilities</h2>
       <button *ngIf="auth.hasPermission('facilities.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add facility</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate facility?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This facility will be hidden when adding packages:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.name }}" ({{ deleteTarget.type }})</p>
-            <p class="text-muted small mb-0">It will stay in the database with status <strong>Hidden</strong> and you can activate it again anytime.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -139,12 +116,16 @@ import { Facility } from '../../core/models/api.models';
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(f)" title="View facility details"><i class="bi bi-eye me-1"></i>View</button>
                   <button *ngIf="auth.hasPermission('facilities.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(f)">Edit</button>
-                  <button *ngIf="f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(f)" [disabled]="togglingId === f.id" title="Hide this facility">
+                  <button *ngIf="f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(f)" [disabled]="deletingId === f.id" title="Hide this facility">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!f.isActive && auth.hasPermission('facilities.delete')" class="btn btn-sm btn-outline-success" (click)="activate(f)" [disabled]="togglingId === f.id" title="Make this facility available again">
                     <span *ngIf="togglingId === f.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== f.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('facilities.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(f)" [disabled]="permanentDeletingId === f.id" title="Permanently delete this facility">
+                    <span *ngIf="permanentDeletingId === f.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== f.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -180,6 +161,7 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  confirmModal = inject(ConfirmModalService);
 
   items: Facility[] = [];
   editingId: number | null = null;
@@ -196,8 +178,8 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
     { value: 'inactive', label: 'Hidden' }
   ];
 
-  deleteTarget: Facility | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterName = '';
@@ -223,16 +205,11 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
   private lockBody(): void { document.body.classList.add('modal-open'); }
   private unlockBody(): void { document.body.classList.remove('modal-open'); }
@@ -371,29 +348,24 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(f: Facility): void { this.deleteTarget = f; this.lockBody(); }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const f = this.deleteTarget;
-    if (!f || this.deleting) return;
-    this.deleting = true;
+  async remove(f: Facility): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate facility?',
+      message: `"${f.name}" (${f.type})`,
+      detail: 'This facility will be hidden when adding packages. It stays in the database and can be activated again anytime.',
+      confirmLabel: 'Deactivate'
+    });
+    if (!ok) return;
+    this.deletingId = f.id;
     this.api.updateFacility(f.id, { ...f, isActive: false } as any).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Facility "${f.name}" (${f.type}) is now hidden from package builders.`, 'info', 4000, { title: 'Facility deactivated' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not deactivate "${f.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        this.toast.show(err?.error?.message || `Could not deactivate "${f.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
   }
@@ -410,6 +382,27 @@ export class AdminFacilitiesComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${f.name}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(f: Facility): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete facility?',
+      message: `Delete "${f.name}" (${f.type}) permanently?`,
+      detail: 'This will permanently remove the facility from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = f.id;
+    this.api.deleteFacility(f.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Facility "${f.name}" has been permanently deleted.`, 'success', 4000, { title: 'Facility deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${f.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

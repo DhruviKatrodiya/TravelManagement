@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { SystemRolesService } from '../../core/services/system-roles.service';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -8,15 +10,16 @@ import { ToastService } from '../../core/services/toast.service';
   selector: 'app-admin-settings',
   standalone: false,
   template: `
+    <ng-container *ngIf="auth.hasPermission('settings.view')">
     <h2 class="fw-bold mb-4">Settings</h2>
 
     <ul class="nav nav-tabs mb-3">
-      <li class="nav-item"><a class="nav-link" [class.active]="tab==='profile'" href="javascript:;" (click)="tab='profile'">Profile</a></li>
+      <li class="nav-item" *ngIf="auth.hasPermission('settings.profile')"><a class="nav-link" [class.active]="tab==='profile'" href="javascript:;" (click)="tab='profile'">Profile</a></li>
       <li class="nav-item" *ngIf="auth.hasPermission('settings.password')"><a class="nav-link" [class.active]="tab==='password'" href="javascript:;" (click)="tab='password'">Password</a></li>
       <li class="nav-item" *ngIf="auth.hasPermission('settings.email')"><a class="nav-link" [class.active]="tab==='email'" href="javascript:;" (click)="tab='email'">Email</a></li>
     </ul>
 
-    <div class="table-card" *ngIf="tab==='profile'">
+    <div class="table-card" *ngIf="tab==='profile' && auth.hasPermission('settings.profile')">
       <div class="d-flex align-items-center mb-1">
         <h5 class="fw-bold mb-0"><i class="bi bi-person-circle me-2"></i>My profile</h5>
       </div>
@@ -167,13 +170,16 @@ import { ToastService } from '../../core/services/toast.service';
       </div>
     </div>
 
+    </ng-container>
   `
 })
 export class AdminSettingsComponent implements OnInit {
-  auth = inject(AuthService);
-  private api = inject(ApiService);
-  private fb = inject(FormBuilder);
-  private toast = inject(ToastService);
+  auth        = inject(AuthService);
+  private systemRoles = inject(SystemRolesService);
+  private router      = inject(Router);
+  private api         = inject(ApiService);
+  private fb          = inject(FormBuilder);
+  private toast       = inject(ToastService);
 
   tab: 'profile' | 'password' | 'email' = 'profile';
 
@@ -206,8 +212,21 @@ export class AdminSettingsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    if (!this.auth.hasPermission('settings.view')) {
+      const prefix = this.systemRoles.routePrefixFor(this.auth.privilegeLevel());
+      this.router.navigateByUrl(prefix ? `/${prefix}` : '/');
+      return;
+    }
+    this.tab = this.firstAccessibleTab();
     const u = this.auth.currentUser();
     if (u) this.profileForm.patchValue({ fullName: u.fullName, email: u.email, phone: u.phone || '', role: u.role });
+  }
+
+  private firstAccessibleTab(): 'profile' | 'password' | 'email' {
+    if (this.auth.hasPermission('settings.profile')) return 'profile';
+    if (this.auth.hasPermission('settings.password')) return 'password';
+    if (this.auth.hasPermission('settings.email'))    return 'email';
+    return 'profile';
   }
 
   saveProfile(): void {

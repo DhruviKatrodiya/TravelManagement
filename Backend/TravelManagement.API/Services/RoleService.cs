@@ -115,11 +115,10 @@ public class RoleService : IRoleService
         var role = await _db.AppRoles.FirstOrDefaultAsync(r => r.Id == id);
         if (role == null) return false;
 
-        var staffWithRole = await _db.StaffMembers.Where(s => s.AppRoleId == id).ToListAsync();
-        staffWithRole.ForEach(s => s.AppRoleId = null);
-
-        var customersWithRole = await _db.Customers.Where(c => c.AppRoleId == id).ToListAsync();
-        customersWithRole.ForEach(c => c.AppRoleId = null);
+        bool inUse = await _db.StaffMembers.AnyAsync(s => s.AppRoleId == id)
+                  || await _db.Customers.AnyAsync(c => c.AppRoleId == id);
+        if (inUse)
+            throw new InvalidOperationException("This record is in use, you can't delete this record.");
 
         _db.AppRoles.Remove(role);
         await _db.SaveChangesAsync();

@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Country, GeoState } from '../../core/models/api.models';
 
 @Component({
@@ -12,30 +13,6 @@ import { Country, GeoState } from '../../core/models/api.models';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">States / Provinces</h2>
       <button *ngIf="auth.hasPermission('states.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add state</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate state?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This state will be hidden from dropdowns:</p>
-            <p class="fw-bold mb-0">{{ deleteTarget.name }} ({{ deleteTarget.countryName }})</p>
-            <p class="text-muted small mt-2 mb-0">You can reactivate it at any time.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -128,12 +105,16 @@ import { Country, GeoState } from '../../core/models/api.models';
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
                   <button *ngIf="auth.hasPermission('states.edit')" class="btn btn-sm btn-outline-secondary" (click)="edit(s)"><i class="bi bi-pencil me-1"></i>Edit</button>
-                  <button *ngIf="s.isActive && auth.hasPermission('states.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="togglingId === s.id">
+                  <button *ngIf="s.isActive && auth.hasPermission('states.toggle')" class="btn btn-sm btn-outline-danger" (click)="remove(s)" [disabled]="deletingId === s.id">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!s.isActive && auth.hasPermission('states.toggle')" class="btn btn-sm btn-outline-success" (click)="activate(s)" [disabled]="togglingId === s.id">
                     <span *ngIf="togglingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== s.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('states.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(s)" [disabled]="permanentDeletingId === s.id" title="Permanently delete this record">
+                    <span *ngIf="permanentDeletingId === s.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== s.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -160,15 +141,16 @@ export class AdminStatesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: GeoState[] = [];
   countries: Country[] = [];
   editingId: number | null = null;
   formError = '';
   @ViewChild('modalBody') modalBodyRef?: ElementRef<HTMLElement>;
-  deleteTarget: GeoState | null = null;
-  deleting = false;
+  deletingId: number | null = null;
   togglingId: number | null = null;
+  permanentDeletingId: number | null = null;
   filterName = '';
   filterCountryId: number | string = '';
   filterStatus: 'all' | 'active' | 'inactive' = 'all';
@@ -190,7 +172,6 @@ export class AdminStatesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
@@ -272,16 +253,25 @@ export class AdminStatesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(s: GeoState): void { this.deleteTarget = s; this.lockBody(); }
-  cancelDelete(): void { if (!this.deleting) { this.deleteTarget = null; this.unlockBody(); } }
-
-  confirmDelete(): void {
-    const s = this.deleteTarget;
-    if (!s || this.deleting) return;
-    this.deleting = true;
+  async remove(s: GeoState): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate State',
+      message: `Deactivate "${s.name}"?`,
+      detail: 'This state will be hidden from dropdowns. You can reactivate it at any time.',
+    });
+    if (!ok) return;
+    this.deletingId = s.id;
     this.api.setStateActive(s.id, false).subscribe({
-      next: () => { this.deleting = false; this.deleteTarget = null; this.unlockBody(); this.toast.show(`"${s.name}" deactivated.`, 'info', 3000); this.load(); },
-      error: () => { this.deleting = false; this.toast.show('Could not deactivate. Please try again.', 'danger', 3000); }
+      next: () => {
+        this.deletingId = null;
+        this.toast.show(`"${s.name}" deactivated.`, 'info', 3000, { title: 'Deactivated' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.deletingId = null;
+        const msg = err?.error?.message || 'Could not deactivate. Please try again.';
+        this.toast.show(msg, 'danger', 5000, { title: 'Deactivate failed' });
+      }
     });
   }
 
@@ -291,6 +281,27 @@ export class AdminStatesComponent implements OnInit, OnDestroy {
     this.api.setStateActive(s.id, true).subscribe({
       next: () => { this.togglingId = null; this.toast.show(`"${s.name}" activated.`, 'success', 3000); this.load(); },
       error: () => { this.togglingId = null; this.toast.show('Could not activate. Please try again.', 'danger', 3000); }
+    });
+  }
+
+  async permanentDelete(s: GeoState): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete state?',
+      message: `Delete "${s.name}" permanently?`,
+      detail: 'This will permanently remove the state from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = s.id;
+    this.api.deleteState(s.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`"${s.name}" permanently deleted.`, 'success', 4000, { title: 'Deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${s.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
+      }
     });
   }
 }

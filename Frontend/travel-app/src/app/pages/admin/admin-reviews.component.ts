@@ -2,6 +2,7 @@
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Review } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -48,30 +49,6 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" (click)="closeView()"><i class="bi bi-x-lg me-1"></i>Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delete confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-trash me-2"></i>Delete review?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This will permanently remove the review:</p>
-            <p class="fw-bold mb-1">"{{ deleteTarget.title || '(no title)' }}"</p>
-            <p class="text-muted small mb-0">By <strong>{{ deleteTarget.customerName }}</strong> on <strong>{{ deleteTarget.tourName }}</strong>. This action cannot be undone.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deleting…' : 'Delete' }}
-            </button>
           </div>
         </div>
       </div>
@@ -151,7 +128,7 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                     <span *ngIf="togglingId === r.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== r.id" class="bi bi-check2-circle me-1"></i>Approve
                   </button>
-                  <button *ngIf="auth.hasPermission('reviews.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(r)" [disabled]="deleting && deleteTarget?.id === r.id" title="Delete this review">
+                  <button *ngIf="auth.hasPermission('reviews.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(r)" [disabled]="deletingId === r.id" title="Delete this review">
                     <i class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
@@ -185,12 +162,12 @@ export class AdminReviewsComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: Review[] = [];
 
   viewTarget: Review | null = null;
-  deleteTarget: Review | null = null;
-  deleting = false;
+  deletingId: number | null = null;
   togglingId: number | null = null;
 
   filterText = '';
@@ -209,18 +186,12 @@ export class AdminReviewsComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.viewTarget) { this.closeView(); return; }
-    if (this.deleteTarget) this.cancelDelete();
   }
 
   view(r: Review): void { this.viewTarget = r; this.lockBody(); }
-  closeView(): void { this.viewTarget = null; if (!this.deleteTarget) this.unlockBody(); }
+  closeView(): void { this.viewTarget = null; this.unlockBody(); }
   onViewBackdrop(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.closeView();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -343,32 +314,24 @@ export class AdminReviewsComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(r: Review): void {
-    this.deleteTarget = r;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const r = this.deleteTarget;
-    if (!r || this.deleting) return;
-    this.deleting = true;
+  async remove(r: Review): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Delete review',
+      message: `Delete "${r.title || '(no title)'}"?`,
+      detail: `By ${r.customerName} on ${r.tourName}. This will permanently remove the review and cannot be undone.`,
+    });
+    if (!ok) return;
+    this.deletingId = r.id;
     this.api.deleteReview(r.id).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Review by "${r.customerName}" on "${r.tourName}" has been deleted.`, 'info', 4000, { title: 'Review deleted' });
         this.load();
       },
-      error: () => {
-        this.deleting = false;
-        this.toast.show(`Could not delete the review. Please try again.`, 'danger', 4000, { title: 'Delete failed' });
+      error: (err: any) => {
+        this.deletingId = null;
+        const msg = err?.error?.message || 'Could not delete. Please try again.';
+        this.toast.show(msg, 'danger', 5000, { title: 'Delete failed' });
       }
     });
   }

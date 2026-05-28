@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmModalService } from '../../core/services/confirm-modal.service';
 import { Vehicle } from '../../core/models/api.models';
 import { scrollAdminContentTop } from '../../core/utils/scroll';
 
@@ -13,30 +14,6 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-bold mb-0">Vehicles</h2>
       <button *ngIf="auth.hasPermission('vehicles.create')" class="btn btn-primary" (click)="startCreate()"><i class="bi bi-plus-lg me-1"></i>Add vehicle</button>
-    </div>
-
-    <!-- Deactivate confirmation -->
-    <div *ngIf="deleteTarget" class="modal-backdrop fade show"></div>
-    <div *ngIf="deleteTarget" class="modal fade show d-block" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title fw-bold text-danger"><i class="bi bi-eye-slash me-2"></i>Deactivate vehicle?</h5>
-          </div>
-          <div class="modal-body">
-            <p class="mb-2">This vehicle will be hidden from booking and allocation lists:</p>
-            <p class="fw-bold mb-2">"{{ deleteTarget.name }}" — {{ deleteTarget.registrationNumber }}</p>
-            <p class="text-muted small mb-0">It stays in fleet records and can be reactivated at any time. Existing allocations are not affected.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" (click)="cancelDelete()" [disabled]="deleting"><i class="bi bi-x-lg me-1"></i>Cancel</button>
-            <button type="button" class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-              <span *ngIf="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              {{ deleting ? 'Deactivating…' : 'Deactivate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Add/Edit modal -->
@@ -177,12 +154,16 @@ import { scrollAdminContentTop } from '../../core/utils/scroll';
                     <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Mark available
                   </button>
-                  <button *ngIf="v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(v)" [disabled]="deleting && deleteTarget?.id === v.id" title="Hide this vehicle from the fleet">
+                  <button *ngIf="v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-danger" (click)="remove(v)" [disabled]="deletingId === v.id" title="Hide this vehicle from the fleet">
                     <i class="bi bi-eye-slash me-1"></i>Deactivate
                   </button>
                   <button *ngIf="!v.isActive && auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-outline-success" (click)="activate(v)" [disabled]="togglingId === v.id" title="Bring this vehicle back into the fleet">
                     <span *ngIf="togglingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
                     <i *ngIf="togglingId !== v.id" class="bi bi-check2-circle me-1"></i>Activate
+                  </button>
+                  <button *ngIf="auth.hasPermission('vehicles.delete')" class="btn btn-sm btn-danger" (click)="permanentDelete(v)" [disabled]="permanentDeletingId === v.id" title="Permanently delete this vehicle">
+                    <span *ngIf="permanentDeletingId === v.id" class="spinner-border spinner-border-sm me-1"></span>
+                    <i *ngIf="permanentDeletingId !== v.id" class="bi bi-trash me-1"></i>Delete
                   </button>
                 </div>
               </td>
@@ -216,6 +197,7 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private fb = inject(FormBuilder);
   private toast = inject(ToastService);
+  private confirmModal = inject(ConfirmModalService);
 
   items: Vehicle[] = [];
   editingId: number | null = null;
@@ -223,8 +205,8 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
   formError = '';
   types = ['Car', 'SUV', 'MiniBus', 'Bus', 'Tempo', 'Other'];
 
-  deleteTarget: Vehicle | null = null;
-  deleting = false;
+  deletingId: number | null = null;
+  permanentDeletingId: number | null = null;
   togglingId: number | null = null;
 
   filterText = '';
@@ -257,17 +239,11 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.deleteTarget) { this.cancelDelete(); return; }
     if (this.editingId !== null) this.cancel();
   }
 
   onBackdropClick(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('modal')) this.cancel();
-  }
-
-  onDeleteBackdrop(event: MouseEvent): void {
-    if (this.deleting) return;
-    if ((event.target as HTMLElement).classList.contains('modal')) this.cancelDelete();
   }
 
   private lockBody(): void { document.body.classList.add('modal-open'); }
@@ -451,31 +427,23 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
     });
   }
 
-  remove(v: Vehicle): void {
-    this.deleteTarget = v;
-    this.lockBody();
-  }
-
-  cancelDelete(): void {
-    if (this.deleting) return;
-    this.deleteTarget = null;
-    if (this.editingId === null) this.unlockBody();
-  }
-
-  confirmDelete(): void {
-    const v = this.deleteTarget;
-    if (!v || this.deleting) return;
-    this.deleting = true;
+  async remove(v: Vehicle): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Deactivate vehicle',
+      message: `Deactivate "${v.name}" — ${v.registrationNumber}?`,
+      detail: 'This vehicle will be hidden from booking and allocation lists. It stays in fleet records and can be reactivated at any time. Existing allocations are not affected.',
+      confirmLabel: 'Deactivate',
+    });
+    if (!ok) return;
+    this.deletingId = v.id;
     this.api.setVehicleActive(v.id, false).subscribe({
       next: () => {
-        this.deleting = false;
-        this.deleteTarget = null;
-        if (this.editingId === null) this.unlockBody();
+        this.deletingId = null;
         this.toast.show(`Vehicle "${v.name}" has been hidden from the fleet.`, 'info', 4000, { title: 'Vehicle deactivated' });
         this.load();
       },
       error: () => {
-        this.deleting = false;
+        this.deletingId = null;
         this.toast.show(`Could not deactivate "${v.name}". Please try again.`, 'danger', 4000, { title: 'Deactivate failed' });
       }
     });
@@ -493,6 +461,27 @@ export class AdminVehiclesComponent implements OnInit, OnDestroy {
       error: () => {
         this.togglingId = null;
         this.toast.show(`Could not activate "${v.name}". Please try again.`, 'danger', 4000, { title: 'Activate failed' });
+      }
+    });
+  }
+
+  async permanentDelete(v: Vehicle): Promise<void> {
+    const ok = await this.confirmModal.confirm({
+      title: 'Permanently delete vehicle?',
+      message: `Delete "${v.name}" — ${v.registrationNumber} permanently?`,
+      detail: 'This will permanently remove the vehicle from the database. This action cannot be undone.',
+    });
+    if (!ok) return;
+    this.permanentDeletingId = v.id;
+    this.api.deleteVehicle(v.id).subscribe({
+      next: () => {
+        this.permanentDeletingId = null;
+        this.toast.show(`Vehicle "${v.name}" has been permanently deleted.`, 'success', 4000, { title: 'Vehicle deleted' });
+        this.load();
+      },
+      error: (err: any) => {
+        this.permanentDeletingId = null;
+        this.toast.show(err?.error?.message || `Could not delete "${v.name}". Please try again.`, 'danger', 4000, { title: 'Delete failed' });
       }
     });
   }

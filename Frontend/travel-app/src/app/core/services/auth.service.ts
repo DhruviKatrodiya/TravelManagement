@@ -17,6 +17,10 @@ export class AuthService {
   private readonly userSignal = signal<User | null>(this.readStoredUser());
   private sessionPoll$: Subscription | null = null;
   private readonly SESSION_POLL_MS = 30_000;
+  private readonly INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  private boundResetInactivity = () => this.resetInactivityTimer();
   readonly currentUser      = this.userSignal.asReadonly();
   readonly isAuthenticated  = computed(() => !!this.userSignal());
   readonly role             = computed<UserRole | null>(() => this.userSignal()?.role ?? null);
@@ -39,8 +43,11 @@ export class AuthService {
   constructor(private http: HttpClient, private router: Router, private systemRoles: SystemRolesService) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    // Resume polling if token already exists (e.g. page refresh within same tab)
-    if (this.getToken()) this.startSessionPoll();
+    // Resume polling and inactivity timer if token already exists (e.g. page refresh within same tab)
+    if (this.getToken()) {
+      this.startSessionPoll();
+      this.startInactivityTimer();
+    }
   }
 
   private startSessionPoll(): void {
@@ -58,6 +65,27 @@ export class AuthService {
   private stopSessionPoll(): void {
     this.sessionPoll$?.unsubscribe();
     this.sessionPoll$ = null;
+  }
+
+  private startInactivityTimer(): void {
+    this.clearInactivityTimer();
+    this.activityEvents.forEach(e => window.addEventListener(e, this.boundResetInactivity, { passive: true }));
+    this.inactivityTimer = setTimeout(() => this.forceLogout(), this.INACTIVITY_TIMEOUT_MS);
+  }
+
+  private clearInactivityTimer(): void {
+    if (this.inactivityTimer !== null) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+    this.activityEvents.forEach(e => window.removeEventListener(e, this.boundResetInactivity));
+  }
+
+  private resetInactivityTimer(): void {
+    if (this.inactivityTimer !== null) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = setTimeout(() => this.forceLogout(), this.INACTIVITY_TIMEOUT_MS);
+    }
   }
 
   login(req: LoginRequest): Observable<ApiResponse<AuthResponse>> {
@@ -101,22 +129,14 @@ export class AuthService {
     this.forceLogout();
   }
 
-  /** Force-logout without a backend call — used by the interceptor on 401. */
+  /** Force-logout without a backend call — used by the interceptor on 401 or inactivity timeout. */
   forceLogout(): void {
     this.stopSessionPoll();
-    const currentUrl = this.router.url;
+    this.clearInactivityTimer();
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
     this.userSignal.set(null);
-    // Only preserve returnUrl for authenticated routes — public pages (/, /tours, /about)
-    // should not be restored; after re-login defaultLanding() sends the user to their dashboard.
-    const PROTECTED = ['/superadmin', '/admin', '/staff', '/customer'];
-    const isProtected = PROTECTED.some(p => currentUrl?.startsWith(p));
-    if (isProtected) {
-      this.router.navigate(['/auth/login'], { queryParams: { returnUrl: currentUrl } });
-    } else {
-      this.router.navigateByUrl('/auth/login');
-    }
+    this.router.navigateByUrl('/auth/login');
   }
 
   getToken(): string | null {
@@ -128,6 +148,7 @@ export class AuthService {
     sessionStorage.setItem(USER_KEY, JSON.stringify(auth.user));
     this.userSignal.set(auth.user);
     this.startSessionPoll();
+    this.startInactivityTimer();
   }
 
   updateCachedUser(patch: Partial<User>): void {

@@ -51,4 +51,13 @@ public class DepartmentService : IDepartmentService
         await _db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var d = await _db.Departments.FindAsync(id);
+        if (d == null) return false;
+        _db.Departments.Remove(d);
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

@@ -193,6 +193,7 @@ export class ApiService {
   createCountry(req: any): Observable<Country> { return this.unwrap(this.http.post<ApiResponse<Country>>(`${this.base}/countries`, req)); }
   updateCountry(id: number, req: any): Observable<Country> { return this.unwrap(this.http.put<ApiResponse<Country>>(`${this.base}/countries/${id}`, req)); }
   setCountryActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/countries/${id}/active?active=${active}`, {})); }
+  deleteCountry(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/countries/${id}`)); }
 
   listStates(countryId?: number, activeOnly?: boolean): Observable<GeoState[]> {
     return this.unwrap(this.http.get<ApiResponse<GeoState[]>>(`${this.base}/states`, { params: this.toParams({ countryId, activeOnly }) }));
@@ -200,6 +201,7 @@ export class ApiService {
   createState(req: any): Observable<GeoState> { return this.unwrap(this.http.post<ApiResponse<GeoState>>(`${this.base}/states`, req)); }
   updateState(id: number, req: any): Observable<GeoState> { return this.unwrap(this.http.put<ApiResponse<GeoState>>(`${this.base}/states/${id}`, req)); }
   setStateActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/states/${id}/active?active=${active}`, {})); }
+  deleteState(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/states/${id}`)); }
 
   listCities(stateId?: number, countryId?: number, activeOnly?: boolean): Observable<City[]> {
     return this.unwrap(this.http.get<ApiResponse<City[]>>(`${this.base}/cities`, { params: this.toParams({ stateId, countryId, activeOnly }) }));
@@ -207,6 +209,7 @@ export class ApiService {
   createCity(req: any): Observable<City> { return this.unwrap(this.http.post<ApiResponse<City>>(`${this.base}/cities`, req)); }
   updateCity(id: number, req: any): Observable<City> { return this.unwrap(this.http.put<ApiResponse<City>>(`${this.base}/cities/${id}`, req)); }
   setCityActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/cities/${id}/active?active=${active}`, {})); }
+  deleteCity(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/cities/${id}`)); }
 
   listDepartments(activeOnly?: boolean): Observable<Department[]> {
     return this.unwrap(this.http.get<ApiResponse<Department[]>>(`${this.base}/departments`, { params: this.toParams({ activeOnly }) }));
@@ -214,6 +217,7 @@ export class ApiService {
   createDepartment(req: any): Observable<Department> { return this.unwrap(this.http.post<ApiResponse<Department>>(`${this.base}/departments`, req)); }
   updateDepartment(id: number, req: any): Observable<Department> { return this.unwrap(this.http.put<ApiResponse<Department>>(`${this.base}/departments/${id}`, req)); }
   setDepartmentActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/departments/${id}/active?active=${active}`, {})); }
+  deleteDepartment(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/departments/${id}`)); }
 
   listDesignations(departmentId?: number, activeOnly?: boolean): Observable<Designation[]> {
     return this.unwrap(this.http.get<ApiResponse<Designation[]>>(`${this.base}/designations`, { params: this.toParams({ departmentId, activeOnly }) }));
@@ -221,6 +225,7 @@ export class ApiService {
   createDesignation(req: any): Observable<Designation> { return this.unwrap(this.http.post<ApiResponse<Designation>>(`${this.base}/designations`, req)); }
   updateDesignation(id: number, req: any): Observable<Designation> { return this.unwrap(this.http.put<ApiResponse<Designation>>(`${this.base}/designations/${id}`, req)); }
   setDesignationActive(id: number, active: boolean): Observable<unknown> { return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.base}/designations/${id}/active?active=${active}`, {})); }
+  deleteDesignation(id: number): Observable<unknown> { return this.unwrap(this.http.delete<ApiResponse<unknown>>(`${this.base}/designations/${id}`)); }
 
   listRoles(activeOnly?: boolean): Observable<AppRole[]> {
     return this.unwrap(this.http.get<ApiResponse<AppRole[]>>(`${this.base}/roles`, { params: this.toParams({ activeOnly }) }));
