@@ -183,6 +183,7 @@ public interface IRefundService
     Task<IEnumerable<RefundDto>> ListAsync();
     Task<RefundDto> RequestAsync(int customerUserId, RefundCreateRequest req);
     Task<RefundDto?> ProcessAsync(int id, RefundProcessRequest req);
+    Task<RefundDto> AdminIssueAsync(AdminRefundIssueRequest req);
 }
 
 public interface IReviewService

@@ -26,6 +26,15 @@ public class RefundsController : ControllerBase
     public async Task<ActionResult<ApiResponse<RefundDto>>> RequestRefund(RefundCreateRequest req)
         => Ok(ApiResponse<RefundDto>.Ok(await _svc.RequestAsync(CurrentUserId, req), "Refund requested"));
 
+    [HttpPost("admin-issue")]
+    [Authorize(Policy = "AdminOrAbove")]
+    [RequirePermission(Permissions.RefundsEdit)]
+    public async Task<ActionResult<ApiResponse<RefundDto>>> AdminIssue(AdminRefundIssueRequest req)
+    {
+        var r = await _svc.AdminIssueAsync(req);
+        return Ok(ApiResponse<RefundDto>.Ok(r, "Refund issued"));
+    }
+
     [HttpPost("{id}/process")]
     [Authorize(Policy = "StaffOrAbove")]
     [RequirePermission(Permissions.RefundsEdit)]

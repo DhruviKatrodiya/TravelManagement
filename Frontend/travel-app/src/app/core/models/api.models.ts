@@ -345,6 +345,9 @@ export interface Refund {
   approvedAmount?: number;
   status: RefundStatus;
   adminNotes?: string;
+  refundMethod?: string;
+  transactionReference?: string;
+  paymentNotes?: string;
   requestedAt: string;
   processedAt?: string;
 }

@@ -25,6 +25,15 @@ public class Refund
     [MaxLength(500)]
     public string? AdminNotes { get; set; }
 
+    [MaxLength(50)]
+    public string? RefundMethod { get; set; }
+
+    [MaxLength(200)]
+    public string? TransactionReference { get; set; }
+
+    [MaxLength(500)]
+    public string? PaymentNotes { get; set; }
+
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ProcessedAt { get; set; }
 }

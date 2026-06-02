@@ -64,7 +64,7 @@ const LANG_KEY = 'travel.lang';
                 <div class="text-muted" style="font-size:.75rem">{{ auth.currentUser()?.email }}</div>
                 <span class="role-badge mt-1">{{ systemRoles.displayNameFor(auth.privilegeLevel()) }}</span>
               </div>
-              <a class="dropdown-item" routerLink="/"><i class="bi bi-globe me-2"></i>View site</a>
+              <a class="dropdown-item" routerLink="/" [queryParams]="{view: 'public'}"><i class="bi bi-globe me-2"></i>View site</a>
               <a class="dropdown-item" *ngIf="auth.hasPermission('settings.view')" [routerLink]="basePath() + '/settings'"><i class="bi bi-gear me-2"></i>Settings</a>
               <div class="dropdown-divider my-0"></div>
               <button class="dropdown-item text-danger" (click)="auth.logout()"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>

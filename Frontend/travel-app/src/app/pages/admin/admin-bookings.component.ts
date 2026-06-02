@@ -153,17 +153,10 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
                   <button class="btn btn-sm btn-outline-primary" (click)="view(b)" title="View booking details"><i class="bi bi-eye me-1"></i>View</button>
-                  <div class="dropdown" *ngIf="auth.hasPermission('bookings.edit')">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-strategy="fixed">Status</button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow">
-                      <li *ngFor="let s of statuses">
-                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="javascript:void(0)" (click)="setStatus(b, s)">
-                          <span>{{ s }}</span>
-                          <i class="bi bi-check2 text-success" *ngIf="b.status === s"></i>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
+                  <button class="btn btn-sm btn-outline-secondary" *ngIf="auth.hasPermission('bookings.edit')"
+                          (click)="openStatusMenu($event, b)">
+                    Status <i class="bi bi-chevron-down ms-1" style="font-size:.7rem"></i>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -189,12 +182,32 @@ import { Booking, BookingStatus, Tour } from '../../core/models/api.models';
         </nav>
       </div>
     </div>
-  `
+
+    <!-- Fixed-position status menu (breaks out of table overflow/transform ancestors) -->
+    <div *ngIf="statusMenuBooking" class="status-menu-backdrop" (click)="closeStatusMenu()"></div>
+    <ul *ngIf="statusMenuBooking" class="dropdown-menu show shadow status-fixed-menu"
+        [style.top.px]="menuY" [style.left.px]="menuX">
+      <li *ngFor="let s of statuses">
+        <a class="dropdown-item d-flex align-items-center justify-content-between"
+           href="javascript:void(0)" (click)="setStatusFromMenu(statusMenuBooking!, s)">
+          <span>{{ s }}</span>
+          <i class="bi bi-check2 text-success" *ngIf="statusMenuBooking!.status === s"></i>
+        </a>
+      </li>
+    </ul>
+  `,
+  styles: [`
+    .status-menu-backdrop { position: fixed; inset: 0; z-index: 1040; }
+    .status-fixed-menu { position: fixed; z-index: 1041; min-width: 160px; }
+  `]
 })
 export class AdminBookingsComponent implements OnInit {
   items: Booking[] = [];
   tours: Tour[] = [];
   viewing: Booking | null = null;
+  statusMenuBooking: Booking | null = null;
+  menuX = 0;
+  menuY = 0;
   query = '';
   statusFilter: string = '';
   tourFilter: string | number = '';
@@ -301,6 +314,21 @@ export class AdminBookingsComponent implements OnInit {
     const total = this.totalPages();
     if (p < 1 || p > total) return;
     this.page = p;
+  }
+
+  openStatusMenu(event: MouseEvent, b: Booking): void {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.statusMenuBooking = b;
+    this.menuX = rect.right - 160;
+    this.menuY = rect.bottom + 4;
+  }
+
+  closeStatusMenu(): void { this.statusMenuBooking = null; }
+
+  setStatusFromMenu(b: Booking, s: BookingStatus): void {
+    this.closeStatusMenu();
+    this.setStatus(b, s);
   }
 
   setStatus(b: Booking, s: BookingStatus): void {

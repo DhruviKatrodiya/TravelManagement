@@ -290,6 +290,9 @@ public class RefundDto
     public decimal? ApprovedAmount { get; set; }
     public RefundStatus Status { get; set; }
     public string? AdminNotes { get; set; }
+    public string? RefundMethod { get; set; }
+    public string? TransactionReference { get; set; }
+    public string? PaymentNotes { get; set; }
     public DateTime RequestedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
 }
@@ -299,6 +302,13 @@ public class RefundCreateRequest
     [Required] public int BookingId { get; set; }
     [Required, MaxLength(500)] public string Reason { get; set; } = string.Empty;
     [Range(0.01, double.MaxValue)] public decimal RequestedAmount { get; set; }
+}
+
+public class AdminRefundIssueRequest : RefundCreateRequest
+{
+    [MaxLength(50)] public string? RefundMethod { get; set; }
+    [MaxLength(200)] public string? TransactionReference { get; set; }
+    [MaxLength(500)] public string? PaymentNotes { get; set; }
 }
 
 public class RefundProcessRequest

@@ -133,6 +133,7 @@ export class ApiService {
   listRefunds(): Observable<Refund[]> { return this.unwrap(this.http.get<ApiResponse<Refund[]>>(`${this.base}/refunds`)); }
   requestRefund(req: any): Observable<Refund> { return this.unwrap(this.http.post<ApiResponse<Refund>>(`${this.base}/refunds`, req)); }
   processRefund(id: number, req: any): Observable<Refund> { return this.unwrap(this.http.post<ApiResponse<Refund>>(`${this.base}/refunds/${id}/process`, req)); }
+  adminIssueRefund(req: { bookingId: number; reason: string; requestedAmount: number; refundMethod?: string; transactionReference?: string; paymentNotes?: string }): Observable<Refund> { return this.unwrap(this.http.post<ApiResponse<Refund>>(`${this.base}/refunds/admin-issue`, req)); }
 
   listReviews(): Observable<Review[]> { return this.unwrap(this.http.get<ApiResponse<Review[]>>(`${this.base}/reviews`)); }
   listFeaturedReviews(take: number = 6): Observable<Review[]> { return this.unwrap(this.http.get<ApiResponse<Review[]>>(`${this.base}/reviews/featured`, { params: this.toParams({ take }) })); }

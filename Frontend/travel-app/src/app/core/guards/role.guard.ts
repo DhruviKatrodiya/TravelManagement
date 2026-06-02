@@ -12,7 +12,10 @@ import { SystemRolesService } from '../services/system-roles.service';
  * haven't loaded yet (e.g. APP_INITIALIZER race), the user is let through rather
  * than triggering a redirect loop back to '/'.
  */
-export const staffHomeRedirectGuard: CanActivateFn = () => {
+export const staffHomeRedirectGuard: CanActivateFn = (route) => {
+  // Allow staff to view the public site when navigated via "View site"
+  if (route.queryParams['view'] === 'public') return true;
+
   const auth        = inject(AuthService);
   const systemRoles = inject(SystemRolesService);
   const router      = inject(Router);

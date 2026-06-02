@@ -62,6 +62,51 @@ public class RefundService : IRefundService
         return _mapper.Map<RefundDto>(fresh);
     }
 
+    public async Task<RefundDto> AdminIssueAsync(AdminRefundIssueRequest req)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Customer).ThenInclude(c => c.User)
+            .FirstOrDefaultAsync(b => b.Id == req.BookingId)
+            ?? throw new KeyNotFoundException("Booking not found.");
+
+        var existing = await _db.Refunds.FirstOrDefaultAsync(r => r.BookingId == req.BookingId);
+        if (existing != null) throw new InvalidOperationException("A refund already exists for this booking.");
+
+        var refund = new Refund
+        {
+            BookingId = req.BookingId,
+            Reason = req.Reason,
+            RequestedAmount = req.RequestedAmount,
+            ApprovedAmount = req.RequestedAmount,
+            Status = RefundStatus.Processed,
+            RefundMethod = req.RefundMethod,
+            TransactionReference = req.TransactionReference,
+            PaymentNotes = req.PaymentNotes,
+            RequestedAt = DateTime.UtcNow,
+            ProcessedAt = DateTime.UtcNow
+        };
+        _db.Refunds.Add(refund);
+
+        booking.AmountPaid = Math.Max(0, booking.AmountPaid - req.RequestedAmount);
+        booking.Status = BookingStatus.Refunded;
+
+        await _db.SaveChangesAsync();
+
+        await _notify.CreateAsync(booking.Customer.UserId, NotificationType.RefundProcessed,
+            "Refund issued",
+            $"A refund of ₹{req.RequestedAmount:N2} has been issued for booking {booking.BookingReference}.",
+            $"/customer/bookings/{req.BookingId}");
+
+        _ = _email.SendAsync(booking.Customer.User.Email, booking.Customer.User.FullName,
+            $"Refund issued: {booking.BookingReference}",
+            $"<h2>Refund Issued</h2><p>A refund of <b>₹{req.RequestedAmount:N2}</b> has been issued for booking <b>{booking.BookingReference}</b>.<br/>Reason: {req.Reason}</p>");
+
+        var fresh = await _db.Refunds
+            .Include(r => r.Booking).ThenInclude(b => b.Customer).ThenInclude(c => c.User)
+            .FirstAsync(r => r.Id == refund.Id);
+        return _mapper.Map<RefundDto>(fresh);
+    }
+
     public async Task<RefundDto?> ProcessAsync(int id, RefundProcessRequest req)
     {
         var r = await _db.Refunds

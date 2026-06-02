@@ -2,15 +2,89 @@ import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/cor
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { Refund, RefundStatus } from '../../core/models/api.models';
+import { Booking, Refund, RefundStatus } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-admin-refunds',
   standalone: false,
   template: `
-    <div class="mb-4">
-      <h2 class="fw-bold mb-1">Refund requests</h2>
-      <p class="text-muted small mb-0">Review customer refund requests and approve or reject them. The customer is notified by email + in-app.</p>
+    <div class="mb-4 d-flex align-items-start justify-content-between flex-wrap gap-2">
+      <div>
+        <h2 class="fw-bold mb-1">Refund requests</h2>
+        <p class="text-muted small mb-0">Review customer refund requests and approve or reject them. The customer is notified by email + in-app.</p>
+      </div>
+      <button class="btn btn-primary btn-sm" *ngIf="auth.hasPermission('refunds.edit')" (click)="openIssueModal()">
+        <i class="bi bi-plus-lg me-1"></i>Issue Refund
+      </button>
+    </div>
+
+    <!-- Issue Refund modal -->
+    <div *ngIf="issueModalOpen" class="modal-backdrop fade show"></div>
+    <div *ngIf="issueModalOpen" class="modal fade show d-block" tabindex="-1" role="dialog" (click)="onIssueBackdrop($event)">
+      <div class="modal-dialog modal-dialog-centered" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title fw-bold"><i class="bi bi-arrow-return-left me-2"></i>Issue Refund</h5>
+            <button type="button" class="btn-close" (click)="closeIssueModal()"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Booking <span class="text-danger">*</span></label>
+              <select class="form-select" [(ngModel)]="issueForm.bookingId" (change)="onBookingSelect()">
+                <option value="">— Select a booking —</option>
+                <option *ngFor="let b of eligibleBookings()" [value]="b.id">
+                  {{ b.bookingReference }} — {{ b.customerName }} (₹ {{ b.amountPaid | number:'1.0-0' }} paid)
+                </option>
+              </select>
+              <div *ngIf="issueForm.bookingId && selectedBooking()" class="mt-1 small text-muted">
+                Tour: {{ selectedBooking()?.tourName }} · Status: {{ selectedBooking()?.status }}
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Refund amount (₹) <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" min="1" [(ngModel)]="issueForm.amount"
+                     [max]="selectedBooking()?.amountPaid || undefined" placeholder="Enter amount" />
+              <div class="form-text" *ngIf="selectedBooking()">
+                Max: ₹ {{ selectedBooking()!.amountPaid | number:'1.0-0' }} (amount paid)
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Reason <span class="text-danger">*</span></label>
+              <textarea class="form-control" rows="2" maxlength="500" [(ngModel)]="issueForm.reason"
+                        placeholder="Reason for refund…"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Refund method <span class="text-danger">*</span></label>
+              <select class="form-select" [(ngModel)]="issueForm.refundMethod">
+                <option value="">— Select method —</option>
+                <option value="BankTransfer">Bank Transfer</option>
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="OriginalMethod">Original Payment Method</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Transaction / Reference ID</label>
+              <input type="text" class="form-control" maxlength="200" [(ngModel)]="issueForm.transactionReference"
+                     placeholder="e.g. UTR123456, TXN789…" />
+              <div class="form-text">Bank UTR, UPI reference, or receipt number for the actual payment.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Payment notes</label>
+              <textarea class="form-control" rows="2" maxlength="500" [(ngModel)]="issueForm.paymentNotes"
+                        placeholder="Any additional notes about the payment…"></textarea>
+            </div>
+            <div *ngIf="issueError" class="alert alert-danger py-2 small">{{ issueError }}</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="closeIssueModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" (click)="submitIssueRefund()" [disabled]="issuing || !issueFormValid()">
+              <span *ngIf="issuing" class="spinner-border spinner-border-sm me-1"></span>
+              <i *ngIf="!issuing" class="bi bi-check2-circle me-1"></i>Issue Refund
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- View modal -->
@@ -42,6 +116,18 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
               <ng-container *ngIf="viewTarget.adminNotes">
                 <dt class="col-sm-5 text-muted">Admin notes</dt>
                 <dd class="col-sm-7">{{ viewTarget.adminNotes }}</dd>
+              </ng-container>
+              <ng-container *ngIf="viewTarget.refundMethod">
+                <dt class="col-sm-5 text-muted">Refund method</dt>
+                <dd class="col-sm-7">{{ refundMethodLabel(viewTarget.refundMethod) }}</dd>
+              </ng-container>
+              <ng-container *ngIf="viewTarget.transactionReference">
+                <dt class="col-sm-5 text-muted">Transaction ref</dt>
+                <dd class="col-sm-7"><code>{{ viewTarget.transactionReference }}</code></dd>
+              </ng-container>
+              <ng-container *ngIf="viewTarget.paymentNotes">
+                <dt class="col-sm-5 text-muted">Payment notes</dt>
+                <dd class="col-sm-7">{{ viewTarget.paymentNotes }}</dd>
               </ng-container>
             </dl>
           </div>
@@ -147,9 +233,16 @@ import { Refund, RefundStatus } from '../../core/models/api.models';
 export class AdminRefundsComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   items: Refund[] = [];
+  bookings: Booking[] = [];
   approveAmounts: Record<number, number> = {};
   processingId: number | null = null;
   viewTarget: Refund | null = null;
+
+  issueModalOpen = false;
+  issuing = false;
+  issueError = '';
+  issueForm: { bookingId: number | ''; amount: number | null; reason: string; refundMethod: string; transactionReference: string; paymentNotes: string } =
+    { bookingId: '', amount: null, reason: '', refundMethod: '', transactionReference: '', paymentNotes: '' };
 
   query = '';
   statusFilter = '';
@@ -172,11 +265,76 @@ export class AdminRefundsComponent implements OnInit, OnDestroy {
 
   constructor(private api: ApiService, private toast: ToastService) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.api.listBookings().subscribe({ next: bs => this.bookings = bs });
+  }
   ngOnDestroy(): void { this.unlockBody(); }
 
   @HostListener('document:keydown.escape')
   onEscape(): void { if (this.viewTarget) this.closeView(); }
+
+  openIssueModal(): void {
+    this.issueForm = { bookingId: '', amount: null, reason: '', refundMethod: '', transactionReference: '', paymentNotes: '' };
+    this.issueError = '';
+    this.issueModalOpen = true;
+    this.lockBody();
+  }
+
+  closeIssueModal(): void { this.issueModalOpen = false; this.unlockBody(); }
+
+  onIssueBackdrop(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('modal')) this.closeIssueModal();
+  }
+
+  onBookingSelect(): void {
+    const b = this.selectedBooking();
+    if (b) this.issueForm.amount = b.amountPaid;
+  }
+
+  eligibleBookings(): Booking[] {
+    const refundedIds = new Set(this.items.map(r => r.bookingId));
+    return this.bookings.filter(b =>
+      (b.status === 'Confirmed' || b.status === 'Completed') && !refundedIds.has(b.id)
+    );
+  }
+
+  selectedBooking(): Booking | undefined {
+    return this.bookings.find(b => b.id === Number(this.issueForm.bookingId));
+  }
+
+  issueFormValid(): boolean {
+    return !!this.issueForm.bookingId &&
+      !!this.issueForm.reason.trim() &&
+      !!this.issueForm.refundMethod &&
+      !!this.issueForm.amount && this.issueForm.amount > 0;
+  }
+
+  submitIssueRefund(): void {
+    if (!this.issueFormValid() || this.issuing) return;
+    this.issuing = true;
+    this.issueError = '';
+    this.api.adminIssueRefund({
+      bookingId: Number(this.issueForm.bookingId),
+      reason: this.issueForm.reason.trim(),
+      requestedAmount: this.issueForm.amount!,
+      refundMethod: this.issueForm.refundMethod || undefined,
+      transactionReference: this.issueForm.transactionReference.trim() || undefined,
+      paymentNotes: this.issueForm.paymentNotes.trim() || undefined
+    }).subscribe({
+      next: () => {
+        this.issuing = false;
+        this.closeIssueModal();
+        this.toast.show(`Refund of ₹ ${this.issueForm.amount!.toLocaleString()} issued successfully.`, 'success', 4000, { title: 'Refund issued' });
+        this.load();
+        this.api.listBookings().subscribe({ next: bs => this.bookings = bs });
+      },
+      error: (err) => {
+        this.issuing = false;
+        this.issueError = err?.error?.message || 'Failed to issue refund. Please try again.';
+      }
+    });
+  }
 
   view(r: Refund): void { this.viewTarget = r; this.lockBody(); }
   closeView(): void { this.viewTarget = null; this.unlockBody(); }
@@ -283,6 +441,10 @@ export class AdminRefundsComponent implements OnInit, OnDestroy {
         this.toast.show(`Could not process refund for ${r.bookingReference}. Please try again.`, 'danger', 4000, { title: 'Action failed' });
       }
     });
+  }
+
+  refundMethodLabel(m: string): string {
+    return ({ BankTransfer: 'Bank Transfer', UPI: 'UPI', Cash: 'Cash', OriginalMethod: 'Original Payment Method' } as Record<string, string>)[m] || m;
   }
 
   badge(s: string): string {
